@@ -196,12 +196,11 @@ td.val { font-weight: 600; white-space: nowrap; }
     <div style="font-size:13px;color:#8a93a8;margin-bottom:18px">Acesse seus dados sincronizados.</div>
     <div id="step1">
       <input id="authEmail" type="email" placeholder="Seu e-mail" style="width:100%;padding:11px;margin-bottom:12px;border:1.5px solid #2e3342;border-radius:9px;background:#151824;color:#e8ebf2;font-size:14px;outline:none">
-      <button onclick="authSendCode()" style="width:100%;padding:11px;border:none;border-radius:9px;background:#6d4bf6;color:#fff;font-weight:700;font-size:14px;cursor:pointer">Enviar código</button>
+      <button onclick="authSendCode()" style="width:100%;padding:11px;border:none;border-radius:9px;background:#6d4bf6;color:#fff;font-weight:700;font-size:14px;cursor:pointer">Enviar link de acesso</button>
     </div>
     <div id="step2" style="display:none">
-      <input id="authCode" inputmode="numeric" placeholder="Código de 6 dígitos" style="width:100%;padding:11px;margin-bottom:12px;border:1.5px solid #2e3342;border-radius:9px;background:#151824;color:#e8ebf2;font-size:16px;letter-spacing:3px;text-align:center;outline:none">
-      <button onclick="authVerify()" style="width:100%;padding:11px;border:none;border-radius:9px;background:#6d4bf6;color:#fff;font-weight:700;font-size:14px;cursor:pointer">Confirmar e entrar</button>
-      <button onclick="authReset()" style="width:100%;padding:9px;margin-top:8px;border:none;background:none;color:#8a93a8;font-size:12px;cursor:pointer">Trocar e-mail / reenviar</button>
+      <div style="font-size:13px;color:#aab3c5;line-height:1.5;margin-bottom:12px">📧 Enviamos um link de acesso para o seu e-mail. Abra a mensagem e clique em <b style="color:#e8ebf2">"Sign in"</b> — você será conectado automaticamente nesta página.</div>
+      <button onclick="authReset()" style="width:100%;padding:9px;border:none;background:none;color:#8a93a8;font-size:12px;cursor:pointer">Trocar e-mail / reenviar</button>
     </div>
     <div id="authMsg" style="font-size:12px;margin-top:12px;min-height:16px;color:#f07567"></div>
   </div>
@@ -668,25 +667,16 @@ function amsg(t,ok){ const e=document.getElementById("authMsg"); e.textContent=t
 async function authSendCode(){
   const email=document.getElementById("authEmail").value.trim();
   if(!email){ amsg("Digite seu e-mail."); return; }
-  amsg("Enviando código...", true);
-  const {error} = await _sb.auth.signInWithOtp({email, options:{shouldCreateUser:true}});
+  amsg("Enviando link...", true);
+  const {error} = await _sb.auth.signInWithOtp({email, options:{shouldCreateUser:true, emailRedirectTo:window.location.href}});
   if(error){ amsg(error.message); return; }
   document.getElementById("step1").style.display="none";
   document.getElementById("step2").style.display="block";
-  amsg("Código enviado! Confira seu e-mail.", true);
-}
-async function authVerify(){
-  const email=document.getElementById("authEmail").value.trim();
-  const token=document.getElementById("authCode").value.trim();
-  if(token.length<6){ amsg("Digite o código de 6 dígitos."); return; }
-  amsg("Verificando...", true);
-  const {error} = await _sb.auth.verifyOtp({email, token, type:"email"});
-  if(error) amsg(error.message);
+  amsg("");
 }
 function authReset(){
   document.getElementById("step2").style.display="none";
   document.getElementById("step1").style.display="block";
-  document.getElementById("authCode").value="";
   amsg("");
 }
 async function authLogout(){ await _sb.auth.signOut(); location.reload(); }
