@@ -192,9 +192,12 @@ td.val { font-weight: 600; white-space: nowrap; }
 
 <div id="authOverlay" style="position:fixed;inset:0;z-index:9999;background:#12141c;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
   <div style="background:#1b1e28;border:1px solid #2e3342;border-radius:16px;padding:28px;width:340px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.5)">
+    <div id="authLoading" style="text-align:center;padding:10px 0"><div style="font-size:14px;color:#8a93a8">Carregando…</div></div>
+    <div id="authHead" style="display:none">
     <div style="font-size:20px;font-weight:800;color:#e8ebf2;margin-bottom:4px">🔒 Entrar</div>
     <div style="font-size:13px;color:#8a93a8;margin-bottom:18px">Acesse seus dados sincronizados.</div>
-    <div id="step1">
+    </div>
+    <div id="step1" style="display:none">
       <input id="authEmail" type="email" placeholder="Seu e-mail" style="width:100%;padding:11px;margin-bottom:12px;border:1.5px solid #2e3342;border-radius:9px;background:#151824;color:#e8ebf2;font-size:14px;outline:none">
       <button onclick="authSendCode()" style="width:100%;padding:11px;border:none;border-radius:9px;background:#6d4bf6;color:#fff;font-weight:700;font-size:14px;cursor:pointer">Enviar link de acesso</button>
     </div>
@@ -662,7 +665,8 @@ window.__boot = function(){ load(); render(); };
 
 <script>
 const SB_URL="https://ovpncggowjhualakjaug.supabase.co", SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92cG5jZ2dvd2podWFsYWtqYXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NDI1MDIsImV4cCI6MjEwMDMxODUwMn0.yGWi4aWynDVhIEftBZcayGrbPxgqj93ckDua0zTr4zI", STATE_KEY="fin", STORAGE_KEY="fin5030";
-const _sb = window.supabase.createClient(SB_URL, SB_ANON);
+const _sb = window.supabase.createClient(SB_URL, SB_ANON, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}});
+function showLoginForm(){ document.getElementById("authLoading").style.display="none"; document.getElementById("authHead").style.display="block"; document.getElementById("step1").style.display="block"; }
 function amsg(t,ok){ const e=document.getElementById("authMsg"); e.textContent=t; e.style.color=ok?"#3ecf9a":"#f07567"; }
 async function authSendCode(){
   const email=document.getElementById("authEmail").value.trim();
@@ -710,7 +714,8 @@ if(typeof persist === "function"){ const _p = persist; persist = function(){ _p(
 // inicia
 (async function(){
   const {data:{session}} = await _sb.auth.getSession();
-  if(session) onLogin();
+  if(session){ onLogin(); }
+  else { showLoginForm(); }
   _sb.auth.onAuthStateChange((_e,s)=>{ if(s && document.getElementById("authOverlay").style.display!=="none") onLogin(); });
 })();
 </script>
