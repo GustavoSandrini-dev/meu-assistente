@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meu Assistente</title>
+<style>
+:root{color-scheme:dark}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#12141c;color:#e8ebf2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.wrap{max-width:640px;width:100%}
+h1{font-size:26px;margin-bottom:6px}
+.sub{color:#8a93a8;font-size:14px;margin-bottom:28px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:560px){.cards{grid-template-columns:1fr}}
+a.card{display:block;text-decoration:none;background:#1b1e28;border:1.5px solid #2e3342;border-radius:16px;padding:22px;color:#e8ebf2;transition:border-color .15s,transform .15s}
+a.card:hover{border-color:#6d4bf6;transform:translateY(-2px)}
+.emoji{font-size:34px}
+.ct{font-size:17px;font-weight:800;margin:10px 0 4px}
+.cd{font-size:13px;color:#8a93a8}
+.foot{margin-top:24px;font-size:12px;color:#57617a;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🚀 Meu Assistente</h1>
+  <p class="sub">Seus painéis pessoais, sincronizados e acessíveis de qualquer lugar.</p>
+  <div class="cards">
+    <a class="card" href="painel-financeiro-web.html">
+      <div class="emoji">💰</div>
+      <div class="ct">Painel Financeiro</div>
+      <div class="cd">Método 50/20/30, gastos, parcelas e rotina da semana.</div>
+    </a>
+    <a class="card" href="biblioteca-jogos-web.html">
+      <div class="emoji">🎮</div>
+      <div class="ct">Biblioteca de Jogos</div>
+      <div class="cd">Steam + Xbox, conquistas, ranking e metas de compra.</div>
+    </a>
+  </div>
+  <p class="foot">Dados protegidos por login · sincronizados via Supabase</p>
+</div>
+</body>
+</html>
