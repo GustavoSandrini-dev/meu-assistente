@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biblioteca de Jogos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root { color-scheme: light; }
+body[data-theme="dark"] { color-scheme: dark; }
+body[data-theme="light"]{
+  --bg:#f2f4f8; --card:#fff; --text:#1a2233; --muted:#6b7688; --border:#dce2ec;
+  --row:#eef1f7; --input:#fff; --accent:#6d4bf6; --accent-t:#fff; --shadow:0 1px 4px rgba(20,30,60,.07);
+  --bar:#e6eaf2; --gold:#f5b301;
+}
+body[data-theme="dark"]{
+  --bg:#12141c; --card:#1b1e28; --text:#e8ebf2; --muted:#8a93a8; --border:#2e3342;
+  --row:#252a38; --input:#151824; --accent:#8b6cff; --accent-t:#fff; --shadow:0 1px 6px rgba(0,0,0,.4);
+  --bar:#2e3342; --gold:#ffcf40;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); padding:20px; }
+.wrap { max-width:1100px; margin:0 auto; }
+.top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+h1 { font-size:22px; }
+.sub { color:var(--muted); font-size:13px; }
+.btn { background:none; border:1.5px solid var(--border); color:var(--muted); border-radius:9px; padding:8px 13px; font-size:13px; font-weight:600; cursor:pointer; }
+.btn:hover { border-color:var(--accent); color:var(--accent); }
+.btn.on { background:var(--accent); color:var(--accent-t); border-color:var(--accent); }
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; margin-bottom:18px; }
+.stat { background:var(--card); border-radius:12px; padding:13px 15px; box-shadow:var(--shadow); }
+.stat .n { font-size:22px; font-weight:800; }
+.stat .l { font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:600; }
+.tabs { display:flex; gap:8px; margin-bottom:14px; }
+.controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+input,select { padding:9px 12px; border:1.5px solid var(--border); border-radius:9px; font-size:14px; background:var(--input); color:var(--text); outline:none; }
+input:focus,select:focus { border-color:var(--accent); }
+#search { flex:1; min-width:180px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
+.game { background:var(--card); border-radius:14px; padding:14px; box-shadow:var(--shadow); border:1.5px solid transparent; }
+.game.rank-hl { border-color:var(--accent); }
+.ghead { display:flex; gap:12px; align-items:center; margin-bottom:10px; }
+.cover { width:52px; height:52px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800; color:#fff; flex-shrink:0; }
+.gname { font-size:15px; font-weight:700; line-height:1.2; }
+.gmeta { font-size:12px; color:var(--muted); margin-top:2px; }
+.bar { background:var(--bar); border-radius:6px; height:7px; overflow:hidden; margin:4px 0; }
+.bar > i { display:block; height:100%; border-radius:6px; background:var(--accent); }
+.row { display:flex; align-items:center; gap:8px; margin:8px 0; flex-wrap:wrap; }
+.row label { font-size:11px; color:var(--muted); font-weight:600; min-width:56px; }
+.stars { display:inline-flex; direction:ltr; cursor:pointer; }
+.star { position:relative; width:20px; height:20px; font-size:20px; line-height:20px; color:var(--bar); }
+.star .fill { position:absolute; left:0; top:0; overflow:hidden; color:var(--gold); white-space:nowrap; }
+.tag { font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; }
+.st-back{background:#e3e8f0;color:#57617a}.st-play{background:#dbeafe;color:#1d4ed8}
+.st-zer{background:#dcfce7;color:#15803d}.st-plat{background:#fef3c7;color:#b45309}.st-aband{background:#fee2e2;color:#b91c1c}
+.plat-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;color:#fff}
+.p-Steam{background:#1b2838}.p-Epic{background:#2a2a2a}.p-GOG{background:#7b2ff7}.p-Nintendo{background:#e60012}.p-Xbox{background:#107c10}.p-Outro{background:#555}
+.addbar{background:var(--card);border-radius:12px;padding:14px;box-shadow:var(--shadow);margin-bottom:16px;display:none}
+.addbar.open{display:block}
+.addgrid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:end}
+@media(max-width:700px){.addgrid{grid-template-columns:1fr 1fr}}
+.addgrid label{font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px}
+.del-mini{background:none;border:none;color:#c0392b;cursor:pointer;font-size:13px}
+textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padding:8px; font-size:13px; background:var(--input); color:var(--text); resize:vertical; min-height:38px; font-family:inherit; }
+.links { font-size:11px; margin-top:8px; display:flex; gap:12px; }
+.links a { color:var(--accent); text-decoration:none; }
+.hltb { font-size:12px; }
+.hltb b { color:var(--text); }
+.empty { text-align:center; color:var(--muted); padding:30px; }
+.note { background:var(--card); border-radius:12px; padding:12px 15px; box-shadow:var(--shadow); font-size:12.5px; color:var(--muted); margin-bottom:16px; }
+.rankpos { font-size:12px; font-weight:800; color:var(--accent); margin-right:2px; }
+.incent { background:linear-gradient(135deg,#6d4bf6,#9333ea); color:#fff; border-radius:14px; padding:16px 18px; margin-bottom:18px; box-shadow:0 3px 14px rgba(109,75,246,.35); }
+.incent .h { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.incent .title { font-size:15px; font-weight:800; }
+.incent .big { font-size:13px; opacity:.95; }
+.incent .pbar { background:rgba(255,255,255,.25); border-radius:8px; height:12px; overflow:hidden; margin:12px 0 6px; }
+.incent .pbar > i { display:block; height:100%; background:#fff; border-radius:8px; transition:width .4s; }
+.incent .tokens { font-size:26px; font-weight:900; }
+.incent button { background:#fff; color:#6d28d9; border:none; border-radius:9px; padding:9px 16px; font-weight:700; font-size:13px; cursor:pointer; }
+.incent button:disabled { opacity:.5; cursor:not-allowed; }
+.incent .sm { font-size:12px; opacity:.9; }
+</style>
+</head>
+<body data-theme="dark">
+
+<div id="authOverlay" style="position:fixed;inset:0;z-index:9999;background:#12141c;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <div style="background:#1b1e28;border:1px solid #2e3342;border-radius:16px;padding:28px;width:340px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.5)">
+    <div style="font-size:20px;font-weight:800;color:#e8ebf2;margin-bottom:4px">🔒 Entrar</div>
+    <div style="font-size:13px;color:#8a93a8;margin-bottom:18px">Acesse seus dados sincronizados.</div>
+    <input id="authEmail" type="email" placeholder="E-mail" style="width:100%;padding:11px;margin-bottom:10px;border:1.5px solid #2e3342;border-radius:9px;background:#151824;color:#e8ebf2;font-size:14px;outline:none">
+    <input id="authPass" type="password" placeholder="Senha" style="width:100%;padding:11px;margin-bottom:14px;border:1.5px solid #2e3342;border-radius:9px;background:#151824;color:#e8ebf2;font-size:14px;outline:none">
+    <button id="authBtn" onclick="authLogin()" style="width:100%;padding:11px;border:none;border-radius:9px;background:#6d4bf6;color:#fff;font-weight:700;font-size:14px;cursor:pointer">Entrar</button>
+    <button onclick="authSignup()" style="width:100%;padding:11px;margin-top:8px;border:1.5px solid #2e3342;border-radius:9px;background:none;color:#8a93a8;font-weight:600;font-size:13px;cursor:pointer">Criar conta</button>
+    <div id="authMsg" style="font-size:12px;margin-top:12px;min-height:16px;color:#f07567"></div>
+  </div>
+</div>
+<button id="logoutBtn" onclick="authLogout()" style="display:none;position:fixed;bottom:14px;right:14px;z-index:9000;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:20px;padding:8px 14px;font-size:12px;cursor:pointer">Sair</button>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>🎮 Biblioteca de Jogos</h1>
+      <p class="sub">Steam de <strong>sandrinigustavo</strong> · <span id="lastsync"></span></p>
+    </div>
+    <button class="btn" onclick="toggleTheme()" id="themeBtn">☀️ Claro</button>
+  </div>
+
+  <div class="note">
+    ⚙️ Conquistas e horas vêm da API da Steam. Tempos do <b>HowLongToBeat</b> são estimativas (campanha principal) para os títulos conhecidos — edite à vontade.
+    Compare suas conquistas ao vivo no <b>SteamHunters</b> pelo link de cada jogo. Suas notas, status e comentários ficam salvos neste app.
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div id="incentivo"></div>
+
+  <div class="tabs">
+    <button class="btn on" id="tabLib" onclick="setTab('lib')">📚 Biblioteca</button>
+    <button class="btn" id="tabRank" onclick="setTab('rank')">🏆 Ranking</button>
+  </div>
+
+  <div class="controls">
+    <input id="search" placeholder="Buscar jogo..." oninput="render()">
+    <select id="fStatus" onchange="render()">
+      <option value="">Todos os status</option>
+      <option value="back">📥 Backlog</option>
+      <option value="play">🎮 Jogando</option>
+      <option value="zer">✅ Zerado</option>
+      <option value="plat">🏆 Platinado</option>
+      <option value="aband">🚫 Abandonei</option>
+    </select>
+    <select id="fPlat" onchange="render()">
+      <option value="">Todas plataformas</option>
+      <option>Steam</option><option>Epic</option><option>GOG</option><option>Nintendo</option><option>Xbox</option><option>Outro</option>
+    </select>
+    <select id="sortBy" onchange="render()">
+      <option value="playtime">Ordenar: mais jogado</option>
+      <option value="rating">Ordenar: melhor nota</option>
+      <option value="ach">Ordenar: % conquistas</option>
+      <option value="name">Ordenar: nome (A-Z)</option>
+    </select>
+    <button class="btn" onclick="toggleAdd()">➕ Adicionar jogo</button>
+  </div>
+
+  <div class="addbar" id="addbar">
+    <div class="addgrid">
+      <div><label>Nome do jogo</label><input id="aName" placeholder="Ex: Hades"></div>
+      <div><label>Plataforma</label><select id="aPlat"><option>Epic</option><option>GOG</option><option>Nintendo</option><option>Xbox</option><option>Steam</option><option>Outro</option></select></div>
+      <div><label>Horas (opcional)</label><input id="aHours" type="number" min="0" step="0.1" placeholder="0"></div>
+      <div><label>Status</label><select id="aStatus"><option value="back">📥 Backlog</option><option value="play">🎮 Jogando</option><option value="zer">✅ Zerado</option><option value="plat">🏆 Platinado</option><option value="aband">🚫 Abandonei</option></select></div>
+      <button class="btn on" onclick="addManual()">Salvar</button>
+    </div>
+  </div>
+
+  <div id="list" class="grid"></div>
+</div>
+
+<script>
+const GAMES = [{"appid":730,"name":"Counter-Strike 2","playtime":88.0,"unlocked":1,"total":1,"hltb":0,"platform":"Steam"},{"appid":1245620,"name":"ELDEN RING","playtime":66.5,"unlocked":20,"total":42,"hltb":58,"platform":"Steam"},{"appid":601510,"name":"Yu-Gi-Oh! Duel Links","playtime":66.5,"unlocked":17,"total":20,"hltb":0,"platform":"Steam"},{"appid":374320,"name":"DARK SOULS™ III","playtime":65.6,"unlocked":27,"total":43,"hltb":32,"platform":"Steam"},{"appid":1364780,"name":"Street Fighter™ 6","playtime":57.1,"unlocked":15,"total":43,"hltb":23,"platform":"Steam"},{"appid":271590,"name":"Grand Theft Auto V Legacy","playtime":35.1,"unlocked":15,"total":77,"hltb":31,"platform":"Steam"},{"appid":2114740,"name":"Blasphemous 2","playtime":34.0,"unlocked":54,"total":60,"hltb":22,"platform":"Steam"},{"appid":960090,"name":"Bloons TD 6","playtime":32.1,"unlocked":28,"total":156,"hltb":52,"platform":"Steam"},{"appid":774361,"name":"Blasphemous","playtime":26.7,"unlocked":39,"total":45,"hltb":23,"platform":"Steam"},{"appid":208650,"name":"Batman™: Arkham Knight","playtime":23.0,"unlocked":54,"total":113,"hltb":16,"platform":"Steam"},{"appid":2379780,"name":"Balatro","playtime":17.6,"unlocked":8,"total":31,"hltb":22,"platform":"Steam"},{"appid":3081410,"name":"Battlefield™ 6 Open Beta","playtime":14.2,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":457140,"name":"Oxygen Not Included","playtime":14.2,"unlocked":4,"total":51,"hltb":0,"platform":"Steam"},{"appid":495140,"name":"NARUTO: Ultimate Ninja STORM","playtime":14.1,"unlocked":33,"total":50,"hltb":10,"platform":"Steam"},{"appid":3405690,"name":"EA SPORTS FC™ 26","playtime":12.8,"unlocked":1,"total":43,"hltb":0,"platform":"Steam"},{"appid":1623730,"name":"Palworld","playtime":12.1,"unlocked":4,"total":75,"hltb":40,"platform":"Steam"},{"appid":2784470,"name":"9 Kings","playtime":10.4,"unlocked":16,"total":54,"hltb":0,"platform":"Steam"},{"appid":531640,"name":"Eternal Card Game","playtime":10.0,"unlocked":4,"total":176,"hltb":0,"platform":"Steam"},{"appid":1778820,"name":"TEKKEN 8","playtime":9.6,"unlocked":20,"total":47,"hltb":20,"platform":"Steam"},{"appid":35140,"name":"Batman: Arkham Asylum GOTY Edition","playtime":9.1,"unlocked":25,"total":47,"hltb":12,"platform":"Steam"},{"appid":200260,"name":"Batman: Arkham City GOTY","playtime":8.5,"unlocked":23,"total":64,"hltb":15,"platform":"Steam"},{"appid":1997040,"name":"MARVEL SNAP","playtime":6.0,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":391540,"name":"Undertale","playtime":5.5,"unlocked":0,"total":0,"hltb":7,"platform":"Steam"},{"appid":307780,"name":"Mortal Kombat X","playtime":4.2,"unlocked":7,"total":73,"hltb":8,"platform":"Steam"},{"appid":227300,"name":"Euro Truck Simulator 2","playtime":4.0,"unlocked":3,"total":106,"hltb":0,"platform":"Steam"},{"appid":3337140,"name":"After Inc: Revival","playtime":3.5,"unlocked":17,"total":47,"hltb":0,"platform":"Steam"},{"appid":460950,"name":"Katana ZERO","playtime":2.7,"unlocked":0,"total":22,"hltb":0,"platform":"Steam"},{"appid":1422450,"name":"Deadlock","playtime":2.6,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":322330,"name":"Don't Starve Together","playtime":2.6,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":637650,"name":"FINAL FANTASY XV WINDOWS EDITION","playtime":2.4,"unlocked":14,"total":97,"hltb":0,"platform":"Steam"},{"appid":543870,"name":"NARUTO SHIPPUDEN: Ultimate Ninja STORM 2","playtime":2.1,"unlocked":6,"total":50,"hltb":0,"platform":"Steam"},{"appid":1002300,"name":"Fear & Hunger","playtime":1.8,"unlocked":0,"total":1,"hltb":0,"platform":"Steam"},{"appid":1818750,"name":"MultiVersus","playtime":1.8,"unlocked":4,"total":28,"hltb":0,"platform":"Steam"},{"appid":1962700,"name":"Subnautica 2","playtime":1.8,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":320300,"name":"Car Mechanic Simulator 2015","playtime":1.8,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":268910,"name":"Cuphead","playtime":1.7,"unlocked":3,"total":42,"hltb":0,"platform":"Steam"},{"appid":245170,"name":"Skullgirls 2nd Encore","playtime":1.5,"unlocked":1,"total":45,"hltb":0,"platform":"Steam"},{"appid":1599340,"name":"Lost Ark","playtime":1.4,"unlocked":3,"total":156,"hltb":0,"platform":"Steam"},{"appid":415200,"name":"Motorsport Manager","playtime":1.4,"unlocked":4,"total":73,"hltb":0,"platform":"Steam"},{"appid":1952120,"name":"Street Fighter™ 6 - Open Beta","playtime":1.3,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":444090,"name":"Paladins","playtime":1.3,"unlocked":2,"total":58,"hltb":0,"platform":"Steam"},{"appid":349040,"name":"NARUTO SHIPPUDEN: Ultimate Ninja STORM 4","playtime":1.2,"unlocked":4,"total":53,"hltb":0,"platform":"Steam"},{"appid":397900,"name":"Business Tour - Online Multiplayer Board Game","playtime":1.1,"unlocked":1,"total":19,"hltb":0,"platform":"Steam"},{"appid":493840,"name":"Marvel vs. Capcom: Infinite","playtime":1.0,"unlocked":4,"total":47,"hltb":0,"platform":"Steam"},{"appid":1938090,"name":"Call of Duty®","playtime":0.8,"unlocked":0,"total":157,"hltb":0,"platform":"Steam"},{"appid":544750,"name":"SOULCALIBUR VI","playtime":0.8,"unlocked":0,"total":49,"hltb":0,"platform":"Steam"},{"appid":714010,"name":"Aimlabs","playtime":0.8,"unlocked":2,"total":100,"hltb":0,"platform":"Steam"},{"appid":883710,"name":"Resident Evil 2","playtime":0.8,"unlocked":3,"total":44,"hltb":0,"platform":"Steam"},{"appid":212500,"name":"The Lord of the Rings Online™","playtime":0.7,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":245280,"name":"ENSLAVED™: Odyssey to the West™ Premium Edition","playtime":0.7,"unlocked":1,"total":58,"hltb":0,"platform":"Steam"},{"appid":292030,"name":"The Witcher 3: Wild Hunt","playtime":0.7,"unlocked":0,"total":78,"hltb":0,"platform":"Steam"},{"appid":568810,"name":"FreeStyleFootball","playtime":0.6,"unlocked":1,"total":41,"hltb":0,"platform":"Steam"},{"appid":814380,"name":"Sekiro™: Shadows Die Twice","playtime":0.5,"unlocked":1,"total":34,"hltb":0,"platform":"Steam"},{"appid":1128810,"name":"RISK: Global Domination","playtime":0.4,"unlocked":3,"total":55,"hltb":0,"platform":"Steam"},{"appid":367500,"name":"Dragon's Dogma: Dark Arisen","playtime":0.4,"unlocked":1,"total":59,"hltb":0,"platform":"Steam"},{"appid":1226470,"name":"Shadow Arena","playtime":0.3,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":108600,"name":"Project Zomboid","playtime":0.2,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":110800,"name":"L.A. Noire","playtime":0.2,"unlocked":0,"total":60,"hltb":0,"platform":"Steam"},{"appid":21090,"name":"F.E.A.R.","playtime":0.2,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":247080,"name":"Crypt of the NecroDancer","playtime":0.2,"unlocked":0,"total":61,"hltb":0,"platform":"Steam"},{"appid":433850,"name":"Z1 Battle Royale","playtime":0.2,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":436520,"name":"Line of Sight","playtime":0.2,"unlocked":1,"total":408,"hltb":0,"platform":"Steam"},{"appid":506540,"name":"Last Man Standing","playtime":0.2,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":550,"name":"Left 4 Dead 2","playtime":0.2,"unlocked":2,"total":101,"hltb":0,"platform":"Steam"},{"appid":234670,"name":"NARUTO SHIPPUDEN: Ultimate Ninja STORM 3 Full Burst","playtime":0.1,"unlocked":1,"total":54,"hltb":0,"platform":"Steam"},{"appid":241600,"name":"Rogue Legacy","playtime":0.1,"unlocked":0,"total":29,"hltb":0,"platform":"Steam"},{"appid":2679460,"name":"Metaphor: ReFantazio","playtime":0.1,"unlocked":0,"total":44,"hltb":0,"platform":"Steam"},{"appid":587620,"name":"Okami HD","playtime":0.1,"unlocked":0,"total":51,"hltb":0,"platform":"Steam"},{"appid":996470,"name":"eFootball PES 2020","playtime":0.1,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":1196590,"name":"Resident Evil Village","playtime":0.0,"unlocked":0,"total":56,"hltb":0,"platform":"Steam"},{"appid":12150,"name":"Max Payne 2: The Fall of Max Payne","playtime":0.0,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":1259420,"name":"Days Gone","playtime":0.0,"unlocked":0,"total":67,"hltb":0,"platform":"Steam"},{"appid":1265920,"name":"Life is Strange Remastered","playtime":0.0,"unlocked":0,"total":60,"hltb":0,"platform":"Steam"},{"appid":1265930,"name":"Life is Strange: Before the Storm Remastered","playtime":0.0,"unlocked":0,"total":34,"hltb":0,"platform":"Steam"},{"appid":1328670,"name":"Mass Effect™ Legendary Edition","playtime":0.0,"unlocked":0,"total":127,"hltb":0,"platform":"Steam"},{"appid":1462040,"name":"FINAL FANTASY VII REMAKE INTERGRADE","playtime":0.0,"unlocked":0,"total":63,"hltb":0,"platform":"Steam"},{"appid":1687950,"name":"Persona 5 Royal","playtime":0.0,"unlocked":0,"total":53,"hltb":0,"platform":"Steam"},{"appid":19680,"name":"Alice: Madness Returns","playtime":0.0,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":2050650,"name":"Resident Evil 4","playtime":0.0,"unlocked":0,"total":46,"hltb":0,"platform":"Steam"},{"appid":21110,"name":"F.E.A.R.: Extraction Point","playtime":0.0,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":21120,"name":"F.E.A.R.: Perseus Mandate","playtime":0.0,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":221040,"name":"Resident Evil 6","playtime":0.0,"unlocked":0,"total":70,"hltb":0,"platform":"Steam"},{"appid":2215260,"name":"Scott Pilgrim vs The World","playtime":0.0,"unlocked":0,"total":19,"hltb":0,"platform":"Steam"},{"appid":222480,"name":"Resident Evil Revelations","playtime":0.0,"unlocked":0,"total":50,"hltb":0,"platform":"Steam"},{"appid":2396240,"name":"SteamWorld Heist II","playtime":0.0,"unlocked":0,"total":34,"hltb":0,"platform":"Steam"},{"appid":246620,"name":"Plague Inc: Evolved","playtime":0.0,"unlocked":0,"total":250,"hltb":0,"platform":"Steam"},{"appid":254700,"name":"Resident Evil 4 (2005)","playtime":0.0,"unlocked":0,"total":12,"hltb":0,"platform":"Steam"},{"appid":287290,"name":"Resident Evil Revelations 2","playtime":0.0,"unlocked":0,"total":43,"hltb":0,"platform":"Steam"},{"appid":2909400,"name":"FINAL FANTASY VII REBIRTH","playtime":0.0,"unlocked":0,"total":61,"hltb":0,"platform":"Steam"},{"appid":307690,"name":"Sleeping Dogs: Definitive Edition","playtime":0.0,"unlocked":0,"total":59,"hltb":0,"platform":"Steam"},{"appid":322190,"name":"SteamWorld Heist","playtime":0.0,"unlocked":0,"total":47,"hltb":0,"platform":"Steam"},{"appid":3240220,"name":"Grand Theft Auto V Enhanced","playtime":0.0,"unlocked":0,"total":77,"hltb":0,"platform":"Steam"},{"appid":339340,"name":"Resident Evil 0","playtime":0.0,"unlocked":0,"total":47,"hltb":0,"platform":"Steam"},{"appid":377840,"name":"FINAL FANTASY IX","playtime":0.0,"unlocked":0,"total":85,"hltb":0,"platform":"Steam"},{"appid":409710,"name":"BioShock Remastered","playtime":0.0,"unlocked":0,"total":65,"hltb":0,"platform":"Steam"},{"appid":409720,"name":"BioShock 2 Remastered","playtime":0.0,"unlocked":0,"total":53,"hltb":0,"platform":"Steam"},{"appid":418370,"name":"Resident Evil 7 Biohazard","playtime":0.0,"unlocked":0,"total":58,"hltb":0,"platform":"Steam"},{"appid":4249100,"name":"Resident Evil (1996)","playtime":0.0,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":4249110,"name":"Resident Evil 2 (1998)","playtime":0.0,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":4249120,"name":"Resident Evil 3 Nemesis (1999)","playtime":0.0,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":43160,"name":"Metro: Last Light Complete Edition","playtime":0.0,"unlocked":0,"total":70,"hltb":0,"platform":"Steam"},{"appid":443910,"name":"TGV Voyages Train Simulator","playtime":0.0,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":500,"name":"Left 4 Dead","playtime":0.0,"unlocked":0,"total":73,"hltb":0,"platform":"Steam"},{"appid":524220,"name":"NieR:Automata™","playtime":0.0,"unlocked":0,"total":47,"hltb":0,"platform":"Steam"},{"appid":70660,"name":"Worms Pinball","playtime":0.0,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":7670,"name":"BioShock","playtime":0.0,"unlocked":0,"total":0,"hltb":0,"platform":"Steam"},{"appid":8850,"name":"BioShock 2","playtime":0.0,"unlocked":0,"total":68,"hltb":0,"platform":"Steam"},{"appid":8870,"name":"BioShock Infinite","playtime":0.0,"unlocked":0,"total":80,"hltb":0,"platform":"Steam"},{"appid":952060,"name":"Resident Evil 3","playtime":0.0,"unlocked":0,"total":32,"hltb":0,"platform":"Steam"},{"appid":952070,"name":"RESIDENT EVIL RESISTANCE","playtime":0.0,"unlocked":0,"total":51,"hltb":0,"platform":"Steam"},{"appid":990080,"name":"Hogwarts Legacy","playtime":0.0,"unlocked":0,"total":45,"hltb":0,"platform":"Steam"},{"mid":"x85494077","name":"Microsoft Solitaire Collection","playtime":0,"unlocked":48,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1906672574","name":"Terra-média™: Sombras de Mordor™","playtime":0,"unlocked":45,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x264259050","name":"Ori and the Blind Forest","playtime":0,"unlocked":37,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x976905576","name":"Dragon Age™: Inquisition","playtime":0,"unlocked":35,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x980944365","name":"Need for Speed™","playtime":0,"unlocked":33,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1006362568","name":"Just Dance 2014","playtime":0,"unlocked":30,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1297287625","name":"Forza Horizon","playtime":0,"unlocked":29,"total":70,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1117499725","name":"JUST DANCE® 2015","playtime":0,"unlocked":28,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x58472989","name":"Killer Instinct","playtime":0,"unlocked":27,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1540549950","name":"DARK SOULS™ II: Scholar of the First Sin","playtime":0,"unlocked":25,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1693340366","name":"Hogwarts Legacy","playtime":0,"unlocked":23,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1642907564","name":"Death Stranding","playtime":0,"unlocked":22,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1774692913","name":"Goat Simulator 3","playtime":0,"unlocked":21,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x72159092","name":"Crash Bandicoot™ N. Sane Trilogy","playtime":0,"unlocked":21,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1925947069","name":"FARCRY 6","playtime":0,"unlocked":21,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1512517621","name":"Child of Light","playtime":0,"unlocked":21,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1979014977","name":"The Crew","playtime":0,"unlocked":21,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1717113201","name":"Sea of Thieves: 2026 Edition","playtime":0,"unlocked":18,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x655591242","name":"Far Cry® New Dawn","playtime":0,"unlocked":17,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1790216132","name":"Hades","playtime":0,"unlocked":17,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x2093682339","name":"Gears POP!","playtime":0,"unlocked":17,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1028735742","name":"NARUTO SHIPPUDEN™: Ultimate Ninja® STORM 4","playtime":0,"unlocked":17,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1579532320","name":"Sunset Overdrive","playtime":0,"unlocked":17,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1840996916","name":"Kinect Sports Rivals","playtime":0,"unlocked":16,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x826545257","name":"Tomb Raider: Definitive Edition","playtime":0,"unlocked":15,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x614295058","name":"Age of Empires®: Castle Siege","playtime":0,"unlocked":14,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x585771792","name":"WATCH_DOGS™","playtime":0,"unlocked":14,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x945976112","name":"RUSH: A Disney • PIXAR Adventure","playtime":0,"unlocked":13,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1689264723","name":"FIFA 15","playtime":0,"unlocked":13,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1003093254","name":"Just Dance 2017®","playtime":0,"unlocked":13,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1753744295","name":"Little Kitty, Big City","playtime":0,"unlocked":12,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x2071061510","name":"Lies of P","playtime":0,"unlocked":12,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1414793191","name":"Borderlands","playtime":0,"unlocked":12,"total":80,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1271641024","name":"Lords of the Fallen (2014)","playtime":0,"unlocked":12,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1297290396","name":"Age of Empires®: Castle Siege","playtime":0,"unlocked":12,"total":20,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x312881568","name":"Human Fall Flat","playtime":0,"unlocked":11,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1843804163","name":"Cooking Simulator Windows","playtime":0,"unlocked":11,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x446059611","name":"Forza Horizon 2","playtime":0,"unlocked":11,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1008687929","name":"Mortal Kombat X","playtime":0,"unlocked":11,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1900564739","name":"New Super Lucky's Tale","playtime":0,"unlocked":10,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x2079757188","name":"Forza Horizon 6","playtime":0,"unlocked":10,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x2067126551","name":"Forza Motorsport 5","playtime":0,"unlocked":10,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1781344339","name":"Control Ultimate Edition - Xbox Series X|S","playtime":0,"unlocked":9,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1704490079","name":"South of Midnight","playtime":0,"unlocked":9,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1985701699","name":"Forza Horizon 4","playtime":0,"unlocked":9,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1041486048","name":"DARK SOULS™ III","playtime":0,"unlocked":9,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1958071699","name":"Guacamelee! Super Turbo Championship Edition","playtime":0,"unlocked":9,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x860666361","name":"Plants vs. Zombies Garden Warfare","playtime":0,"unlocked":8,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1675504069","name":"Mafia: Definitive Edition (Windows PC)","playtime":0,"unlocked":8,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1997252569","name":"Need for Speed™ Hot Pursuit Remastered","playtime":0,"unlocked":8,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x102287491","name":"Marvel's Avengers - Edição Definitiva","playtime":0,"unlocked":8,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1263339510","name":"Saints Row IV","playtime":0,"unlocked":8,"total":70,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x524641908","name":"Assassin's Creed® Chronicles: China","playtime":0,"unlocked":8,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1677025209","name":"Wolfenstein: The New Order (PC)","playtime":0,"unlocked":7,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x926771636","name":"Tom Clancy's Rainbow Six Siege","playtime":0,"unlocked":7,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1134837784","name":"SMITE","playtime":0,"unlocked":7,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x728655825","name":"Plants vs. Zombies™ Garden Warfare 2","playtime":0,"unlocked":6,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x447911394","name":"Far Cry® 5","playtime":0,"unlocked":6,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1708767297","name":"Ryse: Son of Rome","playtime":0,"unlocked":6,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x559544937","name":"Ori and the Blind Forest: Definitive Edition","playtime":0,"unlocked":6,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x240091546","name":"SUPERHOT","playtime":0,"unlocked":6,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1278031123","name":"Resident Evil","playtime":0,"unlocked":6,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1758796660","name":"Wobbly Life","playtime":0,"unlocked":5,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1842668909","name":"Forza Motorsport","playtime":0,"unlocked":5,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1802207786","name":"HOT WHEELS UNLEASHED™ - Windows Edition","playtime":0,"unlocked":5,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x433376346","name":"FIFA 18","playtime":0,"unlocked":5,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1414596649","name":"MX vs ATV Reflex","playtime":0,"unlocked":5,"total":48,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1833503116","name":"MARVEL Cosmic Invasion","playtime":0,"unlocked":4,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x2128602192","name":"Bluey: o video game","playtime":0,"unlocked":4,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1718545023","name":"Sunset Overdrive","playtime":0,"unlocked":4,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x2054716369","name":"It Takes Two","playtime":0,"unlocked":4,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x2106204901","name":"ONE PIECE PIRATE WARRIORS 4(Xbox One)","playtime":0,"unlocked":4,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1475571605","name":"Gears of War: Ultimate Edition","playtime":0,"unlocked":4,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x196423588","name":"Outlast","playtime":0,"unlocked":4,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x367254866","name":"Sleeping Dogs™ Definitive Edition","playtime":0,"unlocked":4,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1161889872","name":"Mirror's Edge™","playtime":0,"unlocked":4,"total":50,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x956568979","name":"Need for Speed™ Rivals","playtime":0,"unlocked":4,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1646978734","name":"Police Simulator: Patrol Officers","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x2030093255","name":"Forza Horizon 5","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1985144601","name":"Stranded Deep","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1957310205","name":"Streets of Rage 4","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x231858691","name":"Bomber Crew","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1148805248","name":"Yu-Gi-Oh! Legacy of the Duelist","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1667928394","name":"Halo Wars 2","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x878282273","name":"NBA 2K17: The Prelude","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x694107204","name":"Dance Central Spotlight","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1795379754","name":"The Walking Dead: The Complete First Season","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x858615632","name":"Xbox Fitness","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1624350228","name":"Project Spark","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1181281124","name":"Thief","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x461173340","name":"Crimson Dragon","playtime":0,"unlocked":3,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x749311689","name":"Plants vs. Zombies™: Batalha por Neighborville","playtime":0,"unlocked":2,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1712074146","name":"WUCHANG: Fallen Feathers","playtime":0,"unlocked":2,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1613348546","name":"Sea of Stars: Sunset Edition","playtime":0,"unlocked":2,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x859843286","name":"Hellblade: Senua's Sacrifice","playtime":0,"unlocked":2,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1297287815","name":"Fable Anniversary","playtime":0,"unlocked":2,"total":50,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x2043073184","name":"Halo Infinite","playtime":0,"unlocked":2,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1144039928","name":"Halo: The Master Chief Collection","playtime":0,"unlocked":2,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1751973977","name":"Gears of War: Ultimate Edition para Windows 10","playtime":0,"unlocked":2,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1279330258","name":"Star Wars: The Force Unleashed","playtime":0,"unlocked":2,"total":59,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1907381044","name":"Project Cars","playtime":0,"unlocked":2,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1480659903","name":"Far Cry® 3 Blood Dragon","playtime":0,"unlocked":2,"total":19,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x556718860","name":"Assassin's Creed IV Black Flag","playtime":0,"unlocked":2,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1033012343","name":"D4: Dark Dreams Don't Die","playtime":0,"unlocked":2,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1307429766","name":"Worms Battlegrounds","playtime":0,"unlocked":2,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x222473492","name":"Cyberpunk 2077","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1814244511","name":"Nine Sols","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x56347639","name":"Spyro™ Reignited Trilogy","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1785862913","name":"Hellblade: Senua's Sacrifice","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1972063516","name":"Sifu","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1639060910","name":"Minecraft Legends - Windows","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x2028645063","name":"Legend of Mana","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x285358298","name":"Mortal Kombat 11","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1731202267","name":"Need for Speed™ Unbound","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x2071676002","name":"EA SPORTS™ FIFA 23 Edição Standard para Xbox Series X|S","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x2039473401","name":"NINJA GAIDEN Σ","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x256364670","name":"Battlefield™ V","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x748474487","name":"Cities: Skylines - Windows 10 Edition","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1936375380","name":"Gungrave G.O.R.E","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1814675537","name":"Grand Theft Auto: San Andreas – The Definitive Edition","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x951560105","name":"Control","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1867148258","name":"eFootball PES 2021 SEASON UPDATE","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1953182469","name":"DRAGON QUEST® XI S: Echoes of an Elusive Age™ - Definitive Edition","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x45083076","name":"Injustice™ 2","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1677004965","name":"FINAL FANTASY VII WINDOWS EDITION","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x340920273","name":"Overcooked","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x935319545","name":"FIFA 19","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1089570315","name":"Devil May Cry 4 Special Edition","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x132590840","name":"Assassin's Creed® Chronicles: India","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1161889879","name":"Dead Space™","playtime":0,"unlocked":1,"total":48,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x407534069","name":"Neverwinter","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x916812232","name":"ZHEROS","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x247774493","name":"The Incredible Adventures of Van Helsing","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x840116976","name":"World of Tanks Modern Armor","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x666757656","name":"Rayman Legends","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1195774894","name":"Asphalt Overdrive","playtime":0,"unlocked":1,"total":20,"hltb":0,"platform":"Xbox","xbox":true},{"mid":"x1482870140","name":"Warframe","playtime":0,"unlocked":1,"total":0,"hltb":0,"platform":"Xbox","xbox":true}];
+const STATUS = {
+  back:{n:"📥 Backlog",c:"st-back"}, play:{n:"🎮 Jogando",c:"st-play"},
+  zer:{n:"✅ Zerado",c:"st-zer"}, plat:{n:"🏆 Platinado",c:"st-plat"}, aband:{n:"🚫 Abandonei",c:"st-aband"}
+};
+let tab = "lib";
+let user = load();
+
+function load(){ try{ return JSON.parse(localStorage.getItem("gamelib")||"{}"); }catch(e){ return {}; } }
+function persist(){ localStorage.setItem("gamelib", JSON.stringify(user)); }
+function U(ap){ if(!user[ap]) user[ap]={}; return user[ap]; }
+function manualList(){ if(!user._manual) user._manual=[]; return user._manual; }
+function allGames(){ return GAMES.concat(manualList()); }
+function gid(g){ return g.appid!=null ? g.appid : g.mid; }
+
+function toggleAdd(){ document.getElementById("addbar").classList.toggle("open"); }
+function addManual(){
+  const name=document.getElementById("aName").value.trim();
+  if(!name){ alert("Informe o nome do jogo."); return; }
+  const mid="m"+Date.now();
+  manualList().push({ mid, name, platform:document.getElementById("aPlat").value,
+    playtime:parseFloat(document.getElementById("aHours").value)||0, unlocked:0, total:0, hltb:0, manual:true });
+  U(mid).status=document.getElementById("aStatus").value;
+  persist();
+  document.getElementById("aName").value=""; document.getElementById("aHours").value="";
+  document.getElementById("addbar").classList.remove("open");
+  render();
+}
+function delManual(mid){
+  user._manual=manualList().filter(g=>g.mid!==mid); delete user[mid]; persist(); render();
+}
+
+function defStatus(g){
+  if(g.total>0 && g.unlocked===g.total) return "plat";
+  if(g.xbox) return g.unlocked>0 ? "play" : "back";
+  if(g.playtime===0) return "back";
+  return "play";
+}
+function statusOf(g){ return U(gid(g)).status || defStatus(g); }
+function ratingOf(g){ const r=U(gid(g)).rating; return r==null?0:r; }
+
+function hue(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))%360; return h; }
+function initials(n){ const w=n.replace(/[™®:]/g,"").trim().split(/\s+/); return (w[0][0]+(w[1]?w[1][0]:"")).toUpperCase(); }
+
+function setTab(t){ tab=t; document.getElementById("tabLib").classList.toggle("on",t==="lib");
+  document.getElementById("tabRank").classList.toggle("on",t==="rank"); render(); }
+function toggleTheme(){ const b=document.body; const d=b.dataset.theme==="dark";
+  b.dataset.theme=d?"light":"dark"; document.getElementById("themeBtn").textContent=d?"🌙 Escuro":"☀️ Claro";
+  localStorage.setItem("gamelib_theme",b.dataset.theme); }
+
+function setStatus(ap,v){ U(ap).status=v; persist(); render(); }
+function setRating(ap,v){ U(ap).rating=Math.min(v,4.5); persist(); render(); }
+function setComment(ap,v){ U(ap).comment=v; persist(); }
+
+function starsHTML(ap,val){
+  let s="";
+  for(let i=1;i<=5;i++){
+    const full=val>=i, half=!full && val>=i-0.5;
+    const pct=full?100:half?50:0;
+    s+=`<span class="star" data-i="${i}" data-ap="${ap}">★<span class="fill" style="width:${pct}%">★</span></span>`;
+  }
+  return `<span class="stars" id="stars-${ap}">${s}</span> <span style="font-size:12px;color:var(--muted)">${val?val.toFixed(1):"—"}</span>`;
+}
+
+const GOAL = 6; // jogos zerados para liberar 1 compra
+function meta(){ if(!user._meta) user._meta={spent:0}; return user._meta; }
+function finishedCount(){ return allGames().filter(g=>["zer","plat"].includes(statusOf(g))).length; }
+function useToken(){
+  const fin=finishedCount(), earned=Math.floor(fin/GOAL);
+  if(earned - meta().spent <= 0) return;
+  meta().spent++; persist(); renderIncentive();
+}
+function renderIncentive(){
+  const fin=finishedCount();
+  const earned=Math.floor(fin/GOAL);
+  const avail=earned - meta().spent;
+  const into=fin % GOAL;
+  const falta=(GOAL - into) % GOAL || (fin>0?0:GOAL);
+  const pct = into/GOAL*100;
+  const msg = avail>0
+    ? `🎉 Você tem <strong>${avail}</strong> ${avail>1?"compras liberadas":"compra liberada"}! Aproveite sem culpa.`
+    : (fin===0 ? "Zere seu primeiro jogo para começar a acumular." : `Faltam <strong>${GOAL-into}</strong> ${GOAL-into>1?"jogos":"jogo"} para liberar a próxima compra.`);
+  document.getElementById("incentivo").innerHTML=`<div class="incent">
+    <div class="h">
+      <div>
+        <div class="title">🏅 Meta de compra — a cada ${GOAL} jogos zerados, 1 compra liberada</div>
+        <div class="big">${msg}</div>
+      </div>
+      <div style="text-align:center">
+        <div class="tokens">${avail}</div><div class="sm">liberadas</div>
+      </div>
+    </div>
+    <div class="pbar"><i style="width:${pct}%"></i></div>
+    <div class="h">
+      <span class="sm">${into}/${GOAL} rumo à próxima · ${fin} zerados no total · ${earned} conquistadas · ${meta().spent} usadas</span>
+      <button onclick="useToken()" ${avail>0?"":"disabled"}>Comprei um jogo 🎮 (usar 1)</button>
+    </div>
+  </div>`;
+}
+
+function renderStats(){
+  const g=allGames();
+  const horas=g.reduce((s,x)=>s+x.playtime,0);
+  const cnt={back:0,play:0,zer:0,plat:0,aband:0};
+  g.forEach(x=>cnt[statusOf(x)]++);
+  const el=[["Jogos",g.length],["Horas totais",Math.round(horas)+"h"],["✅ Zerados",cnt.zer],
+    ["🏆 Platinados",cnt.plat],["📥 Backlog",cnt.back],["🚫 Largados",cnt.aband]];
+  document.getElementById("stats").innerHTML=el.map(([l,n])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
+}
+
+function gameCard(g,pos){
+  const ap=gid(g), u=U(ap), st=statusOf(g);
+  const plat=g.platform||"Outro";
+  const isNum=g.appid!=null;
+  const aps=String(ap).replace(/'/g,"");
+  const idArg = isNum ? ap : `'${aps}'`;
+  const achPct=g.total>0?Math.round(g.unlocked/g.total*100):0;
+  const hl=g.hltb>0?`<div class="hltb">⏱ Campanha (HLTB): <b>~${g.hltb}h</b> · você: <b>${g.playtime}h</b> ${g.playtime>=g.hltb?"✓":`(${Math.round(g.playtime/g.hltb*100)}%)`}</div>`:"";
+  const posT=pos!=null?`<span class="rankpos">#${pos}</span>`:"";
+  let linkItems="";
+  if(plat==="Steam") linkItems=`<a href="https://store.steampowered.com/app/${ap}" target="_blank">Steam ↗</a><a href="https://steamhunters.com/apps/${ap}" target="_blank">SteamHunters ↗</a>`;
+  else if(plat==="Xbox") linkItems=`<a href="https://www.trueachievements.com/searchresults.aspx?search=${encodeURIComponent(g.name)}" target="_blank">TrueAchievements ↗</a>`;
+  linkItems+=`<a href="https://howlongtobeat.com/?q=${encodeURIComponent(g.name)}" target="_blank">HLTB ↗</a>`;
+  if(g.manual) linkItems+=`<button class="del-mini" onclick="delManual('${aps}')">Excluir</button>`;
+  const links=`<div class="links">${linkItems}</div>`;
+  const meta = g.xbox
+    ? `<span class="plat-tag p-${plat}">${plat}</span> ${g.total>0?`${g.unlocked}/${g.total} conq.`:`${g.unlocked} conquistas`}`
+    : `<span class="plat-tag p-${plat}">${plat}</span> ${g.playtime}h${g.total>0?` · ${g.unlocked}/${g.total} conq.`:""}`;
+  return `<div class="game ${pos!=null&&pos<=3?'rank-hl':''}">
+    <div class="ghead">
+      <div class="cover" style="background:hsl(${hue(g.name)},55%,45%)">${initials(g.name)}</div>
+      <div><div class="gname">${posT}${g.name}</div>
+      <div class="gmeta">${meta}</div></div>
+    </div>
+    ${g.total>0?`<div class="bar"><i style="width:${achPct}%"></i></div><div class="gmeta">${achPct}% de conquistas</div>`:""}
+    ${hl}
+    <div class="row"><label>Status</label>
+      <select onchange="setStatus(${idArg},this.value)" style="padding:5px 8px;font-size:12px">
+        ${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${k===st?"selected":""}>${v.n}</option>`).join("")}
+      </select>
+    </div>
+    <div class="row"><label>Sua nota</label>${starsHTML(ap,ratingOf(g))}</div>
+    <textarea placeholder="Comentário..." onchange="setComment(${idArg},this.value)">${(u.comment||"").replace(/</g,"&lt;")}</textarea>
+    ${links}
+  </div>`;
+}
+
+function render(){
+  renderStats();
+  renderIncentive();
+  const q=document.getElementById("search").value.toLowerCase();
+  const fs=document.getElementById("fStatus").value;
+  const fp=document.getElementById("fPlat").value;
+  const sb=document.getElementById("sortBy").value;
+  let list=allGames().filter(g=>g.name.toLowerCase().includes(q)&&(!fs||statusOf(g)===fs)&&(!fp||(g.platform||"Outro")===fp));
+
+  if(tab==="rank"){
+    list=list.filter(g=>ratingOf(g)>0).sort((a,b)=>ratingOf(b)-ratingOf(a));
+    const html=list.length?list.map((g,i)=>gameCard(g,i+1)).join(""):`<div class="empty">Você ainda não avaliou nenhum jogo. Dê notas na aba Biblioteca para montar seu ranking. 🌟</div>`;
+    document.getElementById("list").innerHTML=html;
+    return;
+  }
+  const sorters={playtime:(a,b)=>b.playtime-a.playtime, rating:(a,b)=>ratingOf(b)-ratingOf(a),
+    ach:(a,b)=>(b.total?b.unlocked/b.total:0)-(a.total?a.unlocked/a.total:0), name:(a,b)=>a.name.localeCompare(b.name)};
+  list.sort(sorters[sb]);
+  document.getElementById("list").innerHTML=list.length?list.map(g=>gameCard(g)).join(""):`<div class="empty">Nenhum jogo encontrado.</div>`;
+}
+
+// clique nas estrelas (meia em meia, máx 4.5)
+document.addEventListener("click",e=>{
+  const st=e.target.closest(".star"); if(!st)return;
+  const i=+st.dataset.i, ap=st.dataset.ap;
+  const r=st.getBoundingClientRect(); const half=(e.clientX-r.left)<r.width/2;
+  setRating(ap, half? i-0.5 : i);
+});
+
+document.getElementById("lastsync").textContent="sincronizado em "+new Date().toLocaleDateString("pt-BR")+" · "+GAMES.length+" jogos";
+(function initTheme(){ const t=localStorage.getItem("gamelib_theme")||"dark"; document.body.dataset.theme=t;
+  document.getElementById("themeBtn").textContent=t==="dark"?"☀️ Claro":"🌙 Escuro"; })();
+window.__boot = function(){ user = load(); render(); };
+</script>
+
+<script>
+const SB_URL="https://ovpncggowjhualakjaug.supabase.co", SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92cG5jZ2dvd2podWFsYWtqYXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NDI1MDIsImV4cCI6MjEwMDMxODUwMn0.yGWi4aWynDVhIEftBZcayGrbPxgqj93ckDua0zTr4zI", STATE_KEY="games", STORAGE_KEY="gamelib";
+const _sb = window.supabase.createClient(SB_URL, SB_ANON);
+function amsg(t,ok){ const e=document.getElementById("authMsg"); e.textContent=t; e.style.color=ok?"#3ecf9a":"#f07567"; }
+async function authLogin(){
+  amsg("Entrando...", true);
+  const {error} = await _sb.auth.signInWithPassword({email:document.getElementById("authEmail").value.trim(), password:document.getElementById("authPass").value});
+  if(error) amsg(error.message);
+}
+async function authSignup(){
+  amsg("Criando conta...", true);
+  const {data,error} = await _sb.auth.signUp({email:document.getElementById("authEmail").value.trim(), password:document.getElementById("authPass").value});
+  if(error){ amsg(error.message); return; }
+  if(data.session) return; // já logado
+  amsg("Conta criada! Confirme pelo link no seu e-mail e depois entre.", true);
+}
+async function authLogout(){ await _sb.auth.signOut(); location.reload(); }
+async function onLogin(){
+  document.getElementById("authOverlay").style.display="none";
+  document.getElementById("logoutBtn").style.display="block";
+  await hydrate();
+  if(window.__boot) window.__boot();
+}
+async function hydrate(){
+  try{
+    const {data} = await _sb.from("app_state").select("value").eq("key",STATE_KEY).maybeSingle();
+    if(data && data.value){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data.value));
+    } else {
+      const local = localStorage.getItem(STORAGE_KEY);
+      if(local) await _sb.from("app_state").upsert({key:STATE_KEY, value:JSON.parse(local)}, {onConflict:"user_id,key"});
+    }
+  }catch(e){ console.warn("hydrate falhou", e); }
+}
+let _syncT;
+function queueSync(){ clearTimeout(_syncT); _syncT=setTimeout(pushState, 700); }
+async function pushState(){
+  try{
+    const v = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    await _sb.from("app_state").upsert({key:STATE_KEY, value:v}, {onConflict:"user_id,key"});
+  }catch(e){ console.warn("sync falhou", e); }
+}
+// encaixa o sync no persist() existente
+if(typeof persist === "function"){ const _p = persist; persist = function(){ _p(); queueSync(); }; }
+// inicia
+(async function(){
+  const {data:{session}} = await _sb.auth.getSession();
+  if(session) onLogin();
+  _sb.auth.onAuthStateChange((_e,s)=>{ if(s && document.getElementById("authOverlay").style.display!=="none") onLogin(); });
+})();
+</script>
+
+</body>
+</html>
