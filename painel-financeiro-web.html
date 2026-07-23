@@ -225,7 +225,7 @@ td.val { font-weight: 600; white-space: nowrap; }
   <div class="topbar">
     <div>
       <h1 id="pageTitle">💰 Painel Financeiro</h1>
-      <p class="subtitle" id="pageSub">Método 50/20/30 — Gastos Fixos, Lazer e Poupança</p>
+      <p class="subtitle" id="pageSub">Orçamento por grupos — defina um limite por card</p>
     </div>
     <div class="theme-pick">
       <label for="theme" style="margin:0">Tema</label>
@@ -270,7 +270,7 @@ td.val { font-weight: 600; white-space: nowrap; }
 
   <div class="two-col">
     <div class="card">
-      <h2>Distribuição do orçamento</h2>
+      <h2>Gastos por grupo</h2>
       <div class="chart-box"><canvas id="chartAlloc"></canvas></div>
     </div>
     <div class="card">
@@ -364,9 +364,28 @@ const CATG = {
   "Assinaturas":{c:"#14b8a6",b:"des"}, "Jogos":{c:"#8b5cf6",b:"des"}, "Lazer":{c:"#a855f7",b:"des"},
   "Compras":{c:"#ec4899",b:"des"}, "Vestuário":{c:"#db2777",b:"des"}, "Beleza":{c:"#e11d48",b:"des"},
   "Pet":{c:"#65a30d",b:"des"}, "Casa":{c:"#78716c",b:"des"}, "Presentes":{c:"#f43f5e",b:"des"},
-  "Viagem":{c:"#0ea5e9",b:"des"}, "Educação":{c:"#2563eb",b:"nec"}, "Taxas/Impostos":{c:"#475569",b:"nec"},
+  "Viagem":{c:"#0ea5e9",b:"des"}, "Academia":{c:"#22c55e",b:"nec"}, "Carro":{c:"#b91c1c",b:"nec"},
+  "Educação":{c:"#2563eb",b:"nec"}, "Taxas/Impostos":{c:"#475569",b:"nec"},
   "Fatura cartão":{c:"#eab308",b:"nec"}, "Investimento":{c:"#10b981",b:"pou"}, "Outros":{c:"#94a3b8",b:"des"}
 };
+// Grupos de orçamento (cada card soma vários tipos de gasto)
+const GROUPS = {
+  "Alimentação":   {catgs:["Alimentação","Mercado","Padaria","Bar/Bebidas"], color:"#f97316", emoji:"🍔"},
+  "Compras":       {catgs:["Compras","Vestuário","Casa","Presentes"],        color:"#ec4899", emoji:"🛍️"},
+  "Assinaturas":   {catgs:["Assinaturas","TV","Internet","Telefone"],        color:"#14b8a6", emoji:"📺"},
+  "Lazer":         {catgs:["Lazer","Jogos","Viagem"],                        color:"#a855f7", emoji:"🎮"},
+  "Carro":         {catgs:["Carro","Combustível"],                           color:"#dc2626", emoji:"🚗"},
+  "Transporte":    {catgs:["Transporte"],                                    color:"#6366f1", emoji:"🚌"},
+  "Academia":      {catgs:["Academia"],                                      color:"#16a34a", emoji:"🏋️"},
+  "Saúde":         {catgs:["Farmácia/Saúde"],                                color:"#0ea5e9", emoji:"💊"},
+  "Moradia/Contas":{catgs:["Moradia","Contas","Taxas/Impostos"],             color:"#64748b", emoji:"🏠"},
+  "Educação":      {catgs:["Educação"],                                      color:"#2563eb", emoji:"📚"},
+  "Cartão":        {catgs:["Fatura cartão"],                                 color:"#eab308", emoji:"💳"},
+  "Investimento":  {catgs:["Investimento"],                                  color:"#10b981", emoji:"📈"},
+  "Outros":        {catgs:["Outros"],                                        color:"#94a3b8", emoji:"📦"}
+};
+function groupOf(catg){ for(const g in GROUPS) if(GROUPS[g].catgs.includes(catg)) return g; return "Outros"; }
+function setBudget(name,v){ if(!state.budgets) state.budgets={}; state.budgets[name]=parseFloat(String(v).replace(",","."))||0; persist(); render(); if(typeof window.__flush==="function") window.__flush(); }
 const CATG_KEYS = Object.keys(CATG);
 const fmt2 = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 let state = { salary: 0, expenses: {}, theme: "claro" };
@@ -517,16 +536,21 @@ function render() {
     <div>Saldo<strong style="color:${disp<0?cssVar('--neg'):cssVar('--pos')}">${fmt(disp)}</strong></div>
   ` : `<div>Informe seu salário para calcular o orçamento.</div>`;
 
-  document.getElementById("cats").innerHTML = Object.entries(CATS).map(([k,c]) => {
-    const limit = sal * c.pct, spent = spentBy(k);
+  const gastos2 = monthGastos();
+  const spentGroup = {};
+  gastos2.forEach(e => { const gr = groupOf(e.catg || "Outros"); spentGroup[gr] = (spentGroup[gr]||0) + e.val; });
+  document.getElementById("cats").innerHTML = Object.entries(GROUPS).map(([name,g]) => {
+    const spent = spentGroup[name] || 0;
+    const limit = (state.budgets && state.budgets[name]) || 0;
     const pct = limit ? Math.min(spent/limit*100, 100) : 0;
     const over = limit && spent > limit;
-    return `<div class="cat-card ${c.cls}">
-      <div class="name">${c.name}</div>
-      <div class="pct">${c.pct*100}% do salário</div>
-      <div class="limit">${fmt(limit)}</div>
-      <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
-      <div class="status ${over?'alert':''}">${fmt(spent)} usado · ${over ? '⚠ estourou ' + fmt(spent-limit) : fmt(limit-spent) + ' restante'}</div>
+    return `<div class="cat-card" style="background:linear-gradient(135deg,${g.color},${g.color}cc)">
+      <div class="name">${g.emoji} ${name}</div>
+      <div class="limit">${fmt(spent)}</div>
+      ${limit ? `<div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+      <div class="status ${over?'alert':''}">${over ? '⚠ estourou ' + fmt(spent-limit) : fmt(limit-spent) + ' restante'} · limite ${fmt(limit)}</div>`
+      : `<div class="status" style="opacity:.85">sem limite</div>`}
+      <div style="margin-top:8px"><input type="number" inputmode="decimal" placeholder="Definir limite (R$)" value="${limit||''}" onchange="setBudget('${name}',this.value)" style="width:100%;padding:5px 8px;font-size:12px;border-radius:7px;border:none;background:rgba(255,255,255,.9);color:#111"></div>
     </div>`;
   }).join("");
 
@@ -549,19 +573,23 @@ function render() {
 }
 
 function renderCharts(sal) {
-  const labels = Object.values(CATS).map(c => c.name);
-  const colors = Object.values(CATS).map(c => c.color);
-  const limits = Object.values(CATS).map(c => sal * c.pct);
-  const spent = Object.keys(CATS).map(k => spentBy(k));
+  // gasto e limite por grupo (só grupos com gasto ou limite definido)
+  const gastos = monthGastos();
+  const spentG = {}; gastos.forEach(e => { const gr = groupOf(e.catg||"Outros"); spentG[gr]=(spentG[gr]||0)+e.val; });
+  const names = Object.keys(GROUPS).filter(n => (spentG[n]||0) > 0 || (state.budgets && state.budgets[n]));
+  const labels = names.length ? names : Object.keys(GROUPS).slice(0,5);
+  const colors = labels.map(n => GROUPS[n].color);
+  const spent = labels.map(n => spentG[n]||0);
+  const limits = labels.map(n => (state.budgets && state.budgets[n]) || 0);
   const textCol = cssVar("--chart-text"), gridCol = cssVar("--chart-grid");
 
   if (chartAlloc) chartAlloc.destroy();
   chartAlloc = new Chart(document.getElementById("chartAlloc"), {
     type: "doughnut",
-    data: { labels, datasets: [{ data: sal ? limits : [50,30,20], backgroundColor: colors, borderWidth: 0 }] },
+    data: { labels, datasets: [{ data: spent.some(v=>v>0)?spent:labels.map(()=>1), backgroundColor: colors, borderWidth: 0 }] },
     options: { responsive: true, maintainAspectRatio: false, cutout: "62%",
-      plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 12 }, color: textCol } },
-        tooltip: { callbacks: { label: ctx => " " + (sal ? fmt(ctx.raw) : ctx.raw + "%") } } } }
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 }, color: textCol } },
+        tooltip: { callbacks: { label: ctx => " " + ctx.label + ": " + fmt(ctx.raw) } } } }
   });
 
   if (chartSpent) chartSpent.destroy();
@@ -676,7 +704,7 @@ function showTab(t) {
   document.getElementById("tabBtnFin").classList.toggle("active", t==="fin");
   document.getElementById("tabBtnGas").classList.toggle("active", t==="gastos");
   document.getElementById("tabBtnRot").classList.toggle("active", t==="rot");
-  const titles={fin:["💰 Painel Financeiro","Método 50/20/30 — Gastos Fixos, Lazer e Poupança"],
+  const titles={fin:["💰 Painel Financeiro","Orçamento por grupos — defina um limite por card"],
     gastos:["💸 Gastos por categoria","Importe o extrato e veja onde seu dinheiro vai"],
     rot:["🗓️ Minha Rotina","Semana organizada — trabalho, treino, estudo, projeto e lazer"]};
   document.getElementById("pageTitle").textContent = titles[t][0];
@@ -795,7 +823,7 @@ function catgFromText(s){
     ["Alimentação",["KEETA","IFOOD","IFD","DELIVERY","OUTBACK","RESTAURANTE","BURGER","MC DONALD","PIZZA","LANCHE","MISTER KILO","KILLUS","DUMAH","GRILL","SWIFT","CULINARIA"]],
     ["Farmácia/Saúde",["PROMOFARMA","FARMA","DROGA","DROGARIA","RAIA","DROGASIL","SAUDE","HOSPITAL","CLINICA","LAB "]],
     ["Combustível",["POSTO","IPIRANGA","SHELL","COMBUSTIVEL","BR "]],
-    ["Transporte",["UBER","99 TECNOLOGIA","99APP","ESTACIONAMENTO","AUTOPASS","SEM PARAR","METRO","CPTM","CENTRO AUTOMOTIVO"]],
+    ["Transporte",["UBER","99 TECNOLOGIA","99APP","ESTACIONAMENTO","AUTOPASS","SEM PARAR","METRO","CPTM"]],
     ["Jogos",["STEAM","XBOX","PLAYSTATION","NINTENDO","NUUVEM","EPIC GAMES","RIOT","BLIZZARD","GOG.COM","PSN"]],
     ["TV",["SKY","CLARO TV","NET TV","TV POR ASSINATURA","DIRECTV"]],
     ["Telefone",["VIVO","TIM ","OI S","CLARO S"]],
@@ -808,6 +836,8 @@ function catgFromText(s){
     ["Vestuário",["RENNER","RIACHUELO","CEA","C&A","ZARA","HERING","NIKE","ADIDAS"]],
     ["Beleza",["BOTICARIO","NATURA","BARBEARIA","SALAO","CABELE","MANICURE"]],
     ["Pet",["PETZ","COBASI","PET SHOP","VETERIN"]],
+    ["Academia",["ACADEMIA","SMARTFIT","SMART FIT","BLUEFIT","BIORITMO","GROWTH","WHEY","CREATINA","SUPLEMENT","MAX TITANIUM","INTEGRALMEDICA","PROBIOTICA","GYM"]],
+    ["Carro",["OFICINA","MECANICA","AUTO PECAS","AUTOPECAS","PNEU","IPVA","LICENCIAMENTO","DETRAN","SEGURO AUTO","CENTRO AUTOMOTIVO"]],
     ["Fatura cartão",["PAGAMENTO CARTAO CREDITO"]]
   ];
   for(const [c,keys] of R) if(keys.some(k=>s.includes(k))) return c;
