@@ -488,7 +488,7 @@ function render() {
   const totalInvest = gastos.filter(e => e.cat==="pou").reduce((s,e) => s + e.val, 0); // investimentos/poupança
   const totalIn = monthEntradas().reduce((s,e) => s + e.val, 0);
   const base = totalIn>0 ? totalIn : sal;   // se houver entradas reais, usa elas; senão o salário
-  const disp = base - totalSpent - totalInvest;
+  const disp = base - totalSpent;           // saldo = renda - gastos (investimento é poupança, não some do saldo)
 
   document.getElementById("summary").innerHTML = sal || totalIn ? `
     <div>${totalIn?"Entradas":"Salário"}<strong>${fmt(base)}</strong></div>
@@ -813,48 +813,18 @@ async function importPDF(){
   }catch(e){ st.textContent="Erro ao ler o PDF: "+e.message; }
 }
 function parseSantander(lines){
-  const SKIP=["EXTRATO","PAGINA","BALP_","EXTRATO_PF","DATA DESCRIÇÃO","SALDO EM","MOVIMENTAÇÃO","RESUMO","FALE CONOSCO","NOME","AGÊNCIA","GUSTAVO FERREIRA","(=)","(+)","(-)","DEPÓSITOS","OUTROS CRÉDITOS","COMPRAS COM","PAGAMENTOS /","CONTA CORRENTE","CENTRAL DE","OUVIDORIA","CHAT","LOJA:"];
-  const isSkip=l=>{ const u=l.toUpperCase(); return SKIP.some(s=>u.includes(s)); };
-  const TYPES=["DEBITO VISA ELECTRON BRASIL","PIX ENVIADO","PIX RECEBIDO","PAGAMENTO CARTAO CREDITO","TARIFA","TED","SAQUE"];
-  const hasType=l=>TYPES.find(t=>l.includes(t));
-  const money=/(\d{1,3}(?:\.\d{3})*,\d{2})(-?)/;
-  const out=[]; let last="";
-  for(let i=0;i<lines.length;i++){
-    const l=lines[i]; if(isSkip(l)) continue;
-    const t=hasType(l); const m=l.match(money);
-    if(t && m){
-      const val=parseFloat(m[1].replace(/\./g,"").replace(",","."));
-      const debit = m[2]==="-";   // sinal do próprio valor identifica débito x crédito
-      let dt=(l.match(/^(\d{2}\/\d{2})/)||[])[1]||"";
-      let merch=l.slice(l.indexOf(t)+t.length, m.index).replace(/\d/g,"").replace(/-/g,"").trim();
-      const nx=lines[i+1];
-      if(nx && !isSkip(nx) && !(hasType(nx)&&money.test(nx))){
-        const d2=(nx.match(/^(\d{2}\/\d{2})/)||[])[1]; if(d2&&!dt) dt=d2;
-        let nm=nx.replace(/^\d{2}\/\d{2}\s*/,"").replace(/^\d{2}:\d{2}\s*/,"").trim();
-        if(nm) merch = (merch && nm.toLowerCase()===merch.toLowerCase())?merch:nm;
-        i++;
-      }
-      dt=dt||last; last=dt||last;
-      const name=(merch||t);
-      const U2=(name+" "+t).toUpperCase();
-      const isOut = m[2]==="-";
-      if(U2.includes("GUSTAVO FERREIRA SANDRINI")){
-        // transferência para si mesmo: enviada = investimento; recebida = ignora (só remaneja saldo)
-        if(isOut) out.push({ dt, desc:name, val, meio:"PIX", catg:"Investimento", income:false });
-        continue;
-      }
-      // meio: PIX / Débito (cartão débito) / Crédito (cartão crédito)
-      let meio="Débito";
-      if(t.includes("PIX")) meio="PIX";
-      else if(/CART[AÃ]O\s*CR[EÉ]DITO|PAGAMENTO CARTAO CREDITO|CREDITO/.test(U2)) meio="Crédito";
-      if(!isOut){
-        // entrada (recebimento): salário se vier da Nexus
-        const catg = U2.includes("NEXUS") ? "Salário" : "Entrada";
-        out.push({ dt, desc:name, val, meio, catg, income:true });
-      } else {
-        out.push({ dt, desc:name, val, meio, catg: catgFromText(U2), income:false });
-      }
-    }
+  // Lê SÓ as duas tabelas limpas: "Compras com Cartão de Débito" e "PIXs Enviados".
+  // Ignora a seção "Movimentação" (que repete tudo e causava duplicação).
+  const out=[];
+  const val=s=>parseFloat(s.replace(/\./g,"").replace(",","."));
+  for(const l of lines){
+    // Débito: DD/MM 4108.1735 ESTABELECIMENTO VALOR
+    const md=l.match(/^(\d{2}\/\d{2})\s+\d{4}\.\d{4}\s+(.+?)\s+([\d.]+,\d{2})$/);
+    if(md){ const desc=md[2].trim(); out.push({ dt:md[1], desc, val:val(md[3]), meio:"Débito", catg:catgFromText(desc), income:false }); continue; }
+    // PIX enviado: DD/MM INTERNET BANKING PIX FAVORECIDO ISPB(8) AGENCIA(4) CONTA VALOR
+    const mp=l.match(/^(\d{2}\/\d{2})\s+INTERNET BANKING\s+PIX\s+(.+?)\s+\d{8}\s+\d{4}\s+\d+\s+([\d.]+,\d{2})$/);
+    if(mp){ const fav=mp[2].trim(); const self=fav.toUpperCase().includes("GUSTAVO FERREIRA SANDRINI");
+      out.push({ dt:mp[1], desc:fav, val:val(mp[3]), meio:"PIX", catg: self?"Investimento":catgFromText(fav), income:false }); continue; }
   }
   return out;
 }
