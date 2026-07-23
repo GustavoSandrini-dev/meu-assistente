@@ -10,6 +10,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});}</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
 :root { color-scheme: light; }
 /* ============ TEMAS ============ */
@@ -245,6 +246,7 @@ td.val { font-weight: 600; white-space: nowrap; }
 
   <div class="tabs">
     <button class="tab active" id="tabBtnFin" onclick="showTab('fin')">💰 Financeiro</button>
+    <button class="tab" id="tabBtnGas" onclick="showTab('gastos')">💸 Gastos</button>
     <button class="tab" id="tabBtnRot" onclick="showTab('rot')">🗓️ Rotina</button>
   </div>
 
@@ -299,6 +301,8 @@ td.val { font-weight: 600; white-space: nowrap; }
           <option value="pou">Poupança/Invest.</option>
         </select>
       </div>
+      <div><label>Tipo de gasto</label><select id="eCatg"></select></div>
+      <div><label>Banco</label><select id="eBanco"><option>Santander</option><option>C6</option><option>Nubank</option><option>Outro</option></select></div>
       <div><label>Parcelas</label><input type="number" id="eParc" value="1" min="1" max="120" title="Nº de parcelas: lança o valor em cada mês até quitar"></div>
       <button class="primary" onclick="addExpense()">Adicionar</button>
     </div>
@@ -320,6 +324,31 @@ td.val { font-weight: 600; white-space: nowrap; }
     <div class="legend" id="legend"></div>
     <div class="day-grid" id="grade"></div>
   </div>
+
+  <div id="tab-gastos" style="display:none">
+    <div class="card">
+      <h2>📄 Importar extrato / fatura (PDF)</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Suba um PDF do <strong>Santander</strong> (extrato) e o sistema lê os lançamentos e categoriza automaticamente. Você revisa antes de importar. Para C6 e outros, o lançamento é manual.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input type="file" id="pdfFile" accept="application/pdf" style="padding:8px;font-size:13px">
+        <select id="pdfBanco" style="width:auto"><option>Santander</option></select>
+        <button class="primary" onclick="importPDF()">Ler PDF</button>
+      </div>
+      <div id="pdfStatus" style="font-size:13px;color:var(--muted);margin-top:10px"></div>
+      <div id="pdfReview" style="margin-top:14px"></div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <h2>Onde você mais gasta (mês)</h2>
+        <div class="chart-box"><canvas id="chartCatg"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Ranking de categorias</h2>
+        <div id="gastosList"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -329,8 +358,17 @@ const CATS = {
   pou: { name: "Poupança/Invest.", pct: 0.3, cls: "cat-pou", tag: "tag-pou", color: "#17a97b" }
 };
 const fmt = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+// Categorias detalhadas (para a aba Gastos) + cor + mapeamento p/ 50/20/30
+const CATG = {
+  "Mercado":{c:"#16a34a",b:"nec"}, "Alimentação":{c:"#f97316",b:"des"}, "Farmácia/Saúde":{c:"#0ea5e9",b:"nec"},
+  "Transporte":{c:"#6366f1",b:"nec"}, "Contas":{c:"#64748b",b:"nec"}, "Lazer":{c:"#a855f7",b:"des"},
+  "Compras":{c:"#ec4899",b:"des"}, "Assinaturas":{c:"#14b8a6",b:"des"}, "Fatura cartão":{c:"#eab308",b:"nec"},
+  "Educação":{c:"#2563eb",b:"nec"}, "Outros":{c:"#94a3b8",b:"des"}
+};
+const CATG_KEYS = Object.keys(CATG);
+const fmt2 = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 let state = { salary: 0, expenses: {}, theme: "claro" };
-let chartAlloc = null, chartSpent = null;
+let chartAlloc = null, chartSpent = null, chartCatg = null;
 
 function cssVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
 function nowMonth() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0"); }
@@ -366,12 +404,14 @@ function addExpense() {
   const desc = document.getElementById("eDesc").value.trim();
   const val = parseFloat(document.getElementById("eVal").value);
   const cat = document.getElementById("eCat").value;
+  const catg = document.getElementById("eCatg").value;
+  const banco = document.getElementById("eBanco").value;
   const parc = Math.max(1, parseInt(document.getElementById("eParc").value) || 1);
   if (!desc || !val || val <= 0) { alert("Preencha descrição e valor."); return; }
   const m = curMonth();
   if (parc === 1) {
     if (!state.expenses[m]) state.expenses[m] = [];
-    state.expenses[m].push({ id: Date.now(), desc, val, cat, date: new Date().toISOString().slice(0,10) });
+    state.expenses[m].push({ id: Date.now(), desc, val, cat, catg, banco, date: new Date().toISOString().slice(0,10) });
   } else {
     const grpId = "g" + Date.now();
     if (!state.groups) state.groups = {};
@@ -382,7 +422,7 @@ function addExpense() {
       state.expenses[mi].push({
         id: Date.now() + i,
         desc: `${desc} (${i + 1}/${parc})`,
-        val, cat, grp: grpId,
+        val, cat, catg, banco, grp: grpId,
         date: i === 0 ? new Date().toISOString().slice(0,10) : mi + "-01"
       });
     }
@@ -594,16 +634,19 @@ function confirmImport() {
 
 /* ===== Abas ===== */
 function showTab(t) {
-  const fin = t === "fin";
-  document.getElementById("tab-fin").style.display = fin ? "" : "none";
-  document.getElementById("tab-rot").style.display = fin ? "none" : "";
-  document.getElementById("tabBtnFin").classList.toggle("active", fin);
-  document.getElementById("tabBtnRot").classList.toggle("active", !fin);
-  document.getElementById("pageTitle").textContent = fin ? "💰 Painel Financeiro" : "🗓️ Minha Rotina";
-  document.getElementById("pageSub").textContent = fin
-    ? "Método 50/20/30 — Gastos Fixos, Lazer e Poupança"
-    : "Semana organizada — trabalho, treino, estudo, projeto e lazer";
-  if (!fin) renderRoutine();
+  document.getElementById("tab-fin").style.display = t==="fin" ? "" : "none";
+  document.getElementById("tab-gastos").style.display = t==="gastos" ? "" : "none";
+  document.getElementById("tab-rot").style.display = t==="rot" ? "" : "none";
+  document.getElementById("tabBtnFin").classList.toggle("active", t==="fin");
+  document.getElementById("tabBtnGas").classList.toggle("active", t==="gastos");
+  document.getElementById("tabBtnRot").classList.toggle("active", t==="rot");
+  const titles={fin:["💰 Painel Financeiro","Método 50/20/30 — Gastos Fixos, Lazer e Poupança"],
+    gastos:["💸 Gastos por categoria","Importe o extrato e veja onde seu dinheiro vai"],
+    rot:["🗓️ Minha Rotina","Semana organizada — trabalho, treino, estudo, projeto e lazer"]};
+  document.getElementById("pageTitle").textContent = titles[t][0];
+  document.getElementById("pageSub").textContent = titles[t][1];
+  if (t==="rot") renderRoutine();
+  if (t==="gastos") renderGastos();
 }
 
 /* ===== Rotina ===== */
@@ -669,8 +712,147 @@ function renderRoutine() {
   document.getElementById("grade").innerHTML = cards;
 }
 
+/* ===== Aba Gastos: categorias detalhadas ===== */
+function fillCatgSelect(){
+  const s=document.getElementById("eCatg");
+  if(s && !s.options.length) s.innerHTML=CATG_KEYS.map(k=>`<option value="${k}"${k==="Outros"?" selected":""}>${k}</option>`).join("");
+}
+function renderGastos(){
+  fillCatgSelect();
+  const exps=monthExpenses();
+  const tot={};
+  exps.forEach(e=>{ const c=e.catg||"Outros"; tot[c]=(tot[c]||0)+e.val; });
+  const ordered=Object.entries(tot).sort((a,b)=>b[1]-a[1]);
+  const total=ordered.reduce((s,[,v])=>s+v,0);
+  document.getElementById("gastosList").innerHTML = ordered.length
+    ? ordered.map(([c,v])=>`<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--row);padding:8px 0">
+        <span class="act" style="display:flex;align-items:center;gap:8px"><span style="width:11px;height:11px;border-radius:3px;background:${(CATG[c]||{}).c||'#94a3b8'};display:inline-block"></span>${c}</span>
+        <span><strong>${fmt(v)}</strong> <span style="color:var(--muted);font-size:12px">${total?Math.round(v/total*100):0}%</span></span>
+      </div>`).join("") + `<div class="row" style="justify-content:space-between;padding-top:10px"><strong>Total</strong><strong>${fmt(total)}</strong></div>`
+    : `<div class="empty">Sem gastos categorizados neste mês. Importe um extrato ou registre com "Tipo de gasto".</div>`;
+  // gráfico
+  const textCol=cssVar("--chart-text");
+  if(chartCatg) chartCatg.destroy();
+  if(ordered.length) chartCatg = new Chart(document.getElementById("chartCatg"), {
+    type:"doughnut",
+    data:{ labels:ordered.map(o=>o[0]), datasets:[{ data:ordered.map(o=>o[1]), backgroundColor:ordered.map(o=>(CATG[o[0]]||{}).c||"#94a3b8"), borderWidth:0 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:"60%",
+      plugins:{ legend:{ position:"bottom", labels:{ boxWidth:12, font:{size:11}, color:textCol } },
+        tooltip:{ callbacks:{ label:ctx=>" "+ctx.label+": "+fmt(ctx.raw) } } } }
+  });
+}
+
+/* ===== Importar PDF (Santander) ===== */
+function catgFromText(s){
+  s=(s||"").toUpperCase();
+  const R=[
+    ["Mercado",["SUPERMERCADO","NINK","GLOBO CARNES","EMPORIO","HORTIFRUTI","ATACAD","ASSAI","CARREFOUR","PAO DE ACUCAR","SWIFT"]],
+    ["Alimentação",["KEETA","IFOOD","DELIVERY","OUTBACK","CASA DE BOLO","RESTAURANTE","BURGER","MC DONALD","PIZZA","LANCHE","CAFE","PADARIA","BK "]],
+    ["Farmácia/Saúde",["PROMOFARMA","FARMA","DROGA","DROGARIA","SAUDE","HOSPITAL","CLINICA"]],
+    ["Transporte",["UBER","99","POSTO","IPIRANGA","SHELL","COMBUSTIVEL","ESTACIONAMENTO"]],
+    ["Lazer",["CINEMARK","CINEMA","STEAM","XBOX","PLAYSTATION","INGRESSO"]],
+    ["Assinaturas",["SPOTIFY","NETFLIX","HBO","DISNEY","AMAZON PRIME","CRUNCHYROLL"]],
+    ["Contas",["TELEFONICA","VIVO","CLARO","TIM","ENERGISA","ENEL","SABESP","INTERNET"]],
+    ["Compras",["AMAZON","MERCADO LIVRE","MAGALU","SHOPEE","ALIEXPRESS","INSIDER","NETSHOES","PANINI"]],
+    ["Fatura cartão",["PAGAMENTO CARTAO CREDITO"]]
+  ];
+  for(const [c,keys] of R) if(keys.some(k=>s.includes(k))) return c;
+  return "Outros";
+}
+const MESES={janeiro:1,fevereiro:2,marco:3,"março":3,abril:4,maio:5,junho:6,julho:7,agosto:8,setembro:9,outubro:10,novembro:11,dezembro:12};
+async function importPDF(){
+  const f=document.getElementById("pdfFile").files[0];
+  const st=document.getElementById("pdfStatus");
+  if(!f){ st.textContent="Selecione um arquivo PDF."; return; }
+  if(typeof pdfjsLib==="undefined"){ st.textContent="Leitor de PDF não carregou (precisa de internet)."; return; }
+  st.textContent="Lendo o PDF...";
+  try{
+    pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+    const buf=await f.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    let lines=[]; let ym="";
+    for(let p=1;p<=pdf.numPages;p++){
+      const page=await pdf.getPage(p); const tc=await page.getTextContent();
+      const rows={};
+      tc.items.forEach(it=>{ const y=Math.round(it.transform[5]); (rows[y]=rows[y]||[]).push([it.transform[4],it.str]); });
+      Object.keys(rows).map(Number).sort((a,b)=>b-a).forEach(y=>{
+        const line=rows[y].sort((a,b)=>a[0]-b[0]).map(o=>o[1]).join(" ").replace(/\s+/g," ").trim();
+        if(line) lines.push(line);
+      });
+    }
+    // detectar mês/ano
+    for(const l of lines){ const mm=l.toLowerCase().match(/(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s*\/?\s*(\d{4})/); if(mm){ ym=`${mm[2]}-${String(MESES[mm[1]]).padStart(2,"0")}`; break; } }
+    const txns=parseSantander(lines);
+    if(!txns.length){ st.textContent="Não encontrei lançamentos. O formato pode ser diferente."; return; }
+    st.textContent=`Encontrei ${txns.length} gastos${ym?` de ${ym.split("-").reverse().join("/")}`:""}. Revise e importe:`;
+    showReview(txns, ym||curMonth());
+  }catch(e){ st.textContent="Erro ao ler o PDF: "+e.message; }
+}
+function parseSantander(lines){
+  const SKIP=["EXTRATO","PAGINA","BALP_","EXTRATO_PF","DATA DESCRIÇÃO","SALDO EM","MOVIMENTAÇÃO","RESUMO","FALE CONOSCO","NOME","AGÊNCIA","GUSTAVO FERREIRA","(=)","(+)","(-)","DEPÓSITOS","OUTROS CRÉDITOS","COMPRAS COM","PAGAMENTOS /","CONTA CORRENTE","CENTRAL DE","OUVIDORIA","CHAT","LOJA:"];
+  const isSkip=l=>{ const u=l.toUpperCase(); return SKIP.some(s=>u.includes(s)); };
+  const TYPES=["DEBITO VISA ELECTRON BRASIL","PIX ENVIADO","PIX RECEBIDO","PAGAMENTO CARTAO CREDITO","TARIFA","TED","SAQUE"];
+  const hasType=l=>TYPES.find(t=>l.includes(t));
+  const money=/(\d{1,3}(?:\.\d{3})*,\d{2})(-?)/;
+  const out=[]; let last="";
+  for(let i=0;i<lines.length;i++){
+    const l=lines[i]; if(isSkip(l)) continue;
+    const t=hasType(l); const m=l.match(money);
+    if(t && m){
+      const val=parseFloat(m[1].replace(/\./g,"").replace(",","."));
+      const debit = l.slice(m.index).includes("-");
+      let dt=(l.match(/^(\d{2}\/\d{2})/)||[])[1]||"";
+      let merch=l.slice(l.indexOf(t)+t.length, m.index).replace(/\d/g,"").replace(/-/g,"").trim();
+      const nx=lines[i+1];
+      if(nx && !isSkip(nx) && !(hasType(nx)&&money.test(nx))){
+        const d2=(nx.match(/^(\d{2}\/\d{2})/)||[])[1]; if(d2&&!dt) dt=d2;
+        let nm=nx.replace(/^\d{2}\/\d{2}\s*/,"").replace(/^\d{2}:\d{2}\s*/,"").trim();
+        if(nm) merch = (merch && nm.toLowerCase()===merch.toLowerCase())?merch:nm;
+        i++;
+      }
+      dt=dt||last; last=dt||last;
+      const name=(merch||t);
+      if(!debit) continue; // só gastos
+      if(name.toUpperCase().includes("GUSTAVO FERREIRA SANDRINI")) continue; // transferência própria
+      out.push({ dt, desc:name, val, catg:catgFromText(name+" "+t) });
+    }
+  }
+  return out;
+}
+let reviewData=[], reviewMonth="";
+function showReview(txns, ym){
+  reviewData=txns; reviewMonth=ym;
+  const rows=txns.map((x,i)=>`<tr>
+    <td><input type="checkbox" id="pc${i}" checked style="width:auto"></td>
+    <td>${x.dt||"-"}</td>
+    <td>${x.desc.replace(/</g,"&lt;").slice(0,30)}</td>
+    <td class="val">${fmt(x.val)}</td>
+    <td><select id="pg${i}" style="padding:4px 6px;font-size:12px">${CATG_KEYS.map(k=>`<option ${k===x.catg?"selected":""}>${k}</option>`).join("")}</select></td>
+  </tr>`).join("");
+  document.getElementById("pdfReview").innerHTML=`
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Mês de destino: <strong>${ym.split("-").reverse().join("/")}</strong> · desmarque o que não quiser importar.</div>
+    <table><thead><tr><th></th><th>Data</th><th>Descrição</th><th>Valor</th><th>Categoria</th></tr></thead><tbody>${rows}</tbody></table>
+    <button class="primary" style="margin-top:12px" onclick="confirmPdfImport()">Importar selecionados</button>`;
+}
+function confirmPdfImport(){
+  let count=0;
+  if(!state.expenses[reviewMonth]) state.expenses[reviewMonth]=[];
+  reviewData.forEach((x,i)=>{
+    if(!document.getElementById("pc"+i).checked) return;
+    const catg=document.getElementById("pg"+i).value;
+    const cat=(CATG[catg]||{}).b||"des";
+    const dd=x.dt?`${reviewMonth}-${x.dt.split("/")[0]}`:reviewMonth+"-01";
+    state.expenses[reviewMonth].push({ id:Date.now()+i, desc:x.desc, val:x.val, cat, catg, banco:"Santander", date:dd });
+    count++;
+  });
+  persist();
+  document.getElementById("pdfReview").innerHTML=`<div class="empty">✅ ${count} gastos importados em ${reviewMonth.split("-").reverse().join("/")}.</div>`;
+  document.getElementById("month").value=reviewMonth;
+  render(); renderGastos();
+}
+
 document.getElementById("month").addEventListener("change", render);
-window.__boot = function(){ load(); render(); };
+window.__boot = function(){ load(); fillCatgSelect(); render(); };
 </script>
 
 <script>
