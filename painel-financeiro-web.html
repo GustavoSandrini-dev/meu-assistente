@@ -294,7 +294,7 @@ td.val { font-weight: 600; white-space: nowrap; }
         </select>
       </div>
       <div><label>Tipo de gasto</label><select id="eCatg"></select></div>
-      <div><label>Meio</label><select id="eMeio"><option>Débito</option><option>Crédito</option></select></div>
+      <div><label>Meio</label><select id="eMeio"><option>Débito</option><option>Crédito</option><option>PIX</option></select></div>
       <div><label>Banco</label><select id="eBanco"><option>Santander</option><option>C6</option><option>Nubank</option><option>Outro</option></select></div>
       <div><label>Parcelas</label><input type="number" id="eParc" value="1" min="1" max="120" title="Nº de parcelas: lança o valor em cada mês até quitar"></div>
       <button class="primary" onclick="addExpense()">Adicionar</button>
@@ -324,7 +324,7 @@ td.val { font-weight: 600; white-space: nowrap; }
       <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Suba um PDF do <strong>Santander</strong> (extrato) e o sistema lê os lançamentos e categoriza automaticamente. Você revisa antes de importar. Para C6 e outros, o lançamento é manual.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <input type="file" id="pdfFile" accept="application/pdf" style="padding:8px;font-size:13px">
-        <select id="pdfBanco" style="width:auto"><option>Santander</option></select>
+        <select id="pdfTipo" style="width:auto"><option value="extrato">Extrato (conta)</option><option value="fatura">Fatura (cartão de crédito)</option></select>
         <button class="primary" onclick="importPDF()">Ler PDF</button>
       </div>
       <div id="pdfStatus" style="font-size:13px;color:var(--muted);margin-top:10px"></div>
@@ -355,9 +355,10 @@ const fmt = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" 
 // Categorias detalhadas (para a aba Gastos) + cor + mapeamento p/ 50/20/30
 const CATG = {
   "Mercado":{c:"#16a34a",b:"nec"}, "Alimentação":{c:"#f97316",b:"des"}, "Farmácia/Saúde":{c:"#0ea5e9",b:"nec"},
-  "Transporte":{c:"#6366f1",b:"nec"}, "Contas":{c:"#64748b",b:"nec"}, "Lazer":{c:"#a855f7",b:"des"},
+  "Transporte":{c:"#6366f1",b:"nec"}, "Internet":{c:"#0284c7",b:"nec"}, "TV":{c:"#0d9488",b:"nec"},
+  "Contas":{c:"#64748b",b:"nec"}, "Jogos":{c:"#8b5cf6",b:"des"}, "Lazer":{c:"#a855f7",b:"des"},
   "Compras":{c:"#ec4899",b:"des"}, "Assinaturas":{c:"#14b8a6",b:"des"}, "Fatura cartão":{c:"#eab308",b:"nec"},
-  "Educação":{c:"#2563eb",b:"nec"}, "Outros":{c:"#94a3b8",b:"des"}
+  "Educação":{c:"#2563eb",b:"nec"}, "Salário":{c:"#22c55e",b:"nec"}, "Entrada":{c:"#84cc16",b:"nec"}, "Outros":{c:"#94a3b8",b:"des"}
 };
 const CATG_KEYS = Object.keys(CATG);
 const fmt2 = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -383,6 +384,8 @@ function setTheme(t) {
 }
 function curMonth() { return document.getElementById("month").value || nowMonth(); }
 function monthExpenses() { return state.expenses[curMonth()] || []; }
+function monthGastos() { return monthExpenses().filter(e => !e.income); }
+function monthEntradas() { return monthExpenses().filter(e => e.income); }
 
 function saveSalary() {
   const v = parseFloat(document.getElementById("salary").value);
@@ -466,16 +469,18 @@ function delExpense(id) {
   state.expenses[m] = (state.expenses[m] || []).filter(e => e.id !== id);
   persist(); render();
 }
-function spentBy(cat) { return monthExpenses().filter(e => e.cat === cat).reduce((s,e) => s + e.val, 0); }
+function spentBy(cat) { return monthGastos().filter(e => e.cat === cat).reduce((s,e) => s + e.val, 0); }
 
 function render() {
   const sal = state.salary || 0;
-  const totalSpent = monthExpenses().reduce((s,e) => s + e.val, 0);
+  const totalSpent = monthGastos().reduce((s,e) => s + e.val, 0);
+  const totalIn = monthEntradas().reduce((s,e) => s + e.val, 0);
 
   document.getElementById("summary").innerHTML = sal ? `
     <div>Salário<strong>${fmt(sal)}</strong></div>
     <div>Gasto no mês<strong>${fmt(totalSpent)}</strong></div>
     <div>Disponível<strong style="color:${sal-totalSpent<0?cssVar('--neg'):cssVar('--pos')}">${fmt(sal-totalSpent)}</strong></div>
+    ${totalIn?`<div>Entradas<strong style="color:${cssVar('--pos')}">${fmt(totalIn)}</strong></div>`:""}
   ` : `<div>Informe seu salário para calcular o orçamento.</div>`;
 
   document.getElementById("cats").innerHTML = Object.entries(CATS).map(([k,c]) => {
@@ -491,13 +496,14 @@ function render() {
     </div>`;
   }).join("");
 
-  const exps = monthExpenses().slice().reverse();
+  const exps = monthGastos().slice().reverse();
   document.getElementById("expList").innerHTML = exps.length ? `
-    <table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th></th></tr></thead>
+    <table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Meio</th><th>Valor</th><th></th></tr></thead>
     <tbody>${exps.map(e => `<tr>
       <td>${e.date.split("-").reverse().slice(0,2).join("/")}</td>
       <td>${e.desc.replace(/</g,"&lt;")}</td>
-      <td><span class="tag ${CATS[e.cat].tag}">${CATS[e.cat].name}</span></td>
+      <td><span class="tag ${CATS[e.cat].tag}">${e.catg||CATS[e.cat].name}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${e.meio||"—"}</td>
       <td class="val">${fmt(e.val)}</td>
       <td><button class="del" onclick="delExpense(${e.id})" title="Excluir">✕</button></td>
     </tr>`).join("")}</tbody></table>`
@@ -714,13 +720,15 @@ function fillCatgSelect(){
 }
 function renderGastos(){
   fillCatgSelect();
-  const exps=monthExpenses();
-  const tot={}; let cred=0, deb=0;
-  exps.forEach(e=>{ const c=e.catg||"Outros"; tot[c]=(tot[c]||0)+e.val; if(e.meio==="Crédito") cred+=e.val; else deb+=e.val; });
+  const exps=monthGastos();
+  const tot={}; let cred=0, deb=0, pix=0;
+  exps.forEach(e=>{ const c=e.catg||"Outros"; tot[c]=(tot[c]||0)+e.val;
+    if(e.meio==="Crédito") cred+=e.val; else if(e.meio==="PIX") pix+=e.val; else deb+=e.val; });
+  const entra=monthEntradas().reduce((s,e)=>s+e.val,0);
   const ordered=Object.entries(tot).sort((a,b)=>b[1]-a[1]);
   const total=ordered.reduce((s,[,v])=>s+v,0);
   const meioBox=document.getElementById("meioSplit");
-  if(meioBox) meioBox.innerHTML = total? `<span class="tag" style="background:#fef3c7;color:#b45309">💳 Crédito ${fmt(cred)}</span> <span class="tag" style="background:#dbeafe;color:#1d4ed8">Débito/PIX ${fmt(deb)}</span>` : "";
+  if(meioBox) meioBox.innerHTML = total? `<span class="tag" style="background:#fef3c7;color:#b45309">💳 Crédito ${fmt(cred)}</span> <span class="tag" style="background:#dbeafe;color:#1d4ed8">Débito ${fmt(deb)}</span> <span class="tag" style="background:#e0e7ff;color:#4338ca">PIX ${fmt(pix)}</span>${entra?` <span class="tag" style="background:#dcfce7;color:#15803d">Entradas ${fmt(entra)}</span>`:""}` : "";
   document.getElementById("gastosList").innerHTML = ordered.length
     ? ordered.map(([c,v])=>`<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--row);padding:8px 0">
         <span class="act" style="display:flex;align-items:center;gap:8px"><span style="width:11px;height:11px;border-radius:3px;background:${(CATG[c]||{}).c||'#94a3b8'};display:inline-block"></span>${c}</span>
@@ -747,9 +755,12 @@ function catgFromText(s){
     ["Alimentação",["KEETA","IFOOD","DELIVERY","OUTBACK","CASA DE BOLO","RESTAURANTE","BURGER","MC DONALD","PIZZA","LANCHE","CAFE","PADARIA","BK "]],
     ["Farmácia/Saúde",["PROMOFARMA","FARMA","DROGA","DROGARIA","SAUDE","HOSPITAL","CLINICA"]],
     ["Transporte",["UBER","99","POSTO","IPIRANGA","SHELL","COMBUSTIVEL","ESTACIONAMENTO"]],
-    ["Lazer",["CINEMARK","CINEMA","STEAM","XBOX","PLAYSTATION","INGRESSO"]],
-    ["Assinaturas",["SPOTIFY","NETFLIX","HBO","DISNEY","AMAZON PRIME","CRUNCHYROLL"]],
-    ["Contas",["TELEFONICA","VIVO","CLARO","TIM","ENERGISA","ENEL","SABESP","INTERNET"]],
+    ["Jogos",["STEAM","XBOX","PLAYSTATION","NINTENDO","NUUVEM","EPIC GAMES","RIOT","BLIZZARD","GOG.COM","PSN","GAME"]],
+    ["TV",["SKY","CLARO TV","NET TV","TV POR ASSINATURA","GLOBOPLAY","DIRECTV"]],
+    ["Internet",["VIVO FIBRA","INTERNET","VIVO","TELEFONICA","CLARO","TIM ","OI FIBRA","NET SERVICOS"]],
+    ["Lazer",["CINEMARK","CINEMA","INGRESSO","TICKETMASTER"]],
+    ["Assinaturas",["SPOTIFY","NETFLIX","HBO","DISNEY","AMAZON PRIME","CRUNCHYROLL","YOUTUBE PREMIUM"]],
+    ["Contas",["ENERGISA","ENEL","CPFL","SABESP","AGUA","CONDOMINIO","ALUGUEL","IPTU"]],
     ["Compras",["AMAZON","MERCADO LIVRE","MAGALU","SHOPEE","ALIEXPRESS","INSIDER","NETSHOES","PANINI"]],
     ["Fatura cartão",["PAGAMENTO CARTAO CREDITO"]]
   ];
@@ -779,10 +790,11 @@ async function importPDF(){
     }
     // detectar mês/ano
     for(const l of lines){ const mm=l.toLowerCase().match(/(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s*\/?\s*(\d{4})/); if(mm){ ym=`${mm[2]}-${String(MESES[mm[1]]).padStart(2,"0")}`; break; } }
-    const txns=parseSantander(lines);
-    if(!txns.length){ st.textContent="Não encontrei lançamentos. O formato pode ser diferente."; return; }
-    const ncr=txns.filter(x=>x.meio==="Crédito").length, ndb=txns.length-ncr;
-    st.textContent=`Encontrei ${txns.length} gastos (${ndb} no débito/PIX, ${ncr} no crédito)${ym?` em ${ym.split("-").reverse().join("/")}`:""}. Revise e importe:`;
+    const tipo=document.getElementById("pdfTipo").value;
+    const txns = tipo==="fatura" ? parseFatura(lines) : parseSantander(lines);
+    if(!txns.length){ st.textContent="Não encontrei lançamentos. Se for fatura de outro banco, me avise o formato."; return; }
+    const ng=txns.filter(x=>!x.income).length, ne=txns.length-ng;
+    st.textContent=`Encontrei ${ng} gastos e ${ne} entradas${ym?` em ${ym.split("-").reverse().join("/")}`:""}. Revise e importe:`;
     showReview(txns, ym||curMonth());
   }catch(e){ st.textContent="Erro ao ler o PDF: "+e.message; }
 }
@@ -810,10 +822,38 @@ function parseSantander(lines){
       }
       dt=dt||last; last=dt||last;
       const name=(merch||t);
-      if(name.toUpperCase().includes("GUSTAVO FERREIRA SANDRINI")) continue; // transferência entre contas próprias
-      if(m[2]!=="-") continue; // só saídas (gastos); entradas/recebimentos ignorados
-      const meio = /CART[AÃ]O\s*CR[EÉ]DITO|PAGAMENTO CARTAO CREDITO|CREDITO/.test((name+" "+t).toUpperCase()) ? "Crédito" : "Débito";
-      out.push({ dt, desc:name, val, meio, catg: catgFromText(name+" "+t) });
+      const U2=(name+" "+t).toUpperCase();
+      if(U2.includes("GUSTAVO FERREIRA SANDRINI")) continue; // transferência entre contas próprias
+      const isOut = m[2]==="-";
+      // meio: PIX / Débito (cartão débito) / Crédito (cartão crédito)
+      let meio="Débito";
+      if(t.includes("PIX")) meio="PIX";
+      else if(/CART[AÃ]O\s*CR[EÉ]DITO|PAGAMENTO CARTAO CREDITO|CREDITO/.test(U2)) meio="Crédito";
+      if(!isOut){
+        // entrada (recebimento): salário se vier da Nexus
+        const catg = U2.includes("NEXUS") ? "Salário" : "Entrada";
+        out.push({ dt, desc:name, val, meio, catg, income:true });
+      } else {
+        out.push({ dt, desc:name, val, meio, catg: catgFromText(U2), income:false });
+      }
+    }
+  }
+  return out;
+}
+// Fatura de cartão (best-effort): linhas com DD/MM DESCRIÇÃO VALOR → tudo Crédito
+function parseFatura(lines){
+  const money=/(\d{1,3}(?:\.\d{3})*,\d{2})/;
+  const out=[];
+  for(const l of lines){
+    const u=l.toUpperCase();
+    if(/(TOTAL|SALDO|LIMITE|VENCIMENTO|PAGAMENTO M[IÍ]NIMO|FATURA ANTERIOR|ENCARGOS|JUROS|PÁGINA|PAGINA|IOF)/.test(u)) continue;
+    const dm=l.match(/(\d{2}\/\d{2})/); const mm=l.match(money);
+    if(dm && mm){
+      const val=parseFloat(mm[1].replace(/\./g,"").replace(",","."));
+      if(val<=0) continue;
+      let desc=l.replace(dm[0],"").replace(mm[0],"").replace(/\s+/g," ").replace(/[-\d,.]+$/,"").trim();
+      desc=desc.replace(/R\$/g,"").trim();
+      out.push({ dt:dm[1], desc:desc||"Compra", val, meio:"Crédito", catg:catgFromText(desc), income:false });
     }
   }
   return out;
@@ -821,20 +861,26 @@ function parseSantander(lines){
 let reviewData=[], reviewMonth="";
 function showReview(txns, ym){
   reviewData=txns; reviewMonth=ym;
-  const rows=txns.map((x,i)=>`<tr>
-    <td><input type="checkbox" id="pc${i}" checked style="width:auto"></td>
-    <td><select id="pm${i}" style="padding:4px 6px;font-size:12px">
-      <option ${x.meio==='Débito'?'selected':''}>Débito</option>
-      <option ${x.meio==='Crédito'?'selected':''}>Crédito</option>
-    </select></td>
-    <td>${x.dt||"-"}</td>
-    <td>${x.desc.replace(/</g,"&lt;").slice(0,26)}</td>
-    <td class="val">${fmt(x.val)}</td>
-    <td><select id="pg${i}" style="padding:4px 6px;font-size:12px">${CATG_KEYS.map(k=>`<option ${k===x.catg?"selected":""}>${k}</option>`).join("")}</select></td>
-  </tr>`).join("");
+  const MEIOS=["Débito","Crédito","PIX","Entrada"];
+  const rows=txns.map((x,i)=>{
+    const isFatura = x.catg==="Fatura cartão";
+    const checked = !isFatura ? "checked" : ""; // pagamento da fatura desmarcado p/ não duplicar
+    const kindBadge = x.income
+      ? `<span class="tag" style="background:#dcfce7;color:#15803d">Entrada</span>`
+      : `<span class="tag" style="background:#fee2e2;color:#b91c1c">Gasto</span>`;
+    return `<tr${isFatura?' style="opacity:.75"':''}>
+      <td><input type="checkbox" id="pc${i}" ${checked} style="width:auto"></td>
+      <td>${kindBadge}</td>
+      <td><select id="pm${i}" style="padding:4px 6px;font-size:12px">${MEIOS.map(mm=>`<option ${mm===(x.income?'Entrada':x.meio)?'selected':''}>${mm}</option>`).join("")}</select></td>
+      <td>${x.dt||"-"}</td>
+      <td>${x.desc.replace(/</g,"&lt;").slice(0,24)}</td>
+      <td class="val">${fmt(x.val)}</td>
+      <td><select id="pg${i}" style="padding:4px 6px;font-size:12px">${CATG_KEYS.map(k=>`<option ${k===x.catg?"selected":""}>${k}</option>`).join("")}</select></td>
+    </tr>`;
+  }).join("");
   document.getElementById("pdfReview").innerHTML=`
-    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Mês de destino: <strong>${ym.split("-").reverse().join("/")}</strong> · confira o <strong>meio</strong> (Crédito = cartão de crédito; Débito = cartão de débito e PIX) e a categoria.</div>
-    <div style="overflow-x:auto"><table><thead><tr><th></th><th>Meio</th><th>Data</th><th>Descrição</th><th>Valor</th><th>Categoria</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Mês de destino: <strong>${ym.split("-").reverse().join("/")}</strong>. Meio: Crédito = cartão de crédito · Débito = cartão de débito · PIX à parte. O <strong>pagamento da fatura</strong> vem desmarcado (importe as compras pela própria fatura para não duplicar).</div>
+    <div style="overflow-x:auto"><table><thead><tr><th></th><th>Tipo</th><th>Meio</th><th>Data</th><th>Descrição</th><th>Valor</th><th>Categoria</th></tr></thead><tbody>${rows}</tbody></table></div>
     <button class="primary" style="margin-top:12px" onclick="confirmPdfImport()">Importar selecionados</button>`;
 }
 function confirmPdfImport(){
@@ -844,9 +890,10 @@ function confirmPdfImport(){
     if(!document.getElementById("pc"+i).checked) return;
     const catg=document.getElementById("pg"+i).value;
     const meio=document.getElementById("pm"+i).value;
+    const income = meio==="Entrada" || x.income;
     const cat=(CATG[catg]||{}).b||"des";
     const dd=x.dt?`${reviewMonth}-${x.dt.split("/")[0]}`:reviewMonth+"-01";
-    state.expenses[reviewMonth].push({ id:Date.now()+i, desc:x.desc, val:x.val, cat, catg, meio, banco:"Santander", date:dd });
+    state.expenses[reviewMonth].push({ id:Date.now()+i, desc:x.desc, val:x.val, cat, catg, meio, income, banco:"Santander", date:dd });
     count++;
   });
   persist();
