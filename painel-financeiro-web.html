@@ -302,8 +302,11 @@ td.val { font-weight: 600; white-space: nowrap; }
   </div>
 
   <div class="card">
-    <h2 style="display:flex;justify-content:space-between;align-items:center">Gastos do mês
-      <button class="btn-sec" onclick="exportExcel()">⬇ Exportar para Excel</button>
+    <h2 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">Gastos do mês
+      <span style="display:flex;gap:8px">
+        <button class="btn-sec" onclick="clearMonth()" style="color:#c0392b">🗑 Limpar mês</button>
+        <button class="btn-sec" onclick="exportExcel()">⬇ Exportar para Excel</button>
+      </span>
     </h2>
     <div id="expList"></div>
   </div>
@@ -459,6 +462,15 @@ function exportExcel() {
   a.download = `gastos-${m}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
 }
+function clearMonth() {
+  const m = curMonth();
+  const n = (state.expenses[m] || []).length;
+  if (!n) { alert("Nenhum lançamento neste mês."); return; }
+  if (!confirm(`Apagar TODOS os ${n} lançamentos de ${m.split("-").reverse().join("/")}? Não dá pra desfazer.`)) return;
+  state.expenses[m] = [];
+  persist(); render();
+  if (document.getElementById("tab-gastos").style.display !== "none") renderGastos();
+}
 function editExp(id, field, value) {
   const m = curMonth();
   const e = (state.expenses[m] || []).find(x => x.id === id);
@@ -486,12 +498,10 @@ function render() {
   const gastos = monthGastos();
   const totalSpent = gastos.filter(e => e.cat!=="pou").reduce((s,e) => s + e.val, 0); // gasto real (necessidades+desejos)
   const totalInvest = gastos.filter(e => e.cat==="pou").reduce((s,e) => s + e.val, 0); // investimentos/poupança
-  const totalIn = monthEntradas().reduce((s,e) => s + e.val, 0);
-  const base = totalIn>0 ? totalIn : sal;   // se houver entradas reais, usa elas; senão o salário
-  const disp = base - totalSpent;           // saldo = renda - gastos (investimento é poupança, não some do saldo)
+  const disp = sal - totalSpent;   // saldo = salário - gastos (investimento é poupança, não some do saldo)
 
-  document.getElementById("summary").innerHTML = sal || totalIn ? `
-    <div>${totalIn?"Entradas":"Salário"}<strong>${fmt(base)}</strong></div>
+  document.getElementById("summary").innerHTML = sal ? `
+    <div>Salário<strong>${fmt(sal)}</strong></div>
     <div>Gastos<strong>${fmt(totalSpent)}</strong></div>
     ${totalInvest?`<div>Investido<strong style="color:${cssVar('--pos')}">${fmt(totalInvest)}</strong></div>`:""}
     <div>Saldo<strong style="color:${disp<0?cssVar('--neg'):cssVar('--pos')}">${fmt(disp)}</strong></div>
@@ -738,11 +748,10 @@ function renderGastos(){
   const tot={}; let cred=0, deb=0, pix=0;
   exps.forEach(e=>{ const c=e.catg||"Outros"; tot[c]=(tot[c]||0)+e.val;
     if(e.meio==="Crédito") cred+=e.val; else if(e.meio==="PIX") pix+=e.val; else deb+=e.val; });
-  const entra=monthEntradas().reduce((s,e)=>s+e.val,0);
   const ordered=Object.entries(tot).sort((a,b)=>b[1]-a[1]);
   const total=ordered.reduce((s,[,v])=>s+v,0);
   const meioBox=document.getElementById("meioSplit");
-  if(meioBox) meioBox.innerHTML = total? `<span class="tag" style="background:#fef3c7;color:#b45309">💳 Crédito ${fmt(cred)}</span> <span class="tag" style="background:#dbeafe;color:#1d4ed8">Débito ${fmt(deb)}</span> <span class="tag" style="background:#e0e7ff;color:#4338ca">PIX ${fmt(pix)}</span>${entra?` <span class="tag" style="background:#dcfce7;color:#15803d">Entradas ${fmt(entra)}</span>`:""}` : "";
+  if(meioBox) meioBox.innerHTML = total? `<span class="tag" style="background:#fef3c7;color:#b45309">💳 Crédito ${fmt(cred)}</span> <span class="tag" style="background:#dbeafe;color:#1d4ed8">Débito ${fmt(deb)}</span> <span class="tag" style="background:#e0e7ff;color:#4338ca">PIX ${fmt(pix)}</span>` : "";
   document.getElementById("gastosList").innerHTML = ordered.length
     ? ordered.map(([c,v])=>`<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--row);padding:8px 0">
         <span class="act" style="display:flex;align-items:center;gap:8px"><span style="width:11px;height:11px;border-radius:3px;background:${(CATG[c]||{}).c||'#94a3b8'};display:inline-block"></span>${c}</span>
