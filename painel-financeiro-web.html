@@ -792,7 +792,7 @@ function catgFromText(s){
     ["Mercado",["SUPERMERCADO","NINK","GLOBO CARNES","EMPORIO","HORTIFRUTI","ATACAD","ASSAI","CARREFOUR","PAO DE ACUCAR","SENDAS","PRECO BOM","GSMMY","DONA FELI"]],
     ["Padaria",["PADARIA","CASA DE BOLO","CASA DE PAES","PANIFICADORA","FLORA"]],
     ["Bar/Bebidas",["BAR ","ADEGA","DISTRIBUIDORA DE BEB","CERVEJA","DRINKS","BUBBLE"]],
-    ["Alimentação",["KEETA","IFOOD","IFD","DELIVERY","OUTBACK","RESTAURANTE","BURGER","MC DONALD","PIZZA","LANCHE","MISTER KILO","KILLUS","DUMAH","GRILL","SWIFT"]],
+    ["Alimentação",["KEETA","IFOOD","IFD","DELIVERY","OUTBACK","RESTAURANTE","BURGER","MC DONALD","PIZZA","LANCHE","MISTER KILO","KILLUS","DUMAH","GRILL","SWIFT","CULINARIA"]],
     ["Farmácia/Saúde",["PROMOFARMA","FARMA","DROGA","DROGARIA","RAIA","DROGASIL","SAUDE","HOSPITAL","CLINICA","LAB "]],
     ["Combustível",["POSTO","IPIRANGA","SHELL","COMBUSTIVEL","BR "]],
     ["Transporte",["UBER","99 TECNOLOGIA","99APP","ESTACIONAMENTO","AUTOPASS","SEM PARAR","METRO","CPTM","CENTRO AUTOMOTIVO"]],
@@ -801,10 +801,10 @@ function catgFromText(s){
     ["Telefone",["VIVO","TIM ","OI S","CLARO S"]],
     ["Internet",["VIVO FIBRA","INTERNET","TELEFONICA","OI FIBRA","NET SERVICOS","HELPBOMAX"]],
     ["Lazer",["CINEMARK","CINEMA","INGRESSO","TICKETMASTER","LOTERIA","LOTERIAS"]],
-    ["Assinaturas",["SPOTIFY","NETFLIX","HBO","DISNEY","AMAZON PRIME","CRUNCHYROLL","YOUTUBE PREMIUM"]],
+    ["Assinaturas",["SPOTIFY","NETFLIX","HBO","DISNEY","AMAZON PRIME","CRUNCHYROLL","YOUTUBE PREMIUM","GOOGLE"]],
     ["Moradia",["ALUGUEL","CONDOMINIO","IPTU","IMOBILIARIA"]],
     ["Contas",["ENERGISA","ENEL","CPFL","SABESP","AGUA","LUZ"]],
-    ["Compras",["AMAZON","MERCADO LIVRE","MAGALU","SHOPEE","ALIEXPRESS","INSIDER","NETSHOES","PANINI","PAGSEGURO","PAGBANK","MERCADOPAGO"]],
+    ["Compras",["AMAZON","MERCADO LIVRE","MERCADOLIVRE","MELIMAIS","MELI","MAGALU","SHOPEE","ALIEXPRESS","INSIDER","NETSHOES","PANINI","PAGSEGURO","PAGBANK","MERCADOPAGO"]],
     ["Vestuário",["RENNER","RIACHUELO","CEA","C&A","ZARA","HERING","NIKE","ADIDAS"]],
     ["Beleza",["BOTICARIO","NATURA","BARBEARIA","SALAO","CABELE","MANICURE"]],
     ["Pet",["PETZ","COBASI","PET SHOP","VETERIN"]],
@@ -860,21 +860,19 @@ function parseSantander(lines){
   }
   return out;
 }
-// Fatura de cartão (best-effort): linhas com DD/MM DESCRIÇÃO VALOR → tudo Crédito
+// Fatura de cartão de crédito (Santander): seção "Despesas" → tudo Crédito
 function parseFatura(lines){
-  const money=/(\d{1,3}(?:\.\d{3})*,\d{2})/;
   const out=[];
-  for(const l of lines){
-    const u=l.toUpperCase();
-    if(/(TOTAL|SALDO|LIMITE|VENCIMENTO|PAGAMENTO M[IÍ]NIMO|FATURA ANTERIOR|ENCARGOS|JUROS|PÁGINA|PAGINA|IOF)/.test(u)) continue;
-    const dm=l.match(/(\d{2}\/\d{2})/); const mm=l.match(money);
-    if(dm && mm){
-      const val=parseFloat(mm[1].replace(/\./g,"").replace(",","."));
-      if(val<=0) continue;
-      let desc=l.replace(dm[0],"").replace(mm[0],"").replace(/\s+/g," ").replace(/[-\d,.]+$/,"").trim();
-      desc=desc.replace(/R\$/g,"").trim();
-      out.push({ dt:dm[1], desc:desc||"Compra", val, meio:"Crédito", catg:catgFromText(desc), income:false });
-    }
+  const val=s=>parseFloat(s.replace(/\./g,"").replace(",","."));
+  for(let l of lines){
+    l=l.replace(/^\d\s+(?=\d{2}\/\d{2}\b)/,""); // remove indicador de parcela/ícone no início
+    const m=l.match(/^(\d{2}\/\d{2})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})(?:\s|$)/);
+    if(!m) continue;
+    const desc=m[2].trim();
+    if(/PAGAMENTO DE FATURA|VALOR TOTAL/i.test(desc)) continue;
+    if(desc.endsWith("-")) continue; // crédito/estorno
+    const v=val(m[3]);
+    if(v>0) out.push({ dt:m[1], desc, val:v, meio:"Crédito", catg:catgFromText(desc), income:false });
   }
   return out;
 }
