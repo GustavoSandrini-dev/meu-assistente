@@ -294,6 +294,7 @@ td.val { font-weight: 600; white-space: nowrap; }
         </select>
       </div>
       <div><label>Tipo de gasto</label><select id="eCatg"></select></div>
+      <div><label>Meio</label><select id="eMeio"><option>Débito</option><option>Crédito</option></select></div>
       <div><label>Banco</label><select id="eBanco"><option>Santander</option><option>C6</option><option>Nubank</option><option>Outro</option></select></div>
       <div><label>Parcelas</label><input type="number" id="eParc" value="1" min="1" max="120" title="Nº de parcelas: lança o valor em cada mês até quitar"></div>
       <button class="primary" onclick="addExpense()">Adicionar</button>
@@ -337,6 +338,7 @@ td.val { font-weight: 600; white-space: nowrap; }
       </div>
       <div class="card">
         <h2>Ranking de categorias</h2>
+        <div id="meioSplit" style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap"></div>
         <div id="gastosList"></div>
       </div>
     </div>
@@ -397,6 +399,7 @@ function addExpense() {
   const val = parseFloat(document.getElementById("eVal").value);
   const cat = document.getElementById("eCat").value;
   const catg = document.getElementById("eCatg").value;
+  const meio = document.getElementById("eMeio").value;
   const banco = document.getElementById("eBanco").value;
   const parc = Math.max(1, parseInt(document.getElementById("eParc").value) || 1);
   if (!desc || !val || val <= 0) { alert("Preencha descrição e valor."); return; }
@@ -712,10 +715,12 @@ function fillCatgSelect(){
 function renderGastos(){
   fillCatgSelect();
   const exps=monthExpenses();
-  const tot={};
-  exps.forEach(e=>{ const c=e.catg||"Outros"; tot[c]=(tot[c]||0)+e.val; });
+  const tot={}; let cred=0, deb=0;
+  exps.forEach(e=>{ const c=e.catg||"Outros"; tot[c]=(tot[c]||0)+e.val; if(e.meio==="Crédito") cred+=e.val; else deb+=e.val; });
   const ordered=Object.entries(tot).sort((a,b)=>b[1]-a[1]);
   const total=ordered.reduce((s,[,v])=>s+v,0);
+  const meioBox=document.getElementById("meioSplit");
+  if(meioBox) meioBox.innerHTML = total? `<span class="tag" style="background:#fef3c7;color:#b45309">💳 Crédito ${fmt(cred)}</span> <span class="tag" style="background:#dbeafe;color:#1d4ed8">Débito/PIX ${fmt(deb)}</span>` : "";
   document.getElementById("gastosList").innerHTML = ordered.length
     ? ordered.map(([c,v])=>`<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--row);padding:8px 0">
         <span class="act" style="display:flex;align-items:center;gap:8px"><span style="width:11px;height:11px;border-radius:3px;background:${(CATG[c]||{}).c||'#94a3b8'};display:inline-block"></span>${c}</span>
@@ -776,8 +781,8 @@ async function importPDF(){
     for(const l of lines){ const mm=l.toLowerCase().match(/(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s*\/?\s*(\d{4})/); if(mm){ ym=`${mm[2]}-${String(MESES[mm[1]]).padStart(2,"0")}`; break; } }
     const txns=parseSantander(lines);
     if(!txns.length){ st.textContent="Não encontrei lançamentos. O formato pode ser diferente."; return; }
-    const nd=txns.filter(x=>x.debit).length, nc=txns.length-nd;
-    st.textContent=`Encontrei ${nd} débitos (gastos) e ${nc} créditos (entradas)${ym?` em ${ym.split("-").reverse().join("/")}`:""}. Revise e importe:`;
+    const ncr=txns.filter(x=>x.meio==="Crédito").length, ndb=txns.length-ncr;
+    st.textContent=`Encontrei ${txns.length} gastos (${ndb} no débito/PIX, ${ncr} no crédito)${ym?` em ${ym.split("-").reverse().join("/")}`:""}. Revise e importe:`;
     showReview(txns, ym||curMonth());
   }catch(e){ st.textContent="Erro ao ler o PDF: "+e.message; }
 }
@@ -806,7 +811,9 @@ function parseSantander(lines){
       dt=dt||last; last=dt||last;
       const name=(merch||t);
       if(name.toUpperCase().includes("GUSTAVO FERREIRA SANDRINI")) continue; // transferência entre contas próprias
-      out.push({ dt, desc:name, val, debit, catg: debit?catgFromText(name+" "+t):"Entrada" });
+      if(m[2]!=="-") continue; // só saídas (gastos); entradas/recebimentos ignorados
+      const meio = /CART[AÃ]O\s*CR[EÉ]DITO|PAGAMENTO CARTAO CREDITO|CREDITO/.test((name+" "+t).toUpperCase()) ? "Crédito" : "Débito";
+      out.push({ dt, desc:name, val, meio, catg: catgFromText(name+" "+t) });
     }
   }
   return out;
@@ -814,18 +821,21 @@ function parseSantander(lines){
 let reviewData=[], reviewMonth="";
 function showReview(txns, ym){
   reviewData=txns; reviewMonth=ym;
-  const rows=txns.map((x,i)=>`<tr style="${x.debit?'':'opacity:.6'}">
-    <td><input type="checkbox" id="pc${i}" ${x.debit?"checked":"disabled"} style="width:auto"></td>
-    <td><span class="tag" style="background:${x.debit?'#fee2e2':'#dcfce7'};color:${x.debit?'#b91c1c':'#15803d'}">${x.debit?'Débito':'Crédito'}</span></td>
+  const rows=txns.map((x,i)=>`<tr>
+    <td><input type="checkbox" id="pc${i}" checked style="width:auto"></td>
+    <td><select id="pm${i}" style="padding:4px 6px;font-size:12px">
+      <option ${x.meio==='Débito'?'selected':''}>Débito</option>
+      <option ${x.meio==='Crédito'?'selected':''}>Crédito</option>
+    </select></td>
     <td>${x.dt||"-"}</td>
-    <td>${x.desc.replace(/</g,"&lt;").slice(0,28)}</td>
+    <td>${x.desc.replace(/</g,"&lt;").slice(0,26)}</td>
     <td class="val">${fmt(x.val)}</td>
-    <td>${x.debit?`<select id="pg${i}" style="padding:4px 6px;font-size:12px">${CATG_KEYS.map(k=>`<option ${k===x.catg?"selected":""}>${k}</option>`).join("")}</select>`:'<span style="color:var(--muted);font-size:12px">entrada</span>'}</td>
+    <td><select id="pg${i}" style="padding:4px 6px;font-size:12px">${CATG_KEYS.map(k=>`<option ${k===x.catg?"selected":""}>${k}</option>`).join("")}</select></td>
   </tr>`).join("");
   document.getElementById("pdfReview").innerHTML=`
-    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Mês de destino: <strong>${ym.split("-").reverse().join("/")}</strong> · só os <strong>débitos</strong> entram como gasto; créditos ficam de fora.</div>
-    <div style="overflow-x:auto"><table><thead><tr><th></th><th>Tipo</th><th>Data</th><th>Descrição</th><th>Valor</th><th>Categoria</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <button class="primary" style="margin-top:12px" onclick="confirmPdfImport()">Importar débitos selecionados</button>`;
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Mês de destino: <strong>${ym.split("-").reverse().join("/")}</strong> · confira o <strong>meio</strong> (Crédito = cartão de crédito; Débito = cartão de débito e PIX) e a categoria.</div>
+    <div style="overflow-x:auto"><table><thead><tr><th></th><th>Meio</th><th>Data</th><th>Descrição</th><th>Valor</th><th>Categoria</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <button class="primary" style="margin-top:12px" onclick="confirmPdfImport()">Importar selecionados</button>`;
 }
 function confirmPdfImport(){
   let count=0;
@@ -833,9 +843,10 @@ function confirmPdfImport(){
   reviewData.forEach((x,i)=>{
     if(!document.getElementById("pc"+i).checked) return;
     const catg=document.getElementById("pg"+i).value;
+    const meio=document.getElementById("pm"+i).value;
     const cat=(CATG[catg]||{}).b||"des";
     const dd=x.dt?`${reviewMonth}-${x.dt.split("/")[0]}`:reviewMonth+"-01";
-    state.expenses[reviewMonth].push({ id:Date.now()+i, desc:x.desc, val:x.val, cat, catg, banco:"Santander", date:dd });
+    state.expenses[reviewMonth].push({ id:Date.now()+i, desc:x.desc, val:x.val, cat, catg, meio, banco:"Santander", date:dd });
     count++;
   });
   persist();
