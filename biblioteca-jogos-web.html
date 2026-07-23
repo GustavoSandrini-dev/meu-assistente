@@ -315,17 +315,12 @@ function toggleTheme(){ const b=document.body; const d=b.dataset.theme==="dark";
   localStorage.setItem("gamelib_theme",b.dataset.theme); }
 
 function setStatus(ap,v){ U(ap).status=v; persist(); render(); }
-function setRating(ap,v){ U(ap).rating=Math.min(v,4.5); persist(); render(); }
+function setRating(ap,v){ v=parseFloat(String(v).replace(",",".")); if(isNaN(v)){U(ap).rating=null;} else {U(ap).rating=Math.max(0,Math.min(10,v));} persist(); render(); }
 function setComment(ap,v){ U(ap).comment=v; persist(); }
 
-function starsHTML(ap,val){
-  let s="";
-  for(let i=1;i<=5;i++){
-    const full=val>=i, half=!full && val>=i-0.5;
-    const pct=full?100:half?50:0;
-    s+=`<span class="star" data-i="${i}" data-ap="${ap}">★<span class="fill" style="width:${pct}%">★</span></span>`;
-  }
-  return `<span class="stars" id="stars-${ap}">${s}</span> <span style="font-size:12px;color:var(--muted)">${val?val.toFixed(1):"—"}</span>`;
+function noteHTML(ap,val){
+  const shown = (val!=null && val!=="") ? String(val).replace(".",",") : "";
+  return `<input type="number" inputmode="decimal" min="0" max="10" step="0.1" value="${shown!==""?val:""}" placeholder="0–10" onchange="setRating('${String(ap).replace(/'/g,'')}',this.value)" style="width:74px;padding:5px 8px;font-size:14px;text-align:center;border:1.5px solid var(--border);border-radius:8px;background:var(--input);color:var(--text)"> <span style="font-size:13px;color:var(--muted)">/ 10</span>`;
 }
 
 const GOAL = 6; // jogos zerados para liberar 1 compra
@@ -438,7 +433,7 @@ function gameCard(g,pos){
         ${GENRES.filter(k=>k!=="Outros").map(k=>`<option value="${k}" ${k===gn2?"selected":""}>${GENRE_EMOJI[k]||""} ${k}</option>`).join("")}
       </select>
     </div>
-    <div class="row"><label>Sua nota</label>${starsHTML(ap,ratingOf(g))}</div>
+    <div class="row"><label>Sua nota</label>${noteHTML(ap, U(ap).rating)}</div>
     <textarea placeholder="Comentário..." onchange="setComment(${idArg},this.value)">${(u.comment||"").replace(/</g,"&lt;")}</textarea>
     ${links}
     </div>
@@ -489,13 +484,6 @@ function render(){
   document.getElementById("list").innerHTML=list.length?list.map(g=>gameCard(g)).join(""):`<div class="empty">Nenhum jogo encontrado.</div>`;
 }
 
-// clique nas estrelas (meia em meia, máx 4.5)
-document.addEventListener("click",e=>{
-  const st=e.target.closest(".star"); if(!st)return;
-  const i=+st.dataset.i, ap=st.dataset.ap;
-  const r=st.getBoundingClientRect(); const half=(e.clientX-r.left)<r.width/2;
-  setRating(ap, half? i-0.5 : i);
-});
 
 document.getElementById("lastsync").textContent="sincronizado em "+new Date().toLocaleDateString("pt-BR")+" · "+GAMES.length+" jogos";
 (function initTheme(){ const t=localStorage.getItem("gamelib_theme")||"dark"; document.body.dataset.theme=t;
@@ -552,13 +540,17 @@ async function hydrate(){
   }catch(e){ console.warn("hydrate falhou", e); }
 }
 let _syncT;
-function queueSync(){ clearTimeout(_syncT); _syncT=setTimeout(pushState, 700); }
+function queueSync(){ clearTimeout(_syncT); _syncT=setTimeout(pushState, 500); }
 async function pushState(){
   try{
     const v = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
     await _sb.from("app_state").upsert({key:STATE_KEY, value:v}, {onConflict:"user_id,key"});
   }catch(e){ console.warn("sync falhou", e); }
 }
+// grava imediatamente (usado após importação/limpeza) e ao sair da página
+window.__flush = function(){ clearTimeout(_syncT); pushState(); };
+document.addEventListener("visibilitychange", function(){ if(document.hidden) pushState(); });
+window.addEventListener("pagehide", function(){ pushState(); });
 // encaixa o sync no persist() existente
 if(typeof persist === "function"){ const _p = persist; persist = function(){ _p(); queueSync(); }; }
 // inicia
