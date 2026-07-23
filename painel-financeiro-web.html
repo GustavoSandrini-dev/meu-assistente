@@ -522,10 +522,11 @@ function render() {
 
   const exps = monthGastos().slice().reverse();
   document.getElementById("expList").innerHTML = exps.length ? `
-    <div style="overflow-x:auto"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Meio</th><th>Valor</th><th></th></tr></thead>
+    <div style="overflow-x:auto"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Meio</th><th>Valor</th><th></th></tr></thead>
     <tbody>${exps.map(e => `<tr>
       <td>${e.date.split("-").reverse().slice(0,2).join("/")}</td>
       <td>${e.desc.replace(/</g,"&lt;")}</td>
+      <td><select onchange="editExp(${e.id},'cat',this.value)" style="padding:4px 6px;font-size:12px">${Object.entries(CATS).map(([k,c])=>`<option value="${k}" ${k===e.cat?"selected":""}>${c.name}</option>`).join("")}</select></td>
       <td><select onchange="editExp(${e.id},'catg',this.value)" style="padding:4px 6px;font-size:12px">${CATG_KEYS.map(k=>`<option ${k===(e.catg||"Outros")?"selected":""}>${k}</option>`).join("")}</select></td>
       <td><select onchange="editExp(${e.id},'meio',this.value)" style="padding:4px 6px;font-size:12px">${["Débito","Crédito","PIX"].map(mm=>`<option ${mm===(e.meio||"Débito")?"selected":""}>${mm}</option>`).join("")}</select></td>
       <td><input type="number" step="0.01" value="${e.val}" onchange="editExp(${e.id},'val',this.value)" style="width:92px;padding:4px 6px;font-size:13px"></td>
