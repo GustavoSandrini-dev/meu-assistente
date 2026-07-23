@@ -42,6 +42,8 @@ input:focus,select:focus { border-color:var(--accent); }
 .banner { position:relative; width:100%; aspect-ratio:460/215; }
 .banner .ini { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:44px; font-weight:800; color:#fff; }
 .banner img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+.banner img.bg { filter:blur(16px) brightness(.55); transform:scale(1.15); }
+.banner img.fg { object-fit:contain; }
 .gbody { padding:14px; }
 .gname { font-size:16px; font-weight:700; line-height:1.2; }
 .gmeta { font-size:12px; color:var(--muted); margin-top:3px; }
@@ -303,7 +305,12 @@ function gameCard(g,pos){
     ? `<span class="plat-tag p-${plat}">${plat}</span> ${g.total>0?`${g.unlocked}/${g.total} conq.`:`${g.unlocked} conquistas`}`
     : `<span class="plat-tag p-${plat}">${plat}</span> ${g.playtime}h${g.total>0?` · ${g.unlocked}/${g.total} conq.`:""}`;
   const coverUrl = g.img ? g.img : (isNum ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${ap}/header.jpg` : "");
-  const coverImg = coverUrl ? `<img src="${coverUrl}" loading="lazy" onerror="this.remove()" alt="">` : "";
+  let coverImg = "";
+  if(coverUrl){
+    coverImg = g.xbox
+      ? `<img class="bg" src="${coverUrl}" loading="lazy" alt=""><img class="fg" src="${coverUrl}" loading="lazy" onerror="this.remove()" alt="">`
+      : `<img src="${coverUrl}" loading="lazy" onerror="this.remove()" alt="">`;
+  }
   const auto100 = g.total>0 && g.unlocked===g.total; // 100% => platinado travado
   return `<div class="game ${pos!=null&&pos<=3?'rank-hl':''}">
     <div class="banner" style="background:hsl(${hue(g.name)},55%,45%)"><span class="ini">${initials(g.name)}</span>${coverImg}</div>
