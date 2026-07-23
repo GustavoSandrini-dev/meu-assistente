@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Biblioteca de Jogos</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#6d4bf6">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});}</script>
 <style>
 :root { color-scheme: light; }
 body[data-theme="dark"] { color-scheme: dark; }
@@ -79,6 +83,14 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
 .catcard .cicon { width:60px; height:60px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:30px; margin:0 auto 12px; box-shadow:0 3px 10px rgba(0,0,0,.25); }
 .catcard .cname { font-size:15px; font-weight:800; color:var(--text); line-height:1.15; }
 .catcard .ccount { font-size:12px; color:var(--muted); margin-top:3px; }
+#rollOverlay { position:fixed; inset:0; z-index:8500; background:rgba(0,0,0,.65); display:none; align-items:center; justify-content:center; padding:20px; }
+#rollOverlay.show { display:flex; }
+.rollbox { background:var(--card); border:1.5px solid var(--border); border-radius:16px; padding:22px; width:340px; max-width:92vw; box-shadow:0 12px 40px rgba(0,0,0,.5); }
+.rollpick { text-align:center; }
+.rollpick .rc { width:100%; aspect-ratio:460/215; border-radius:12px; overflow:hidden; position:relative; margin-bottom:12px; }
+.rollpick .rc img { width:100%; height:100%; object-fit:cover; }
+.rollpick .rn { font-size:18px; font-weight:800; }
+.rollpick .rm { font-size:12px; color:var(--muted); margin-top:4px; }
 .note { background:var(--card); border-radius:12px; padding:12px 15px; box-shadow:var(--shadow); font-size:12.5px; color:var(--muted); margin-bottom:16px; }
 .rankpos { font-size:12px; font-weight:800; color:var(--accent); margin-right:2px; }
 .incent { background:linear-gradient(135deg,#6d4bf6,#9333ea); color:#fff; border-radius:14px; padding:16px 18px; margin-bottom:18px; box-shadow:0 3px 14px rgba(109,75,246,.35); }
@@ -172,6 +184,7 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
       <option value="name">Ordenar: nome (A-Z)</option>
     </select>
     <button class="btn" onclick="toggleAdd()">➕ Adicionar jogo</button>
+    <button class="btn on" onclick="rollGame()">🎲 O que jogar?</button>
   </div>
 
   <div class="addbar" id="addbar">
@@ -186,6 +199,17 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
 
   <div id="catbar" style="display:none;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap"></div>
   <div id="list" class="grid"></div>
+
+  <div id="rollOverlay" onclick="if(event.target===this)closeRoll()">
+    <div class="rollbox">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px">🎲 Do seu backlog, que tal jogar…</div>
+      <div id="rollResult"></div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn on" style="flex:1" onclick="rollGame()">🎲 Sortear de novo</button>
+        <button class="btn" onclick="closeRoll()">Fechar</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -253,15 +277,36 @@ function setTab(t){ tab=t;
   render(); }
 function pickGenre(gname){ genreFilter=gname; setTab("lib"); }
 function clearGenre(){ genreFilter=""; render(); }
+let specialFilter="";
 function filterStatus(v){
-  genreFilter="";
+  genreFilter=""; specialFilter="";
   const fs=document.getElementById("fStatus");
   const fp=document.getElementById("fPlat"), ft=document.getElementById("fType");
   if(v==="__all__"){ fs.value=""; fp.value=""; ft.value=""; document.getElementById("search").value=""; }
+  else if(v==="almost"){ specialFilter="almost"; fs.value=""; }
   else fs.value=v;
   setTab("lib");
   document.getElementById("list").scrollIntoView({behavior:"smooth",block:"start"});
 }
+function isAlmost(g){ return g.total>0 && g.unlocked<g.total && (g.unlocked/g.total)>=0.8; }
+// Sorteio "o que jogar" — do backlog, respeitando filtros de tipo/gênero/plataforma
+function rollGame(){
+  const fp=document.getElementById("fPlat").value, ft=document.getElementById("fType").value;
+  let pool=allGames().filter(g=>statusOf(g)==="back" && (!fp||(g.platform||"Outro")===fp) && (!ft||typeOf(g)===ft) && (!genreFilter||genreOf(g)===genreFilter));
+  if(!pool.length) pool=allGames().filter(g=>statusOf(g)==="back");
+  const box=document.getElementById("rollResult");
+  if(!pool.length){ box.innerHTML=`<div class="rm">Seu backlog está vazio! 🎉</div>`; document.getElementById("rollOverlay").classList.add("show"); return; }
+  const g=pool[Math.floor(Math.random()*pool.length)];
+  const ap=gid(g), isNum=g.appid!=null;
+  const cover=g.img?g.img:(isNum?`https://cdn.cloudflare.steamstatic.com/steam/apps/${ap}/header.jpg`:"");
+  box.innerHTML=`<div class="rollpick">
+    <div class="rc" style="background:hsl(${hue(g.name)},55%,45%)">${cover?`<img src="${cover}" onerror="this.remove()" alt="">`:""}</div>
+    <div class="rn">${g.name}</div>
+    <div class="rm"><span class="plat-tag p-${g.platform||'Outro'}">${g.platform||'Outro'}</span> ${GENRE_EMOJI[genreOf(g)]||''} ${genreOf(g)}${g.hltb>0?` · ~${g.hltb}h`:''}</div>
+  </div>`;
+  document.getElementById("rollOverlay").classList.add("show");
+}
+function closeRoll(){ document.getElementById("rollOverlay").classList.remove("show"); }
 function toggleTheme(){ const b=document.body; const d=b.dataset.theme==="dark";
   b.dataset.theme=d?"light":"dark"; document.getElementById("themeBtn").textContent=d?"🌙 Escuro":"☀️ Claro";
   localStorage.setItem("gamelib_theme",b.dataset.theme); }
@@ -321,8 +366,9 @@ function renderStats(){
   const horas=g.reduce((s,x)=>s+x.playtime,0);
   const cnt={back:0,play:0,zer:0,plat:0,aband:0};
   g.forEach(x=>cnt[statusOf(x)]++);
+  const almost=g.filter(isAlmost).length;
   const el=[["Jogos",g.length,"__all__"],["Horas totais",Math.round(horas)+"h",null],["✅ Zerados",cnt.zer,"zer"],
-    ["🏆 Platinados",cnt.plat,"plat"],["📥 Backlog",cnt.back,"back"],["🚫 Largados",cnt.aband,"aband"]];
+    ["🏆 Platinados",cnt.plat,"plat"],["🔥 Quase lá",almost,"almost"],["📥 Backlog",cnt.back,"back"],["🚫 Largados",cnt.aband,"aband"]];
   document.getElementById("stats").innerHTML=el.map(([l,n,fv])=>{
     const clk = fv===null ? "" : `class="stat clickable" onclick="filterStatus('${fv}')"`;
     return `<div ${clk||'class="stat"'}><div class="n">${n}</div><div class="l">${l}</div></div>`;
@@ -415,8 +461,11 @@ function render(){
     return;
   }
 
-  let list=allGames().filter(g=>g.name.toLowerCase().includes(q)&&(!fs||statusOf(g)===fs)&&(!fp||(g.platform||"Outro")===fp)&&(!ft||typeOf(g)===ft)&&(!genreFilter||genreOf(g)===genreFilter));
+  let list=allGames().filter(g=>g.name.toLowerCase().includes(q)&&(!fs||statusOf(g)===fs)&&(!fp||(g.platform||"Outro")===fp)&&(!ft||typeOf(g)===ft)&&(!genreFilter||genreOf(g)===genreFilter)&&(specialFilter!=="almost"||isAlmost(g)));
+  const showBar = genreFilter || specialFilter;
+  document.getElementById("catbar").style.display = (tab==="lib" && showBar) ? "flex" : "none";
   if(genreFilter) document.getElementById("catbar").innerHTML=`<span style="font-size:13px;color:var(--muted)">Categoria:</span> <span class="plat-tag" style="background:var(--accent);color:var(--accent-t)">${GENRE_EMOJI[genreFilter]||""} ${genreFilter}</span> <button class="btn-sec" style="padding:4px 10px" onclick="clearGenre()">× limpar</button>`;
+  else if(specialFilter==="almost") document.getElementById("catbar").innerHTML=`<span class="plat-tag" style="background:var(--accent);color:var(--accent-t)">🔥 Quase platinado (80%+)</span> <button class="btn-sec" style="padding:4px 10px" onclick="filterStatus('__all__')">× limpar</button>`;
 
   if(tab==="rank"){
     list=list.filter(g=>ratingOf(g)>0).sort((a,b)=>ratingOf(b)-ratingOf(a));
