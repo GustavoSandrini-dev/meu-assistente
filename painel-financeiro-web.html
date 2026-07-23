@@ -282,14 +282,6 @@ td.val { font-weight: 600; white-space: nowrap; }
   <div id="achv"></div>
 
   <div class="card">
-    <h2>⚡ Importar comprovantes de pagamento/PIX</h2>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Busca os comprovantes de pagamento no seu Gmail. Você confirma a categoria antes de lançar.</p>
-    <button class="primary" id="btnGmail" onclick="importGmail()">Buscar comprovantes</button>
-    <button class="btn-sec" style="margin-left:8px" onclick="resetImportMemory()" title="Esquece quais comprovantes já foram importados">Limpar memória de importação</button>
-    <div id="gmailResults" style="margin-top:14px"></div>
-  </div>
-
-  <div class="card">
     <h2>Registrar gasto</h2>
     <div class="exp-form">
       <div><label>Descrição</label><input type="text" id="eDesc" placeholder="Ex: Mercado"></div>
@@ -784,7 +776,8 @@ async function importPDF(){
     for(const l of lines){ const mm=l.toLowerCase().match(/(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s*\/?\s*(\d{4})/); if(mm){ ym=`${mm[2]}-${String(MESES[mm[1]]).padStart(2,"0")}`; break; } }
     const txns=parseSantander(lines);
     if(!txns.length){ st.textContent="Não encontrei lançamentos. O formato pode ser diferente."; return; }
-    st.textContent=`Encontrei ${txns.length} gastos${ym?` de ${ym.split("-").reverse().join("/")}`:""}. Revise e importe:`;
+    const nd=txns.filter(x=>x.debit).length, nc=txns.length-nd;
+    st.textContent=`Encontrei ${nd} débitos (gastos) e ${nc} créditos (entradas)${ym?` em ${ym.split("-").reverse().join("/")}`:""}. Revise e importe:`;
     showReview(txns, ym||curMonth());
   }catch(e){ st.textContent="Erro ao ler o PDF: "+e.message; }
 }
@@ -800,7 +793,7 @@ function parseSantander(lines){
     const t=hasType(l); const m=l.match(money);
     if(t && m){
       const val=parseFloat(m[1].replace(/\./g,"").replace(",","."));
-      const debit = l.slice(m.index).includes("-");
+      const debit = m[2]==="-";   // sinal do próprio valor identifica débito x crédito
       let dt=(l.match(/^(\d{2}\/\d{2})/)||[])[1]||"";
       let merch=l.slice(l.indexOf(t)+t.length, m.index).replace(/\d/g,"").replace(/-/g,"").trim();
       const nx=lines[i+1];
@@ -812,9 +805,8 @@ function parseSantander(lines){
       }
       dt=dt||last; last=dt||last;
       const name=(merch||t);
-      if(!debit) continue; // só gastos
-      if(name.toUpperCase().includes("GUSTAVO FERREIRA SANDRINI")) continue; // transferência própria
-      out.push({ dt, desc:name, val, catg:catgFromText(name+" "+t) });
+      if(name.toUpperCase().includes("GUSTAVO FERREIRA SANDRINI")) continue; // transferência entre contas próprias
+      out.push({ dt, desc:name, val, debit, catg: debit?catgFromText(name+" "+t):"Entrada" });
     }
   }
   return out;
@@ -822,17 +814,18 @@ function parseSantander(lines){
 let reviewData=[], reviewMonth="";
 function showReview(txns, ym){
   reviewData=txns; reviewMonth=ym;
-  const rows=txns.map((x,i)=>`<tr>
-    <td><input type="checkbox" id="pc${i}" checked style="width:auto"></td>
+  const rows=txns.map((x,i)=>`<tr style="${x.debit?'':'opacity:.6'}">
+    <td><input type="checkbox" id="pc${i}" ${x.debit?"checked":"disabled"} style="width:auto"></td>
+    <td><span class="tag" style="background:${x.debit?'#fee2e2':'#dcfce7'};color:${x.debit?'#b91c1c':'#15803d'}">${x.debit?'Débito':'Crédito'}</span></td>
     <td>${x.dt||"-"}</td>
-    <td>${x.desc.replace(/</g,"&lt;").slice(0,30)}</td>
+    <td>${x.desc.replace(/</g,"&lt;").slice(0,28)}</td>
     <td class="val">${fmt(x.val)}</td>
-    <td><select id="pg${i}" style="padding:4px 6px;font-size:12px">${CATG_KEYS.map(k=>`<option ${k===x.catg?"selected":""}>${k}</option>`).join("")}</select></td>
+    <td>${x.debit?`<select id="pg${i}" style="padding:4px 6px;font-size:12px">${CATG_KEYS.map(k=>`<option ${k===x.catg?"selected":""}>${k}</option>`).join("")}</select>`:'<span style="color:var(--muted);font-size:12px">entrada</span>'}</td>
   </tr>`).join("");
   document.getElementById("pdfReview").innerHTML=`
-    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Mês de destino: <strong>${ym.split("-").reverse().join("/")}</strong> · desmarque o que não quiser importar.</div>
-    <table><thead><tr><th></th><th>Data</th><th>Descrição</th><th>Valor</th><th>Categoria</th></tr></thead><tbody>${rows}</tbody></table>
-    <button class="primary" style="margin-top:12px" onclick="confirmPdfImport()">Importar selecionados</button>`;
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Mês de destino: <strong>${ym.split("-").reverse().join("/")}</strong> · só os <strong>débitos</strong> entram como gasto; créditos ficam de fora.</div>
+    <div style="overflow-x:auto"><table><thead><tr><th></th><th>Tipo</th><th>Data</th><th>Descrição</th><th>Valor</th><th>Categoria</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <button class="primary" style="margin-top:12px" onclick="confirmPdfImport()">Importar débitos selecionados</button>`;
 }
 function confirmPdfImport(){
   let count=0;
