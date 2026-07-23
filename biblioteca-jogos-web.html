@@ -31,6 +31,8 @@ h1 { font-size:22px; }
 .stat { background:var(--card); border-radius:12px; padding:13px 15px; box-shadow:var(--shadow); }
 .stat .n { font-size:22px; font-weight:800; }
 .stat .l { font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:600; }
+.stat.clickable { cursor:pointer; transition:box-shadow .15s, transform .15s; }
+.stat.clickable:hover { transform:translateY(-2px); box-shadow:0 0 0 1.5px var(--accent), var(--shadow); }
 .tabs { display:flex; gap:8px; margin-bottom:14px; }
 .controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
 input,select { padding:9px 12px; border:1.5px solid var(--border); border-radius:9px; font-size:14px; background:var(--input); color:var(--text); outline:none; }
@@ -251,6 +253,15 @@ function setTab(t){ tab=t;
   render(); }
 function pickGenre(gname){ genreFilter=gname; setTab("lib"); }
 function clearGenre(){ genreFilter=""; render(); }
+function filterStatus(v){
+  genreFilter="";
+  const fs=document.getElementById("fStatus");
+  const fp=document.getElementById("fPlat"), ft=document.getElementById("fType");
+  if(v==="__all__"){ fs.value=""; fp.value=""; ft.value=""; document.getElementById("search").value=""; }
+  else fs.value=v;
+  setTab("lib");
+  document.getElementById("list").scrollIntoView({behavior:"smooth",block:"start"});
+}
 function toggleTheme(){ const b=document.body; const d=b.dataset.theme==="dark";
   b.dataset.theme=d?"light":"dark"; document.getElementById("themeBtn").textContent=d?"🌙 Escuro":"☀️ Claro";
   localStorage.setItem("gamelib_theme",b.dataset.theme); }
@@ -310,9 +321,12 @@ function renderStats(){
   const horas=g.reduce((s,x)=>s+x.playtime,0);
   const cnt={back:0,play:0,zer:0,plat:0,aband:0};
   g.forEach(x=>cnt[statusOf(x)]++);
-  const el=[["Jogos",g.length],["Horas totais",Math.round(horas)+"h"],["✅ Zerados",cnt.zer],
-    ["🏆 Platinados",cnt.plat],["📥 Backlog",cnt.back],["🚫 Largados",cnt.aband]];
-  document.getElementById("stats").innerHTML=el.map(([l,n])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
+  const el=[["Jogos",g.length,"__all__"],["Horas totais",Math.round(horas)+"h",null],["✅ Zerados",cnt.zer,"zer"],
+    ["🏆 Platinados",cnt.plat,"plat"],["📥 Backlog",cnt.back,"back"],["🚫 Largados",cnt.aband,"aband"]];
+  document.getElementById("stats").innerHTML=el.map(([l,n,fv])=>{
+    const clk = fv===null ? "" : `class="stat clickable" onclick="filterStatus('${fv}')"`;
+    return `<div ${clk||'class="stat"'}><div class="n">${n}</div><div class="l">${l}</div></div>`;
+  }).join("");
 }
 
 function gameCard(g,pos){
