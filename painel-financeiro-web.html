@@ -357,11 +357,15 @@ const CATS = {
 const fmt = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 // Categorias detalhadas (para a aba Gastos) + cor + mapeamento p/ 50/20/30
 const CATG = {
-  "Mercado":{c:"#16a34a",b:"nec"}, "Alimentação":{c:"#f97316",b:"des"}, "Farmácia/Saúde":{c:"#0ea5e9",b:"nec"},
-  "Transporte":{c:"#6366f1",b:"nec"}, "Internet":{c:"#0284c7",b:"nec"}, "TV":{c:"#0d9488",b:"nec"},
-  "Contas":{c:"#64748b",b:"nec"}, "Jogos":{c:"#8b5cf6",b:"des"}, "Lazer":{c:"#a855f7",b:"des"},
-  "Compras":{c:"#ec4899",b:"des"}, "Assinaturas":{c:"#14b8a6",b:"des"}, "Fatura cartão":{c:"#eab308",b:"nec"},
-  "Educação":{c:"#2563eb",b:"nec"}, "Investimento":{c:"#10b981",b:"pou"}, "Salário":{c:"#22c55e",b:"nec"}, "Entrada":{c:"#84cc16",b:"nec"}, "Outros":{c:"#94a3b8",b:"des"}
+  "Mercado":{c:"#16a34a",b:"nec"}, "Alimentação":{c:"#f97316",b:"des"}, "Padaria":{c:"#d97706",b:"des"},
+  "Bar/Bebidas":{c:"#b45309",b:"des"}, "Farmácia/Saúde":{c:"#0ea5e9",b:"nec"}, "Transporte":{c:"#6366f1",b:"nec"},
+  "Combustível":{c:"#dc2626",b:"nec"}, "Internet":{c:"#0284c7",b:"nec"}, "Telefone":{c:"#0891b2",b:"nec"},
+  "TV":{c:"#0d9488",b:"nec"}, "Moradia":{c:"#57534e",b:"nec"}, "Contas":{c:"#64748b",b:"nec"},
+  "Assinaturas":{c:"#14b8a6",b:"des"}, "Jogos":{c:"#8b5cf6",b:"des"}, "Lazer":{c:"#a855f7",b:"des"},
+  "Compras":{c:"#ec4899",b:"des"}, "Vestuário":{c:"#db2777",b:"des"}, "Beleza":{c:"#e11d48",b:"des"},
+  "Pet":{c:"#65a30d",b:"des"}, "Casa":{c:"#78716c",b:"des"}, "Presentes":{c:"#f43f5e",b:"des"},
+  "Viagem":{c:"#0ea5e9",b:"des"}, "Educação":{c:"#2563eb",b:"nec"}, "Taxas/Impostos":{c:"#475569",b:"nec"},
+  "Fatura cartão":{c:"#eab308",b:"nec"}, "Investimento":{c:"#10b981",b:"pou"}, "Outros":{c:"#94a3b8",b:"des"}
 };
 const CATG_KEYS = Object.keys(CATG);
 const fmt2 = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -469,6 +473,7 @@ function clearMonth() {
   if (!confirm(`Apagar TODOS os ${n} lançamentos de ${m.split("-").reverse().join("/")}? Não dá pra desfazer.`)) return;
   state.expenses[m] = [];
   persist(); render();
+  if (typeof window.__flush === "function") window.__flush();
   if (document.getElementById("tab-gastos").style.display !== "none") renderGastos();
 }
 function editExp(id, field, value) {
@@ -477,8 +482,13 @@ function editExp(id, field, value) {
   if (!e) return;
   if (field === "val") e.val = parseFloat(value) || e.val;
   else e[field] = value;
-  if (field === "catg") e.cat = (CATG[value] || {}).b || e.cat; // atualiza bucket 50/20/30
+  if (field === "catg") {
+    e.cat = (CATG[value] || {}).b || e.cat; // atualiza bucket 50/20/30
+    if (!state.catRules) state.catRules = {};
+    state.catRules[ruleKey(e.desc)] = value; // aprende: esse estabelecimento => esse tipo
+  }
   persist(); render();
+  if (typeof window.__flush === "function") window.__flush();
   if (document.getElementById("tab-gastos").style.display !== "none") renderGastos();
 }
 function delExpense(id) {
@@ -772,20 +782,32 @@ function renderGastos(){
 }
 
 /* ===== Importar PDF (Santander) ===== */
+function ruleKey(s){ return (s||"").toUpperCase().replace(/\s+/g," ").trim(); }
 function catgFromText(s){
-  s=(s||"").toUpperCase();
+  const key=ruleKey(s);
+  // 1) regra aprendida (o que você já categorizou antes)
+  if(state.catRules && state.catRules[key]) return state.catRules[key];
+  s=key;
   const R=[
-    ["Mercado",["SUPERMERCADO","NINK","GLOBO CARNES","EMPORIO","HORTIFRUTI","ATACAD","ASSAI","CARREFOUR","PAO DE ACUCAR","SWIFT"]],
-    ["Alimentação",["KEETA","IFOOD","DELIVERY","OUTBACK","CASA DE BOLO","RESTAURANTE","BURGER","MC DONALD","PIZZA","LANCHE","CAFE","PADARIA","BK "]],
-    ["Farmácia/Saúde",["PROMOFARMA","FARMA","DROGA","DROGARIA","SAUDE","HOSPITAL","CLINICA"]],
-    ["Transporte",["UBER","99","POSTO","IPIRANGA","SHELL","COMBUSTIVEL","ESTACIONAMENTO"]],
-    ["Jogos",["STEAM","XBOX","PLAYSTATION","NINTENDO","NUUVEM","EPIC GAMES","RIOT","BLIZZARD","GOG.COM","PSN","GAME"]],
-    ["TV",["SKY","CLARO TV","NET TV","TV POR ASSINATURA","GLOBOPLAY","DIRECTV"]],
-    ["Internet",["VIVO FIBRA","INTERNET","VIVO","TELEFONICA","CLARO","TIM ","OI FIBRA","NET SERVICOS"]],
-    ["Lazer",["CINEMARK","CINEMA","INGRESSO","TICKETMASTER"]],
+    ["Mercado",["SUPERMERCADO","NINK","GLOBO CARNES","EMPORIO","HORTIFRUTI","ATACAD","ASSAI","CARREFOUR","PAO DE ACUCAR","SENDAS","PRECO BOM","GSMMY","DONA FELI"]],
+    ["Padaria",["PADARIA","CASA DE BOLO","CASA DE PAES","PANIFICADORA","FLORA"]],
+    ["Bar/Bebidas",["BAR ","ADEGA","DISTRIBUIDORA DE BEB","CERVEJA","DRINKS","BUBBLE"]],
+    ["Alimentação",["KEETA","IFOOD","IFD","DELIVERY","OUTBACK","RESTAURANTE","BURGER","MC DONALD","PIZZA","LANCHE","MISTER KILO","KILLUS","DUMAH","GRILL","SWIFT"]],
+    ["Farmácia/Saúde",["PROMOFARMA","FARMA","DROGA","DROGARIA","RAIA","DROGASIL","SAUDE","HOSPITAL","CLINICA","LAB "]],
+    ["Combustível",["POSTO","IPIRANGA","SHELL","COMBUSTIVEL","BR "]],
+    ["Transporte",["UBER","99 TECNOLOGIA","99APP","ESTACIONAMENTO","AUTOPASS","SEM PARAR","METRO","CPTM","CENTRO AUTOMOTIVO"]],
+    ["Jogos",["STEAM","XBOX","PLAYSTATION","NINTENDO","NUUVEM","EPIC GAMES","RIOT","BLIZZARD","GOG.COM","PSN"]],
+    ["TV",["SKY","CLARO TV","NET TV","TV POR ASSINATURA","DIRECTV"]],
+    ["Telefone",["VIVO","TIM ","OI S","CLARO S"]],
+    ["Internet",["VIVO FIBRA","INTERNET","TELEFONICA","OI FIBRA","NET SERVICOS","HELPBOMAX"]],
+    ["Lazer",["CINEMARK","CINEMA","INGRESSO","TICKETMASTER","LOTERIA","LOTERIAS"]],
     ["Assinaturas",["SPOTIFY","NETFLIX","HBO","DISNEY","AMAZON PRIME","CRUNCHYROLL","YOUTUBE PREMIUM"]],
-    ["Contas",["ENERGISA","ENEL","CPFL","SABESP","AGUA","CONDOMINIO","ALUGUEL","IPTU"]],
-    ["Compras",["AMAZON","MERCADO LIVRE","MAGALU","SHOPEE","ALIEXPRESS","INSIDER","NETSHOES","PANINI"]],
+    ["Moradia",["ALUGUEL","CONDOMINIO","IPTU","IMOBILIARIA"]],
+    ["Contas",["ENERGISA","ENEL","CPFL","SABESP","AGUA","LUZ"]],
+    ["Compras",["AMAZON","MERCADO LIVRE","MAGALU","SHOPEE","ALIEXPRESS","INSIDER","NETSHOES","PANINI","PAGSEGURO","PAGBANK","MERCADOPAGO"]],
+    ["Vestuário",["RENNER","RIACHUELO","CEA","C&A","ZARA","HERING","NIKE","ADIDAS"]],
+    ["Beleza",["BOTICARIO","NATURA","BARBEARIA","SALAO","CABELE","MANICURE"]],
+    ["Pet",["PETZ","COBASI","PET SHOP","VETERIN"]],
     ["Fatura cartão",["PAGAMENTO CARTAO CREDITO"]]
   ];
   for(const [c,keys] of R) if(keys.some(k=>s.includes(k))) return c;
@@ -895,6 +917,7 @@ function confirmPdfImport(){
     count++;
   });
   persist();
+  if (typeof window.__flush === "function") window.__flush(); // grava na hora (não perde no refresh)
   document.getElementById("pdfReview").innerHTML=`<div class="empty">✅ ${count} gastos importados em ${reviewMonth.split("-").reverse().join("/")}.</div>`;
   document.getElementById("month").value=reviewMonth;
   render(); renderGastos();
@@ -953,13 +976,17 @@ async function hydrate(){
   }catch(e){ console.warn("hydrate falhou", e); }
 }
 let _syncT;
-function queueSync(){ clearTimeout(_syncT); _syncT=setTimeout(pushState, 700); }
+function queueSync(){ clearTimeout(_syncT); _syncT=setTimeout(pushState, 500); }
 async function pushState(){
   try{
     const v = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
     await _sb.from("app_state").upsert({key:STATE_KEY, value:v}, {onConflict:"user_id,key"});
   }catch(e){ console.warn("sync falhou", e); }
 }
+// grava imediatamente (usado após importação/limpeza) e ao sair da página
+window.__flush = function(){ clearTimeout(_syncT); pushState(); };
+document.addEventListener("visibilitychange", function(){ if(document.hidden) pushState(); });
+window.addEventListener("pagehide", function(){ pushState(); });
 // encaixa o sync no persist() existente
 if(typeof persist === "function"){ const _p = persist; persist = function(){ _p(); queueSync(); }; }
 // inicia
