@@ -71,12 +71,12 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
 .hltb { font-size:12px; }
 .hltb b { color:var(--text); }
 .empty { text-align:center; color:var(--muted); padding:30px; }
-.catgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; }
-.catcard { background:var(--card); border:1.5px solid var(--border); border-radius:14px; padding:20px 14px; text-align:center; cursor:pointer; box-shadow:var(--shadow); transition:border-color .15s,transform .15s; }
-.catcard:hover { border-color:var(--accent); transform:translateY(-2px); }
-.catcard .cemoji { font-size:34px; }
-.catcard .cname { font-size:15px; font-weight:800; margin-top:8px; color:var(--text); }
-.catcard .ccount { font-size:12px; color:var(--muted); margin-top:2px; }
+.catgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:14px; }
+.catcard { background:var(--card); border:1.5px solid var(--border); border-radius:16px; padding:18px 12px; text-align:center; cursor:pointer; box-shadow:var(--shadow); transition:border-color .15s,transform .15s,box-shadow .15s; }
+.catcard:hover { border-color:var(--accent); transform:translateY(-3px); box-shadow:0 6px 18px rgba(0,0,0,.18); }
+.catcard .cicon { width:60px; height:60px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:30px; margin:0 auto 12px; box-shadow:0 3px 10px rgba(0,0,0,.25); }
+.catcard .cname { font-size:15px; font-weight:800; color:var(--text); line-height:1.15; }
+.catcard .ccount { font-size:12px; color:var(--muted); margin-top:3px; }
 .note { background:var(--card); border-radius:12px; padding:12px 15px; box-shadow:var(--shadow); font-size:12.5px; color:var(--muted); margin-bottom:16px; }
 .rankpos { font-size:12px; font-weight:800; color:var(--accent); margin-right:2px; }
 .incent { background:linear-gradient(135deg,#6d4bf6,#9333ea); color:#fff; border-radius:14px; padding:16px 18px; margin-bottom:18px; box-shadow:0 3px 14px rgba(109,75,246,.35); }
@@ -234,7 +234,8 @@ const TYPE_TAG = { single:"#3b82f6", multi:"#22c55e", online:"#f43f5e" };
 function typeOf(g){ return U(gid(g)).type || g.type || "single"; }
 function setType(id,v){ U(id).type=v; persist(); render(); }
 const GENRES = ["Souls-like","Fighting","Shooter","Tower Defense","Card Game","MOBA","Metroidvania","Roguelike","Corrida","Esporte","Terror","Survival","Plataforma","RPG","Estratégia","Simulação","Puzzle","Aventura","Outros"];
-const GENRE_EMOJI = {"Souls-like":"⚔️","Fighting":"🥊","Shooter":"🔫","Tower Defense":"🏰","Card Game":"🃏","MOBA":"🛡️","Metroidvania":"🗺️","Roguelike":"💀","Corrida":"🏎️","Esporte":"⚽","Terror":"👻","Survival":"🏕️","Plataforma":"🍄","RPG":"🐉","Estratégia":"♟️","Simulação":"🏗️","Puzzle":"🧩","Aventura":"🌍","Outros":"🎲"};
+const GENRE_EMOJI = {"Souls-like":"⚔️","Fighting":"🥊","Shooter":"🎯","Tower Defense":"🏰","Card Game":"🃏","MOBA":"🛡️","Metroidvania":"🗺️","Roguelike":"💀","Corrida":"🏎️","Esporte":"⚽","Terror":"👻","Survival":"🏕️","Plataforma":"🍄","RPG":"🐉","Estratégia":"♟️","Simulação":"🏗️","Puzzle":"🧩","Aventura":"🌍","Outros":"🎲"};
+const GENRE_COLOR = {"Souls-like":"#b91c1c","Fighting":"#ea580c","Shooter":"#0891b2","Tower Defense":"#65a30d","Card Game":"#7c3aed","MOBA":"#0d9488","Metroidvania":"#4f46e5","Roguelike":"#475569","Corrida":"#dc2626","Esporte":"#16a34a","Terror":"#6d28d9","Survival":"#a16207","Plataforma":"#db2777","RPG":"#9333ea","Estratégia":"#1d4ed8","Simulação":"#c2410c","Puzzle":"#0284c7","Aventura":"#0e7490","Outros":"#64748b"};
 function genreOf(g){ return U(gid(g)).genre || g.genre || "Outros"; }
 function setGenre(id,v){ U(id).genre=v; persist(); render(); }
 let genreFilter = "";
@@ -384,16 +385,19 @@ function render(){
   const sb=document.getElementById("sortBy").value;
   // Aba Categorias: grade de gêneros clicáveis
   document.getElementById("catbar").style.display = (tab==="lib" && genreFilter) ? "flex" : "none";
+  document.getElementById("list").className = (tab==="cat") ? "catgrid" : "grid";
   if(tab==="cat"){
     const counts={};
     allGames().forEach(g=>{ const gg=genreOf(g); counts[gg]=(counts[gg]||0)+1; });
     const ordered=GENRES.filter(x=>counts[x]).sort((a,b)=>counts[b]-counts[a]);
-    document.getElementById("list").innerHTML = `<div class="catgrid">`+ordered.map(gn=>
-      `<div class="catcard" onclick="pickGenre('${gn.replace(/'/g,"")}')">
-        <div class="cemoji">${GENRE_EMOJI[gn]||"🎲"}</div>
+    document.getElementById("list").innerHTML = ordered.map(gn=>{
+      const col=GENRE_COLOR[gn]||"#64748b";
+      return `<div class="catcard" onclick="pickGenre('${gn.replace(/'/g,"")}')">
+        <div class="cicon" style="background:linear-gradient(135deg,${col},${col}cc)">${GENRE_EMOJI[gn]||"🎲"}</div>
         <div class="cname">${gn}</div>
         <div class="ccount">${counts[gn]} ${counts[gn]>1?"jogos":"jogo"}</div>
-      </div>`).join("")+`</div>`;
+      </div>`;
+    }).join("");
     return;
   }
 
