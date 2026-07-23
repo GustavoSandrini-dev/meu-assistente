@@ -264,6 +264,9 @@ const GENRE_EMOJI = {"Souls-like":"⚔️","Fighting":"🥊","Shooter":"🎯","T
 const GENRE_COLOR = {"Souls-like":"#b91c1c","Fighting":"#ea580c","Shooter":"#0891b2","Tower Defense":"#65a30d","Card Game":"#7c3aed","MOBA":"#0d9488","Metroidvania":"#4f46e5","Roguelike":"#475569","Corrida":"#dc2626","Esporte":"#16a34a","Terror":"#6d28d9","Survival":"#a16207","Plataforma":"#db2777","RPG":"#9333ea","Estratégia":"#1d4ed8","Simulação":"#c2410c","Puzzle":"#0284c7","Aventura":"#0e7490","Outros":"#64748b"};
 function genreOf(g){ return U(gid(g)).genre || g.genre || "Outros"; }
 function setGenre(id,v){ U(id).genre=v; persist(); render(); }
+function genre2Of(g){ const v=U(gid(g)).genre2; return v!=null?v:(g.genre2||""); }
+function setGenre2(id,v){ U(id).genre2=v; persist(); render(); }
+function hasGenre(g,gn){ return genreOf(g)===gn || genre2Of(g)===gn; }
 let genreFilter = "";
 function ratingOf(g){ const r=U(gid(g)).rating; return r==null?0:r; }
 
@@ -392,8 +395,9 @@ function gameCard(g,pos){
   const links=`<div class="links">${linkItems}</div>`;
   const tp=typeOf(g);
   const tbadge=`<span class="plat-tag" style="background:${TYPE_TAG[tp]};color:#fff">${TYPES[tp].split(" ")[0]}</span>`;
-  const gn=genreOf(g);
-  const gbadge=`<span class="plat-tag" style="background:var(--row);color:var(--text)">${GENRE_EMOJI[gn]||"🎲"} ${gn}</span>`;
+  const gn=genreOf(g), gn2=genre2Of(g);
+  const gbadge=`<span class="plat-tag" style="background:var(--row);color:var(--text)">${GENRE_EMOJI[gn]||"🎲"} ${gn}</span>`
+    + (gn2?` <span class="plat-tag" style="background:var(--row);color:var(--muted)">${GENRE_EMOJI[gn2]||"🎲"} ${gn2}</span>`:"");
   const meta = g.xbox
     ? `<span class="plat-tag p-${plat}">${plat}</span> ${tbadge} ${g.total>0?`${g.unlocked}/${g.total} conq.`:`${g.unlocked} conquistas`}`
     : `<span class="plat-tag p-${plat}">${plat}</span> ${tbadge} ${g.playtime}h${g.total>0?` · ${g.unlocked}/${g.total} conq.`:""}`;
@@ -428,6 +432,12 @@ function gameCard(g,pos){
         ${GENRES.map(k=>`<option value="${k}" ${k===gn?"selected":""}>${GENRE_EMOJI[k]||""} ${k}</option>`).join("")}
       </select>
     </div>
+    <div class="row"><label>Subgênero</label>
+      <select onchange="setGenre2(${idArg},this.value)" style="padding:5px 8px;font-size:12px">
+        <option value="" ${!gn2?"selected":""}>— nenhum —</option>
+        ${GENRES.filter(k=>k!=="Outros").map(k=>`<option value="${k}" ${k===gn2?"selected":""}>${GENRE_EMOJI[k]||""} ${k}</option>`).join("")}
+      </select>
+    </div>
     <div class="row"><label>Sua nota</label>${starsHTML(ap,ratingOf(g))}</div>
     <textarea placeholder="Comentário..." onchange="setComment(${idArg},this.value)">${(u.comment||"").replace(/</g,"&lt;")}</textarea>
     ${links}
@@ -448,7 +458,7 @@ function render(){
   document.getElementById("list").className = (tab==="cat") ? "catgrid" : "grid";
   if(tab==="cat"){
     const counts={};
-    allGames().forEach(g=>{ const gg=genreOf(g); counts[gg]=(counts[gg]||0)+1; });
+    allGames().forEach(g=>{ counts[genreOf(g)]=(counts[genreOf(g)]||0)+1; const g2=genre2Of(g); if(g2) counts[g2]=(counts[g2]||0)+1; });
     const ordered=GENRES.filter(x=>counts[x]).sort((a,b)=>counts[b]-counts[a]);
     document.getElementById("list").innerHTML = ordered.map(gn=>{
       const col=GENRE_COLOR[gn]||"#64748b";
@@ -461,7 +471,7 @@ function render(){
     return;
   }
 
-  let list=allGames().filter(g=>g.name.toLowerCase().includes(q)&&(!fs||statusOf(g)===fs)&&(!fp||(g.platform||"Outro")===fp)&&(!ft||typeOf(g)===ft)&&(!genreFilter||genreOf(g)===genreFilter)&&(specialFilter!=="almost"||isAlmost(g)));
+  let list=allGames().filter(g=>g.name.toLowerCase().includes(q)&&(!fs||statusOf(g)===fs)&&(!fp||(g.platform||"Outro")===fp)&&(!ft||typeOf(g)===ft)&&(!genreFilter||hasGenre(g,genreFilter))&&(specialFilter!=="almost"||isAlmost(g)));
   const showBar = genreFilter || specialFilter;
   document.getElementById("catbar").style.display = (tab==="lib" && showBar) ? "flex" : "none";
   if(genreFilter) document.getElementById("catbar").innerHTML=`<span style="font-size:13px;color:var(--muted)">Categoria:</span> <span class="plat-tag" style="background:var(--accent);color:var(--accent-t)">${GENRE_EMOJI[genreFilter]||""} ${genreFilter}</span> <button class="btn-sec" style="padding:4px 10px" onclick="clearGenre()">× limpar</button>`;
