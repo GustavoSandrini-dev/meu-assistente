@@ -95,8 +95,8 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
       <button onclick="authSendCode()" style="width:100%;padding:11px;border:none;border-radius:9px;background:#6d4bf6;color:#fff;font-weight:700;font-size:14px;cursor:pointer">Enviar código</button>
     </div>
     <div id="step2" style="display:none">
-      <div style="font-size:13px;color:#aab3c5;margin-bottom:10px">Digite o código de 6 dígitos que enviamos ao seu e-mail.</div>
-      <input id="authCode" inputmode="numeric" maxlength="6" placeholder="000000" style="width:100%;padding:11px;margin-bottom:12px;border:1.5px solid #2e3342;border-radius:9px;background:#151824;color:#e8ebf2;font-size:20px;letter-spacing:6px;text-align:center;outline:none">
+      <div style="font-size:13px;color:#aab3c5;margin-bottom:10px">Digite o código que enviamos ao seu e-mail.</div>
+      <input id="authCode" inputmode="numeric" maxlength="10" placeholder="código" style="width:100%;padding:11px;margin-bottom:12px;border:1.5px solid #2e3342;border-radius:9px;background:#151824;color:#e8ebf2;font-size:20px;letter-spacing:5px;text-align:center;outline:none">
       <button onclick="authVerify()" style="width:100%;padding:11px;border:none;border-radius:9px;background:#6d4bf6;color:#fff;font-weight:700;font-size:14px;cursor:pointer">Confirmar e entrar</button>
       <button onclick="authReset()" style="width:100%;padding:9px;margin-top:8px;border:none;background:none;color:#8a93a8;font-size:12px;cursor:pointer">Trocar e-mail / reenviar</button>
     </div>
@@ -104,6 +104,10 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
   </div>
 </div>
 <button id="logoutBtn" onclick="authLogout()" style="display:none;position:fixed;bottom:14px;right:14px;z-index:9000;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:20px;padding:8px 14px;font-size:12px;cursor:pointer">Sair</button>
+
+<div id="appNav" style="max-width:1000px;margin:0 auto 4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 2px">
+  <a href="index.html" style="text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);background:var(--card);color:var(--muted)">🏠 Início</a> <a href="painel-financeiro-web.html" style="text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);background:var(--card);color:var(--muted)">💰 Financeiro</a> <a href="biblioteca-jogos-web.html" style="text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);background:var(--accent);color:var(--accent-t);border-color:var(--accent)">🎮 Jogos</a>
+</div>
 
 <div class="wrap">
   <div class="top">
@@ -366,7 +370,7 @@ async function authSendCode(){
 async function authVerify(){
   const email=document.getElementById("authEmail").value.trim();
   const token=document.getElementById("authCode").value.trim();
-  if(token.length<6){ amsg("Digite o código de 6 dígitos."); return; }
+  if(token.length<4){ amsg("Digite o código completo."); return; }
   amsg("Verificando...", true);
   const {error} = await _sb.auth.verifyOtp({email, token, type:"email"});
   if(error) amsg(error.message);
