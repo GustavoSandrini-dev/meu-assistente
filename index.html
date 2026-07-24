@@ -57,7 +57,7 @@ a.card.soon{opacity:.55;pointer-events:none}
 <div class="wrap" id="app" style="display:none">
   <div class="top">
     <div><h1 id="hi">🚀 Meu Assistente</h1><p class="sub" id="sub">Bem-vindo de volta.</p></div>
-    <button class="btn" onclick="logout()">Sair</button>
+    <div style="display:flex;gap:8px"><button class="btn" onclick="editName()">✏️ Nome</button><button class="btn" onclick="logout()">Sair</button></div>
   </div>
   <div class="grid" id="cards"></div>
   <p class="foot">Plataforma pessoal · dados protegidos por login · sincronizado via Supabase</p>
@@ -110,6 +110,14 @@ async function verify(){
 }
 function reset2(){ document.getElementById("s2").style.display="none"; document.getElementById("s1").style.display="block"; amsg(""); }
 async function logout(){ await sb.auth.signOut(); location.reload(); }
+async function editName(){
+  const novo=(prompt("Seu nome:", profile.name||"")||"").trim();
+  if(!novo) return;
+  const {data:{user}}=await sb.auth.getUser();
+  await sb.from("profiles").update({name:novo, updated_at:new Date().toISOString()}).eq("user_id",user.id);
+  profile.name=novo;
+  document.getElementById("hi").textContent="Olá, "+novo+" 👋";
+}
 
 async function onLogin(){
   document.getElementById("ov").style.display="none";
@@ -118,7 +126,8 @@ async function onLogin(){
   // perfil (cria se não existir)
   let {data}=await sb.from("profiles").select("*").eq("user_id",user.id).maybeSingle();
   if(!data){
-    const nome=(user.email||"").split("@")[0];
+    const sugestao=(user.email||"").split("@")[0];
+    const nome=(prompt("Como você quer ser chamado(a)? (seu nome)", sugestao)||sugestao).trim();
     await sb.from("profiles").insert({name:nome,modules:["financeiro","jogos"]});
     ({data}=await sb.from("profiles").select("*").eq("user_id",user.id).maybeSingle());
   }
