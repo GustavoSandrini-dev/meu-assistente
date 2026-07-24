@@ -12,8 +12,8 @@
 <style>
 :root{color-scheme:dark}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#12141c;color:#e8ebf2;min-height:100vh;padding:20px}
-.wrap{max-width:1000px;margin:0 auto}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#12141c;color:#e8ebf2;min-height:100vh;padding:24px 32px}
+.wrap{max-width:1400px;margin:0 auto}
 .nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .nav a,.nav button{text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid #2e3342;background:#1b1e28;color:#8a93a8;cursor:pointer}
 .nav a.act{background:#6d4bf6;color:#fff;border-color:#6d4bf6}
@@ -31,13 +31,16 @@ h1{font-size:22px;margin-bottom:2px}
 .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .chip{padding:6px 12px;border-radius:16px;border:1.5px solid #2e3342;background:#1b1e28;color:#8a93a8;font-size:12px;font-weight:600;cursor:pointer}
 .chip.act{background:#2e3342;color:#fff}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:18px}
+@media(min-width:1100px){#items.grid{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}}
 .card{background:#1b1e28;border:1.5px solid #2e3342;border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
 .card img{width:100%;aspect-ratio:2/3;object-fit:cover;background:#151824;display:block}
 .card .noimg{width:100%;aspect-ratio:2/3;background:#151824;display:flex;align-items:center;justify-content:center;font-size:34px;color:#3a4152}
 .cb{padding:10px;display:flex;flex-direction:column;gap:7px;flex:1}
-.tt{font-size:13px;font-weight:700;line-height:1.25}
-.yr{font-size:11px;color:#8a93a8}
+.tt{font-size:15px;font-weight:700;line-height:1.25}
+.yr{font-size:12px;color:#8a93a8}
+.cmt{width:100%;background:#151824;border:1.5px solid #2e3342;color:#e8ebf2;border-radius:8px;padding:7px;font-size:12px;font-family:inherit;resize:vertical;min-height:34px;outline:none}
+.cmt:focus{border-color:#6d4bf6}
 .tag{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.7);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px}
 .cardwrap{position:relative;display:flex;flex-direction:column}
 .rowb{display:flex;gap:6px;align-items:center}
@@ -223,6 +226,7 @@ function itemCard(i){
         </select>
         <input class="note" type="number" min="0" max="10" step="0.1" placeholder="—" value="${i.rating??""}" onchange="setRating('${i.id}',this.value)" title="Nota 0-10">
       </div>
+      <textarea class="cmt" placeholder="Comentário…" onchange="setNote('${i.id}',this.value)">${esc(i.note||"")}</textarea>
       <div class="prov" id="prov-${i.id}"></div>
       <div class="rowb" style="justify-content:space-between">
         <button class="mini" onclick="showProv('${i.id}')">📺 Onde assistir</button>
@@ -269,6 +273,7 @@ async function addItem(payload){
 }
 async function setStatus(id,v){ await sb.from("items").update({status:v,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.status=v; }
 async function setRating(id,v){ const n=v===""?null:Math.max(0,Math.min(10,parseFloat(v))); await sb.from("items").update({rating:n,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.rating=n; }
+async function setNote(id,v){ const t=v.trim()||null; await sb.from("items").update({note:t,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.note=t; }
 async function delItem(id){ if(!confirm("Remover da lista?"))return; await sb.from("items").delete().eq("id",id); ITEMS=ITEMS.filter(i=>i.id!==id); renderItems(); }
 
 async function showProv(id){
