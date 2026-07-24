@@ -42,6 +42,10 @@ h1{font-size:22px;margin-bottom:2px}
 .cmt{width:100%;background:#151824;border:1.5px solid #2e3342;color:#e8ebf2;border-radius:8px;padding:7px;font-size:12px;font-family:inherit;resize:vertical;min-height:34px;outline:none}
 .cmt:focus{border-color:#6d4bf6}
 .tag{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.7);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px}
+.rankbadge{position:absolute;top:8px;right:8px;background:#6d4bf6;color:#fff;font-size:16px;font-weight:800;padding:3px 10px;border-radius:9px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.st{position:absolute;bottom:8px;left:8px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px}
+.st.quero{background:#3a4152;color:#c9d0de}.st.backlog{background:#7a5b1e;color:#ffd98a}
+.st.assistindo{background:#1e5b7a;color:#8fd4ff}.st.assistido{background:#1e7a4d;color:#8affc0}
 .cardwrap{position:relative;display:flex;flex-direction:column}
 .rowb{display:flex;gap:6px;align-items:center}
 select,.note{background:#151824;border:1.5px solid #2e3342;color:#e8ebf2;border-radius:8px;padding:6px;font-size:12px}
@@ -106,8 +110,10 @@ select{flex:1}
   <div class="filters" id="filters" style="display:none">
     <span class="chip act" data-f="todos" onclick="setFilter('todos')">Todos</span>
     <span class="chip" data-f="quero" onclick="setFilter('quero')">Quero ver</span>
+    <span class="chip" data-f="backlog" onclick="setFilter('backlog')">Backlog</span>
     <span class="chip" data-f="assistindo" onclick="setFilter('assistindo')">Assistindo</span>
     <span class="chip" data-f="assistido" onclick="setFilter('assistido')">Assistido</span>
+    <span class="chip" data-f="ranking" onclick="setFilter('ranking')" style="margin-left:auto">🏆 Ranking</span>
   </div>
   <div class="grid" id="items"></div>
 </div>
@@ -204,26 +210,38 @@ function renderShareRow(){
 
 function setFilter(f){ FILTER=f; document.querySelectorAll("#filters .chip").forEach(c=>c.classList.toggle("act",c.dataset.f===f)); renderItems(); }
 
+const STLBL={quero:"Quero ver",backlog:"Backlog",assistindo:"Assistindo",assistido:"Assistido"};
 function renderItems(){
+  const box=document.getElementById("items");
+  if(FILTER==="ranking"){
+    const ranked=ITEMS.filter(i=>i.rating!=null).sort((a,b)=>b.rating-a.rating);
+    if(!ranked.length){ box.innerHTML='<div class="empty">Dê notas aos filmes pra montar o ranking. 🏆</div>'; return; }
+    box.innerHTML=ranked.map((i,idx)=>itemCard(i,idx+1)).join("");
+    return;
+  }
   const list = FILTER==="todos"?ITEMS:ITEMS.filter(i=>(i.status||"quero")===FILTER);
-  if(!list.length){ document.getElementById("items").innerHTML='<div class="empty">Nenhum título aqui ainda. Busque acima e adicione. 🎬</div>'; return; }
-  document.getElementById("items").innerHTML=list.map(itemCard).join("");
+  if(!list.length){ box.innerHTML='<div class="empty">Nenhum título aqui ainda. Busque acima e adicione. 🎬</div>'; return; }
+  box.innerHTML=list.map(i=>itemCard(i)).join("");
 }
+function medal(n){ return n===1?"🥇":n===2?"🥈":n===3?"🥉":"#"+n; }
 
-function itemCard(i){
+function itemCard(i,rank){
   const yr=(i.meta&&i.meta.year)||"";
   const poster=i.poster?`<img src="${i.poster}" loading="lazy">`:`<div class="noimg">🎬</div>`;
   const kindTag=i.kind==="serie"?"Série":"Filme";
+  const st=i.status||"quero";
+  const rankB=rank?`<span class="rankbadge">${medal(rank)}${i.rating!=null?' · '+i.rating:''}</span>`:"";
   return `<div class="card"><div class="cardwrap">
-    ${poster}<span class="tag">${kindTag}</span></div>
+    ${poster}<span class="tag">${kindTag}</span>${rankB}<span class="st ${st}">${STLBL[st]||st}</span></div>
     <div class="cb">
       <div class="tt">${esc(i.title)}</div>
       <div class="yr">${yr}</div>
       <div class="rowb">
         <select onchange="setStatus('${i.id}',this.value)">
-          <option value="quero" ${i.status==="quero"?"selected":""}>Quero ver</option>
-          <option value="assistindo" ${i.status==="assistindo"?"selected":""}>Assistindo</option>
-          <option value="assistido" ${i.status==="assistido"?"selected":""}>Assistido</option>
+          <option value="quero" ${st==="quero"?"selected":""}>Quero ver</option>
+          <option value="backlog" ${st==="backlog"?"selected":""}>Backlog</option>
+          <option value="assistindo" ${st==="assistindo"?"selected":""}>Assistindo</option>
+          <option value="assistido" ${st==="assistido"?"selected":""}>Assistido</option>
         </select>
         <input class="note" type="number" min="0" max="10" step="0.1" placeholder="—" value="${i.rating??""}" onchange="setRating('${i.id}',this.value)" title="Nota 0-10">
       </div>
@@ -280,17 +298,46 @@ function searchCard(x){
     <button class="add-btn ${already?'in':''}" onclick="addItem('${payload}')">${already?"✓ Na lista":"+ Adicionar"}</button></div></div>`;
 }
 
-async function addItem(payload){
+let PENDING=null;
+function addItem(payload){
   const x=JSON.parse(decodeURIComponent(payload));
   if(ITEMS.find(i=>String(i.ext_id)===String(x.id))){ return; }
-  const row={collection_id:ACTIVE,kind:x.kind,ext_id:String(x.id),title:x.title,poster:x.poster,status:"quero",
+  PENDING=x;
+  document.getElementById("modalbox").innerHTML=`<h3>Adicionar título</h3>
+    <div style="display:flex;gap:12px;margin-bottom:14px;align-items:flex-start">
+      ${x.poster?`<img src="${x.poster}" style="width:70px;border-radius:8px">`:''}
+      <div><div style="font-weight:700;font-size:14px">${esc(x.title)}</div>
+      <div style="font-size:12px;color:#8a93a8">${x.yr||''} · ${x.kind==='serie'?'Série':'Filme'}</div></div>
+    </div>
+    <label>Onde colocar?</label>
+    <select id="mstatus">
+      <option value="quero">Quero ver</option>
+      <option value="backlog">Backlog</option>
+      <option value="assistindo">Assistindo</option>
+      <option value="assistido">Já assisti</option>
+    </select>
+    <label>Nota (0–10, opcional)</label>
+    <input id="mrating" type="number" min="0" max="10" step="0.1" placeholder="—">
+    <label>Comentário (opcional)</label>
+    <textarea id="mnote" class="cmt" style="min-height:56px" placeholder="…"></textarea>
+    <button class="btn" style="width:100%;margin-top:4px" onclick="confirmAdd()">Adicionar à lista</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Cancelar</button>`;
+  document.getElementById("modal").style.display="flex";
+}
+async function confirmAdd(){
+  const x=PENDING; if(!x) return;
+  const status=document.getElementById("mstatus").value;
+  const rv=document.getElementById("mrating").value;
+  const rating=rv===""?null:Math.max(0,Math.min(10,parseFloat(rv)));
+  const note=document.getElementById("mnote").value.trim()||null;
+  const row={collection_id:ACTIVE,kind:x.kind,ext_id:String(x.id),title:x.title,poster:x.poster,status,rating,note,
     meta:{year:x.yr,media:x.media,vote:x.vote}};
   const {error}=await sb.from("items").insert(row);
   if(error){ alert("Erro ao adicionar: "+error.message); return; }
-  await loadItems(); refreshResults();
+  PENDING=null; closeModal(); await loadItems(); refreshResults();
 }
-async function setStatus(id,v){ await sb.from("items").update({status:v,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.status=v; }
-async function setRating(id,v){ const n=v===""?null:Math.max(0,Math.min(10,parseFloat(v))); await sb.from("items").update({rating:n,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.rating=n; }
+async function setStatus(id,v){ await sb.from("items").update({status:v,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.status=v; renderItems(); }
+async function setRating(id,v){ const n=v===""?null:Math.max(0,Math.min(10,parseFloat(v))); await sb.from("items").update({rating:n,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.rating=n; if(FILTER==="ranking") renderItems(); }
 async function setNote(id,v){ const t=v.trim()||null; await sb.from("items").update({note:t,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.note=t; }
 async function delItem(id){ if(!confirm("Remover da lista?"))return; await sb.from("items").delete().eq("id",id); ITEMS=ITEMS.filter(i=>i.id!==id); renderItems(); }
 
