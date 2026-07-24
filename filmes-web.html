@@ -173,6 +173,7 @@ async function loadCols(){
   if(!ACTIVE || !COLS.find(c=>c.id===ACTIVE)) ACTIVE=COLS[0]?.id;
   renderPills();
   await loadItems();
+  showReleases();
 }
 
 function renderPills(){
@@ -238,11 +239,28 @@ function itemCard(i){
 // ---------- busca TMDB ----------
 let _t;
 function debSearch(){ clearTimeout(_t); _t=setTimeout(doSearch,350); }
-function clearSearch(){ document.getElementById("q").value=""; document.getElementById("results").innerHTML=""; }
+function clearSearch(){ document.getElementById("q").value=""; showReleases(); }
+function refreshResults(){ const q=document.getElementById("q").value.trim(); if(q.length>=2) doSearch(); else showReleases(); }
+async function showReleases(){
+  const R=document.getElementById("results");
+  R.innerHTML='<div class="sec-title">🔥 Lançamentos</div><div class="empty">Carregando lançamentos…</div>';
+  let all=[];
+  for(let p=1;p<=3;p++){
+    const d=await tmdb(`/movie/now_playing?language=pt-BR&region=BR&page=${p}`);
+    (d.results||[]).forEach(x=>{ x.media_type="movie"; });
+    all=all.concat(d.results||[]);
+  }
+  const seen=new Set();
+  all=all.filter(x=>{ if(seen.has(x.id))return false; seen.add(x.id); return true; })
+         .sort((a,b)=>(b.release_date||"").localeCompare(a.release_date||""))
+         .slice(0,50);
+  if(!all.length){ R.innerHTML=""; return; }
+  R.innerHTML='<div class="sec-title">🔥 Lançamentos recentes</div><div class="grid">'+all.map(searchCard).join("")+'</div>';
+}
 async function doSearch(){
   const q=document.getElementById("q").value.trim();
   const R=document.getElementById("results");
-  if(q.length<2){ R.innerHTML=""; return; }
+  if(q.length<2){ showReleases(); return; }
   R.innerHTML='<div class="empty">Buscando…</div>';
   const d=await tmdb(`/search/multi?query=${encodeURIComponent(q)}&language=pt-BR&page=1`);
   const res=(d.results||[]).filter(x=>x.media_type==="movie"||x.media_type==="tv").slice(0,12);
@@ -269,7 +287,7 @@ async function addItem(payload){
     meta:{year:x.yr,media:x.media,vote:x.vote}};
   const {error}=await sb.from("items").insert(row);
   if(error){ alert("Erro ao adicionar: "+error.message); return; }
-  await loadItems(); doSearch();
+  await loadItems(); refreshResults();
 }
 async function setStatus(id,v){ await sb.from("items").update({status:v,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.status=v; }
 async function setRating(id,v){ const n=v===""?null:Math.max(0,Math.min(10,parseFloat(v))); await sb.from("items").update({rating:n,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.rating=n; }
