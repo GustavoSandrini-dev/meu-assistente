@@ -7,41 +7,149 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#6d4bf6">
 <link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});}</script>
 <style>
 :root{color-scheme:dark}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#12141c;color:#e8ebf2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-.wrap{max-width:640px;width:100%}
-h1{font-size:26px;margin-bottom:6px}
-.sub{color:#8a93a8;font-size:14px;margin-bottom:28px}
-.cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:560px){.cards{grid-template-columns:1fr}}
-a.card{display:block;text-decoration:none;background:#1b1e28;border:1.5px solid #2e3342;border-radius:16px;padding:22px;color:#e8ebf2;transition:border-color .15s,transform .15s}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#12141c;color:#e8ebf2;min-height:100vh;padding:24px}
+.wrap{max-width:820px;margin:0 auto}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+h1{font-size:24px}
+.sub{color:#8a93a8;font-size:14px;margin-bottom:24px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:620px){.grid{grid-template-columns:1fr}}
+a.card,.card{display:block;text-decoration:none;background:#1b1e28;border:1.5px solid #2e3342;border-radius:16px;padding:20px;color:#e8ebf2;transition:border-color .15s,transform .15s}
 a.card:hover{border-color:#6d4bf6;transform:translateY(-2px)}
-.emoji{font-size:34px}
+a.card.soon{opacity:.55;pointer-events:none}
+.emoji{font-size:32px}
 .ct{font-size:17px;font-weight:800;margin:10px 0 4px}
 .cd{font-size:13px;color:#8a93a8}
-.foot{margin-top:24px;font-size:12px;color:#57617a;text-align:center}
+.badge{font-size:10px;font-weight:700;background:#2e3342;color:#8a93a8;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle}
+.agenda{grid-column:1/-1;background:#1b1e28;border:1.5px solid #2e3342;border-radius:16px;padding:18px}
+.agenda h2{font-size:15px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.agenda a{color:#8b6cff;font-size:12px;text-decoration:none}
+.slot{display:flex;gap:12px;padding:7px 0;font-size:14px;align-items:center}
+.slot+.slot{border-top:1px dashed #2e3342}
+.slot .t{color:#8a93a8;font-size:12px;min-width:96px}
+.slot .dot{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+.btn{background:none;border:1.5px solid #2e3342;color:#8a93a8;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer}
+.foot{margin-top:22px;font-size:12px;color:#57617a;text-align:center}
+#ov{position:fixed;inset:0;z-index:99;background:#12141c;display:flex;align-items:center;justify-content:center}
+#ovbox{background:#1b1e28;border:1px solid #2e3342;border-radius:16px;padding:28px;width:340px;max-width:92vw}
+#ovbox input{width:100%;padding:11px;margin-bottom:12px;border:1.5px solid #2e3342;border-radius:9px;background:#151824;color:#e8ebf2;font-size:14px;outline:none}
+#ovbox button{width:100%;padding:11px;border:none;border-radius:9px;background:#6d4bf6;color:#fff;font-weight:700;font-size:14px;cursor:pointer}
+#ovmsg{font-size:12px;margin-top:12px;min-height:16px;color:#f07567}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>🚀 Meu Assistente</h1>
-  <p class="sub">Seus painéis pessoais, sincronizados e acessíveis de qualquer lugar.</p>
-  <div class="cards">
-    <a class="card" href="painel-financeiro-web.html">
-      <div class="emoji">💰</div>
-      <div class="ct">Painel Financeiro</div>
-      <div class="cd">Método 50/20/30, gastos, parcelas e rotina da semana.</div>
-    </a>
-    <a class="card" href="biblioteca-jogos-web.html">
-      <div class="emoji">🎮</div>
-      <div class="ct">Biblioteca de Jogos</div>
-      <div class="cd">Steam + Xbox, conquistas, ranking e metas de compra.</div>
-    </a>
+<div id="ov"><div id="ovbox">
+  <div id="ovload" style="text-align:center;color:#8a93a8;font-size:14px">Carregando…</div>
+  <div id="ovform" style="display:none">
+    <div style="font-size:20px;font-weight:800;margin-bottom:4px">🔒 Entrar</div>
+    <div style="font-size:13px;color:#8a93a8;margin-bottom:18px">Acesse seu assistente.</div>
+    <div id="s1"><input id="em" type="email" placeholder="Seu e-mail"><button onclick="sendCode()">Enviar código</button></div>
+    <div id="s2" style="display:none"><input id="cd" inputmode="numeric" maxlength="10" placeholder="código" style="text-align:center;letter-spacing:5px;font-size:20px"><button onclick="verify()">Confirmar e entrar</button><button onclick="reset2()" style="background:none;color:#8a93a8;font-weight:600;font-size:12px;margin-top:8px">Trocar e-mail</button></div>
+    <div id="ovmsg"></div>
   </div>
-  <p class="foot">Dados protegidos por login · sincronizados via Supabase</p>
+</div></div>
+
+<div class="wrap" id="app" style="display:none">
+  <div class="top">
+    <div><h1 id="hi">🚀 Meu Assistente</h1><p class="sub" id="sub">Bem-vindo de volta.</p></div>
+    <button class="btn" onclick="logout()">Sair</button>
+  </div>
+  <div class="grid" id="cards"></div>
+  <p class="foot">Plataforma pessoal · dados protegidos por login · sincronizado via Supabase</p>
 </div>
+
+<script>
+const SB_URL="https://ovpncggowjhualakjaug.supabase.co";
+const SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92cG5jZ2dvd2podWFsYWtqYXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NDI1MDIsImV4cCI6MjEwMDMxODUwMn0.yGWi4aWynDVhIEftBZcayGrbPxgqj93ckDua0zTr4zI";
+const sb=supabase.createClient(SB_URL,SB_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+
+const MODULES={
+  financeiro:{name:"Painel Financeiro",emoji:"💰",url:"painel-financeiro-web.html",desc:"Gastos, orçamento por grupo e importação de extrato/fatura."},
+  jogos:{name:"Biblioteca de Jogos",emoji:"🎮",url:"biblioteca-jogos-web.html",desc:"Steam + Xbox, conquistas, ranking e metas."},
+  livros:{name:"Biblioteca de Livros",emoji:"📚",url:"biblioteca-livros-web.html",desc:"Seus livros, leituras e avaliações.",soon:true},
+  filmes:{name:"Filmes & Séries",emoji:"🎬",url:"filmes-web.html",desc:"O que assistir, onde assistir e seu diário.",soon:true}
+};
+
+// Agenda (rotina) — hoje. (Fase seguinte: rotina por usuário)
+const DIA=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+const ROT={
+  1:[["07:00 natação?","","#38bdf8"]],
+  2:[["07:00–08:00","Natação","#38bdf8"],["08:30–17:30","Trabalho (+ academia 12h)","#5f6c7b"],["18:30–20:30","Estudo concurso","#ef4444"],["22:00–00:00","Jogos","#f59e0b"]],
+  5:[["07:00–08:00","Natação","#38bdf8"],["08:30–17:30","Trabalho","#5f6c7b"],["18:30–20:30","Estudo concurso","#ef4444"],["22:00–00:00","Jogos","#f59e0b"]]
+};
+const ROT_DEF=[["08:30–17:30","Trabalho (+ academia 12h)","#5f6c7b"],["18:30–20:30","Estudo concurso","#ef4444"],["20:30–22:00","Projeto de vídeos","#a855f7"],["22:00–00:00","Jogos","#f59e0b"]];
+const ROT_FDS=[["10:00–12:00","Vídeos","#a855f7"],["14:00–18:00","Jogos / amigos","#f59e0b"]];
+
+let profile=null;
+
+async function initAuth(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session) onLogin(); else showForm();
+  sb.auth.onAuthStateChange((_e,s)=>{ if(s && document.getElementById("ov").style.display!=="none") onLogin(); });
+}
+function showForm(){ document.getElementById("ovload").style.display="none"; document.getElementById("ovform").style.display="block"; }
+function amsg(t,ok){ const e=document.getElementById("ovmsg"); e.textContent=t; e.style.color=ok?"#3ecf9a":"#f07567"; }
+async function sendCode(){
+  const email=document.getElementById("em").value.trim(); if(!email){amsg("Digite seu e-mail.");return;}
+  amsg("Enviando…",true);
+  const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:true}});
+  if(error){amsg(error.message);return;}
+  document.getElementById("s1").style.display="none"; document.getElementById("s2").style.display="block"; amsg("Código enviado! Confira o e-mail.",true);
+}
+async function verify(){
+  const email=document.getElementById("em").value.trim(), token=document.getElementById("cd").value.trim();
+  if(token.length<4){amsg("Digite o código.");return;}
+  amsg("Verificando…",true);
+  const {error}=await sb.auth.verifyOtp({email,token,type:"email"});
+  if(error) amsg(error.message);
+}
+function reset2(){ document.getElementById("s2").style.display="none"; document.getElementById("s1").style.display="block"; amsg(""); }
+async function logout(){ await sb.auth.signOut(); location.reload(); }
+
+async function onLogin(){
+  document.getElementById("ov").style.display="none";
+  document.getElementById("app").style.display="block";
+  const {data:{user}}=await sb.auth.getUser();
+  // perfil (cria se não existir)
+  let {data}=await sb.from("profiles").select("*").eq("user_id",user.id).maybeSingle();
+  if(!data){
+    const nome=(user.email||"").split("@")[0];
+    await sb.from("profiles").insert({name:nome,modules:["financeiro","jogos"]});
+    ({data}=await sb.from("profiles").select("*").eq("user_id",user.id).maybeSingle());
+  }
+  profile=data||{name:(user.email||"").split("@")[0],modules:["financeiro","jogos"]};
+  document.getElementById("hi").textContent="Olá, "+(profile.name||"você")+" 👋";
+  document.getElementById("sub").textContent=(profile.is_admin?"Admin · ":"")+"Escolha um módulo:";
+  render();
+}
+
+function render(){
+  const mods=profile.modules||["financeiro","jogos"];
+  let html="";
+  mods.forEach(k=>{ const m=MODULES[k]; if(!m)return;
+    html+=`<a class="card ${m.soon?'soon':''}" href="${m.soon?'#':m.url}">
+      <div class="emoji">${m.emoji}</div>
+      <div class="ct">${m.name}${m.soon?'<span class="badge">em breve</span>':''}</div>
+      <div class="cd">${m.desc}</div></a>`;
+  });
+  // card da agenda
+  const d=new Date().getDay();
+  let blocks = ROT[d] || (d===0||d===6 ? ROT_FDS : ROT_DEF);
+  if(d===2||d===5) blocks=ROT[d];
+  const ag=blocks.map(b=>`<div class="slot"><span class="dot" style="background:${b[2]||'#6d4bf6'}"></span><span class="t">${b[0]}</span><span>${b[1]}</span></div>`).join("");
+  html+=`<div class="agenda">
+    <h2>🗓️ Agenda de hoje — ${DIA[d]} <a href="https://calendar.google.com/calendar/r/day" target="_blank">Abrir Google Agenda ↗</a></h2>
+    ${ag||'<div class="cd">Dia livre.</div>'}
+  </div>`;
+  document.getElementById("cards").innerHTML=html;
+}
+
+initAuth();
+</script>
 </body>
 </html>
