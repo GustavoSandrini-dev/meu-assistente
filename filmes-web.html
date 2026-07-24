@@ -105,7 +105,6 @@ select{flex:1}
     <input id="q" placeholder="Buscar filme ou série… (ex: Interestelar)" oninput="debSearch()">
     <button class="btn ghost" onclick="clearSearch()">Limpar</button>
   </div>
-  <div id="results"></div>
 
   <div class="filters" id="filters" style="display:none">
     <span class="chip act" data-f="todos" onclick="setFilter('todos')">Todos</span>
@@ -115,7 +114,10 @@ select{flex:1}
     <span class="chip" data-f="assistido" onclick="setFilter('assistido')">Assistido</span>
     <span class="chip" data-f="ranking" onclick="setFilter('ranking')" style="margin-left:auto">🏆 Ranking</span>
   </div>
+  <div class="sec-title" id="listTitle" style="display:none">📁 Minha lista</div>
   <div class="grid" id="items"></div>
+
+  <div id="results"></div>
 </div>
 
 <div id="modal"><div id="modalbox"></div></div>
@@ -197,6 +199,10 @@ async function loadItems(){
   const {data}=await sb.from("items").select("*").eq("collection_id",ACTIVE).order("created_at",{ascending:false});
   ITEMS=data||[];
   document.getElementById("filters").style.display=ITEMS.length?"flex":"none";
+  const c=COLS.find(x=>x.id===ACTIVE);
+  const lt=document.getElementById("listTitle");
+  lt.style.display=ITEMS.length?"block":"none";
+  lt.textContent="📁 "+(c?c.name:"Minha lista")+" — "+ITEMS.length+" título"+(ITEMS.length===1?"":"s");
   renderShareRow();
   renderItems();
 }
