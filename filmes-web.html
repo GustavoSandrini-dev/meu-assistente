@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filmes & Séries</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#6d4bf6">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});}</script>
+<style>
+:root{color-scheme:dark}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#12141c;color:#e8ebf2;min-height:100vh;padding:20px}
+.wrap{max-width:1000px;margin:0 auto}
+.nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.nav a,.nav button{text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid #2e3342;background:#1b1e28;color:#8a93a8;cursor:pointer}
+.nav a.act{background:#6d4bf6;color:#fff;border-color:#6d4bf6}
+h1{font-size:22px;margin-bottom:2px}
+.sub{color:#8a93a8;font-size:13px;margin-bottom:16px}
+.pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.pill{padding:7px 14px;border-radius:20px;border:1.5px solid #2e3342;background:#1b1e28;color:#c9d0de;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.pill.act{background:#6d4bf6;color:#fff;border-color:#6d4bf6}
+.pill.add{border-style:dashed;color:#8a93a8}
+.pill .sh{font-size:10px;opacity:.8;margin-left:4px}
+.bar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.bar input{flex:1;min-width:200px;padding:11px 13px;border:1.5px solid #2e3342;border-radius:10px;background:#151824;color:#e8ebf2;font-size:14px;outline:none}
+.btn{background:#6d4bf6;color:#fff;border:none;border-radius:10px;padding:10px 15px;font-size:13px;font-weight:700;cursor:pointer}
+.btn.ghost{background:#1b1e28;border:1.5px solid #2e3342;color:#c9d0de}
+.filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.chip{padding:6px 12px;border-radius:16px;border:1.5px solid #2e3342;background:#1b1e28;color:#8a93a8;font-size:12px;font-weight:600;cursor:pointer}
+.chip.act{background:#2e3342;color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.card{background:#1b1e28;border:1.5px solid #2e3342;border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.card img{width:100%;aspect-ratio:2/3;object-fit:cover;background:#151824;display:block}
+.card .noimg{width:100%;aspect-ratio:2/3;background:#151824;display:flex;align-items:center;justify-content:center;font-size:34px;color:#3a4152}
+.cb{padding:10px;display:flex;flex-direction:column;gap:7px;flex:1}
+.tt{font-size:13px;font-weight:700;line-height:1.25}
+.yr{font-size:11px;color:#8a93a8}
+.tag{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.7);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px}
+.cardwrap{position:relative;display:flex;flex-direction:column}
+.rowb{display:flex;gap:6px;align-items:center}
+select,.note{background:#151824;border:1.5px solid #2e3342;color:#e8ebf2;border-radius:8px;padding:6px;font-size:12px}
+select{flex:1}
+.note{width:52px;text-align:center}
+.mini{background:none;border:none;color:#8a93a8;font-size:11px;cursor:pointer;padding:2px}
+.mini:hover{color:#f07567}
+.prov{display:flex;gap:5px;flex-wrap:wrap;margin-top:2px}
+.prov img{width:26px;height:26px;border-radius:6px;aspect-ratio:1}
+.prov .lbl{font-size:10px;color:#8a93a8;width:100%}
+.add-btn{background:#6d4bf6;color:#fff;border:none;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;margin-top:auto}
+.add-btn.in{background:#25324a;color:#7fa8ff}
+.sec-title{font-size:13px;font-weight:700;color:#8a93a8;margin:18px 0 10px;text-transform:uppercase;letter-spacing:.5px}
+.empty{color:#57617a;font-size:14px;padding:30px;text-align:center}
+/* login */
+#ov{position:fixed;inset:0;z-index:99;background:#12141c;display:flex;align-items:center;justify-content:center}
+#ovbox{background:#1b1e28;border:1px solid #2e3342;border-radius:16px;padding:28px;width:340px;max-width:92vw}
+#ovbox input{width:100%;padding:11px;margin-bottom:12px;border:1.5px solid #2e3342;border-radius:9px;background:#151824;color:#e8ebf2;font-size:14px;outline:none}
+#ovbox button{width:100%;padding:11px;border:none;border-radius:9px;background:#6d4bf6;color:#fff;font-weight:700;font-size:14px;cursor:pointer}
+#ovmsg{font-size:12px;margin-top:12px;min-height:16px;color:#f07567}
+/* modal */
+#modal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px}
+#modalbox{background:#1b1e28;border:1px solid #2e3342;border-radius:16px;padding:24px;width:380px;max-width:94vw}
+#modalbox h3{font-size:16px;margin-bottom:14px}
+#modalbox input,#modalbox select{width:100%;padding:10px;margin-bottom:12px;border:1.5px solid #2e3342;border-radius:9px;background:#151824;color:#e8ebf2;font-size:14px}
+#modalbox label{font-size:12px;color:#8a93a8;display:block;margin-bottom:4px}
+</style>
+</head>
+<body>
+
+<div id="ov"><div id="ovbox">
+  <div id="ovload" style="text-align:center;color:#8a93a8;font-size:14px">Carregando…</div>
+  <div id="ovform" style="display:none">
+    <div style="font-size:20px;font-weight:800;margin-bottom:4px">🔒 Entrar</div>
+    <div style="font-size:13px;color:#8a93a8;margin-bottom:18px">Acesse seus filmes e séries.</div>
+    <div id="s1"><input id="em" type="email" placeholder="Seu e-mail"><button onclick="sendCode()">Enviar código</button></div>
+    <div id="s2" style="display:none"><input id="cd" inputmode="numeric" maxlength="10" placeholder="código" style="text-align:center;letter-spacing:5px;font-size:20px"><button onclick="verify()">Confirmar e entrar</button><button onclick="reset2()" style="background:none;color:#8a93a8;font-weight:600;font-size:12px;margin-top:8px">Trocar e-mail</button></div>
+    <div id="ovmsg"></div>
+  </div>
+</div></div>
+
+<div class="wrap" id="app" style="display:none">
+  <div class="nav">
+    <a href="index.html">🏠 Início</a>
+    <a href="painel-financeiro-web.html">💰 Financeiro</a>
+    <a href="biblioteca-jogos-web.html">🎮 Jogos</a>
+    <a href="filmes-web.html" class="act">🎬 Filmes</a>
+    <button onclick="logout()" style="margin-left:auto">Sair</button>
+  </div>
+  <h1>🎬 Filmes & Séries</h1>
+  <div class="sub" id="sub">Suas listas.</div>
+
+  <div class="pills" id="pills"></div>
+  <div id="shareRow" style="margin-bottom:14px;display:none"></div>
+
+  <div class="bar">
+    <input id="q" placeholder="Buscar filme ou série… (ex: Interestelar)" oninput="debSearch()">
+    <button class="btn ghost" onclick="clearSearch()">Limpar</button>
+  </div>
+  <div id="results"></div>
+
+  <div class="filters" id="filters" style="display:none">
+    <span class="chip act" data-f="todos" onclick="setFilter('todos')">Todos</span>
+    <span class="chip" data-f="quero" onclick="setFilter('quero')">Quero ver</span>
+    <span class="chip" data-f="assistindo" onclick="setFilter('assistindo')">Assistindo</span>
+    <span class="chip" data-f="assistido" onclick="setFilter('assistido')">Assistido</span>
+  </div>
+  <div class="grid" id="items"></div>
+</div>
+
+<div id="modal"><div id="modalbox"></div></div>
+
+<script>
+const SB_URL="https://ovpncggowjhualakjaug.supabase.co";
+const SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92cG5jZ2dvd2podWFsYWtqYXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NDI1MDIsImV4cCI6MjEwMDMxODUwMn0.yGWi4aWynDVhIEftBZcayGrbPxgqj93ckDua0zTr4zI";
+const TMDB="eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIxYjdlNTdjZmIxNmVmY2Y2NWQzODFjODhhODEyNTdiYSIsIm5iZiI6MTc4NDkxMTU5NS45OSwic3ViIjoiNmE2Mzk2ZWI5MDkyZGQ2MjRjM2Y1YTk2Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.4oNFG5jVeLBj-PIkxpNFSf8ZgJYZjBpwSknRWyBfl9A";
+const IMG="https://image.tmdb.org/t/p/w300";
+const LOGO="https://image.tmdb.org/t/p/w92";
+const sb=supabase.createClient(SB_URL,SB_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+async function tmdb(path){ const r=await fetch("https://api.themoviedb.org/3"+path,{headers:{Authorization:"Bearer "+TMDB}}); return r.json(); }
+
+let ME=null, COLS=[], ACTIVE=null, ITEMS=[], FILTER="todos";
+const provCache={};
+
+// ---------- login ----------
+async function initAuth(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session) onLogin(); else showForm();
+  sb.auth.onAuthStateChange((_e,s)=>{ if(s && document.getElementById("ov").style.display!=="none") onLogin(); });
+}
+function showForm(){ document.getElementById("ovload").style.display="none"; document.getElementById("ovform").style.display="block"; }
+function amsg(t,ok){ const e=document.getElementById("ovmsg"); e.textContent=t; e.style.color=ok?"#3ecf9a":"#f07567"; }
+async function sendCode(){
+  const email=document.getElementById("em").value.trim(); if(!email){amsg("Digite seu e-mail.");return;}
+  amsg("Enviando…",true);
+  const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:true}});
+  if(error){amsg(error.message);return;}
+  document.getElementById("s1").style.display="none"; document.getElementById("s2").style.display="block"; amsg("Código enviado!",true);
+}
+async function verify(){
+  const email=document.getElementById("em").value.trim(), token=document.getElementById("cd").value.trim();
+  if(token.length<4){amsg("Digite o código.");return;}
+  amsg("Verificando…",true);
+  const {error}=await sb.auth.verifyOtp({email,token,type:"email"});
+  if(error) amsg(error.message);
+}
+function reset2(){ document.getElementById("s2").style.display="none"; document.getElementById("s1").style.display="block"; amsg(""); }
+async function logout(){ await sb.auth.signOut(); location.reload(); }
+
+// ---------- boot ----------
+async function onLogin(){
+  document.getElementById("ov").style.display="none";
+  document.getElementById("app").style.display="block";
+  const {data:{user}}=await sb.auth.getUser(); ME=user;
+  try{ await sb.rpc("claim_invites"); }catch(e){ console.warn("claim",e); }
+  await loadCols();
+}
+
+async function loadCols(){
+  const {data,error}=await sb.from("collections").select("*").eq("kind","filmes").order("created_at");
+  if(error){ console.warn(error); }
+  COLS=data||[];
+  if(!COLS.length){
+    // cria a lista pessoal padrão na primeira vez
+    await sb.from("collections").insert({kind:"filmes",name:"Minha lista",is_shared:false});
+    const {data:d2}=await sb.from("collections").select("*").eq("kind","filmes").order("created_at");
+    COLS=d2||[];
+  }
+  if(!ACTIVE || !COLS.find(c=>c.id===ACTIVE)) ACTIVE=COLS[0]?.id;
+  renderPills();
+  await loadItems();
+}
+
+function renderPills(){
+  let h="";
+  COLS.forEach(c=>{
+    h+=`<div class="pill ${c.id===ACTIVE?'act':''}" onclick="selCol('${c.id}')">${esc(c.name)}${c.is_shared?'<span class="sh">👥</span>':''}</div>`;
+  });
+  h+=`<div class="pill add" onclick="newColModal()">+ Nova lista</div>`;
+  document.getElementById("pills").innerHTML=h;
+}
+async function selCol(id){ ACTIVE=id; renderPills(); await loadItems(); }
+
+async function loadItems(){
+  if(!ACTIVE){ document.getElementById("items").innerHTML=""; return; }
+  const {data}=await sb.from("items").select("*").eq("collection_id",ACTIVE).order("created_at",{ascending:false});
+  ITEMS=data||[];
+  document.getElementById("filters").style.display=ITEMS.length?"flex":"none";
+  renderShareRow();
+  renderItems();
+}
+
+function renderShareRow(){
+  const c=COLS.find(x=>x.id===ACTIVE); const row=document.getElementById("shareRow");
+  if(!c || c.owner_id!==ME.id){ row.style.display="none"; return; }
+  row.style.display="block";
+  row.innerHTML=`<button class="btn ghost" onclick="shareModal()">👥 Compartilhar "${esc(c.name)}"</button>`;
+}
+
+function setFilter(f){ FILTER=f; document.querySelectorAll("#filters .chip").forEach(c=>c.classList.toggle("act",c.dataset.f===f)); renderItems(); }
+
+function renderItems(){
+  const list = FILTER==="todos"?ITEMS:ITEMS.filter(i=>(i.status||"quero")===FILTER);
+  if(!list.length){ document.getElementById("items").innerHTML='<div class="empty">Nenhum título aqui ainda. Busque acima e adicione. 🎬</div>'; return; }
+  document.getElementById("items").innerHTML=list.map(itemCard).join("");
+}
+
+function itemCard(i){
+  const yr=(i.meta&&i.meta.year)||"";
+  const poster=i.poster?`<img src="${i.poster}" loading="lazy">`:`<div class="noimg">🎬</div>`;
+  const kindTag=i.kind==="serie"?"Série":"Filme";
+  return `<div class="card"><div class="cardwrap">
+    ${poster}<span class="tag">${kindTag}</span></div>
+    <div class="cb">
+      <div class="tt">${esc(i.title)}</div>
+      <div class="yr">${yr}</div>
+      <div class="rowb">
+        <select onchange="setStatus('${i.id}',this.value)">
+          <option value="quero" ${i.status==="quero"?"selected":""}>Quero ver</option>
+          <option value="assistindo" ${i.status==="assistindo"?"selected":""}>Assistindo</option>
+          <option value="assistido" ${i.status==="assistido"?"selected":""}>Assistido</option>
+        </select>
+        <input class="note" type="number" min="0" max="10" step="0.1" placeholder="—" value="${i.rating??""}" onchange="setRating('${i.id}',this.value)" title="Nota 0-10">
+      </div>
+      <div class="prov" id="prov-${i.id}"></div>
+      <div class="rowb" style="justify-content:space-between">
+        <button class="mini" onclick="showProv('${i.id}')">📺 Onde assistir</button>
+        <button class="mini" onclick="delItem('${i.id}')">remover</button>
+      </div>
+    </div></div>`;
+}
+
+// ---------- busca TMDB ----------
+let _t;
+function debSearch(){ clearTimeout(_t); _t=setTimeout(doSearch,350); }
+function clearSearch(){ document.getElementById("q").value=""; document.getElementById("results").innerHTML=""; }
+async function doSearch(){
+  const q=document.getElementById("q").value.trim();
+  const R=document.getElementById("results");
+  if(q.length<2){ R.innerHTML=""; return; }
+  R.innerHTML='<div class="empty">Buscando…</div>';
+  const d=await tmdb(`/search/multi?query=${encodeURIComponent(q)}&language=pt-BR&page=1`);
+  const res=(d.results||[]).filter(x=>x.media_type==="movie"||x.media_type==="tv").slice(0,12);
+  if(!res.length){ R.innerHTML='<div class="empty">Nada encontrado.</div>'; return; }
+  R.innerHTML='<div class="sec-title">Resultados da busca</div><div class="grid">'+res.map(searchCard).join("")+'</div>';
+}
+function searchCard(x){
+  const title=x.title||x.name||"—";
+  const date=x.release_date||x.first_air_date||"";
+  const yr=date?date.slice(0,4):"";
+  const poster=x.poster_path?`<img src="${IMG}${x.poster_path}" loading="lazy">`:`<div class="noimg">🎬</div>`;
+  const kind=x.media_type==="tv"?"serie":"filme";
+  const already=ITEMS.find(i=>String(i.ext_id)===String(x.id));
+  const payload=encodeURIComponent(JSON.stringify({id:x.id,title,yr,kind,poster:x.poster_path?IMG+x.poster_path:"",media:x.media_type,vote:x.vote_average}));
+  return `<div class="card"><div class="cardwrap">${poster}<span class="tag">${kind==="serie"?"Série":"Filme"}</span></div>
+    <div class="cb"><div class="tt">${esc(title)}</div><div class="yr">${yr}${x.vote_average?" · ⭐"+x.vote_average.toFixed(1):""}</div>
+    <button class="add-btn ${already?'in':''}" onclick="addItem('${payload}')">${already?"✓ Na lista":"+ Adicionar"}</button></div></div>`;
+}
+
+async function addItem(payload){
+  const x=JSON.parse(decodeURIComponent(payload));
+  if(ITEMS.find(i=>String(i.ext_id)===String(x.id))){ return; }
+  const row={collection_id:ACTIVE,kind:x.kind,ext_id:String(x.id),title:x.title,poster:x.poster,status:"quero",
+    meta:{year:x.yr,media:x.media,vote:x.vote}};
+  const {error}=await sb.from("items").insert(row);
+  if(error){ alert("Erro ao adicionar: "+error.message); return; }
+  await loadItems(); doSearch();
+}
+async function setStatus(id,v){ await sb.from("items").update({status:v,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.status=v; }
+async function setRating(id,v){ const n=v===""?null:Math.max(0,Math.min(10,parseFloat(v))); await sb.from("items").update({rating:n,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.rating=n; }
+async function delItem(id){ if(!confirm("Remover da lista?"))return; await sb.from("items").delete().eq("id",id); ITEMS=ITEMS.filter(i=>i.id!==id); renderItems(); }
+
+async function showProv(id){
+  const it=ITEMS.find(i=>i.id===id); const box=document.getElementById("prov-"+id);
+  if(!it||!it.ext_id){ return; }
+  box.innerHTML='<span class="lbl">buscando…</span>';
+  const media=it.kind==="serie"?"tv":"movie";
+  const key=media+it.ext_id;
+  let br=provCache[key];
+  if(!br){ const d=await tmdb(`/${media}/${it.ext_id}/watch/providers`); br=(d.results&&d.results.BR)||{}; provCache[key]=br; }
+  const flat=br.flatrate||[], rent=br.rent||[], buy=br.buy||[];
+  if(!flat.length&&!rent.length&&!buy.length){ box.innerHTML='<span class="lbl">Sem streaming no BR. '+(br.link?'<a href="'+br.link+'" target="_blank" style="color:#7fa8ff">ver ↗</a>':'')+'</span>'; return; }
+  let h="";
+  if(flat.length) h+='<span class="lbl">Assinatura:</span>'+flat.map(p=>`<img src="${LOGO}${p.logo_path}" title="${esc(p.provider_name)}">`).join("");
+  if(rent.length) h+='<span class="lbl">Alugar:</span>'+rent.map(p=>`<img src="${LOGO}${p.logo_path}" title="${esc(p.provider_name)}">`).join("");
+  box.innerHTML=h;
+}
+
+// ---------- modais ----------
+function closeModal(){ document.getElementById("modal").style.display="none"; }
+function newColModal(){
+  document.getElementById("modalbox").innerHTML=`<h3>Nova lista</h3>
+    <label>Nome</label><input id="mcname" placeholder="Ex: Assistidos juntos">
+    <label>Tipo</label>
+    <select id="mcshared"><option value="0">Pessoal (só eu)</option><option value="1">Compartilhada (convidar alguém)</option></select>
+    <button class="btn" style="width:100%" onclick="createCol()">Criar</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Cancelar</button>`;
+  document.getElementById("modal").style.display="flex";
+}
+async function createCol(){
+  const name=document.getElementById("mcname").value.trim(); if(!name){alert("Dê um nome.");return;}
+  const shared=document.getElementById("mcshared").value==="1";
+  const {data,error}=await sb.from("collections").insert({kind:"filmes",name,is_shared:shared}).select().single();
+  if(error){alert("Erro: "+error.message);return;}
+  closeModal(); ACTIVE=data.id; await loadCols();
+  if(shared) shareModal();
+}
+function shareModal(){
+  const c=COLS.find(x=>x.id===ACTIVE);
+  document.getElementById("modalbox").innerHTML=`<h3>Compartilhar "${esc(c.name)}"</h3>
+    <label>E-mail da pessoa</label><input id="minv" type="email" placeholder="email@gmail.com">
+    <div id="minvmsg" style="font-size:12px;color:#8a93a8;min-height:16px;margin-bottom:8px"></div>
+    <button class="btn" style="width:100%" onclick="doInvite()">Convidar</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Fechar</button>
+    <div style="font-size:11px;color:#57617a;margin-top:12px">Ela vê a lista assim que entrar com esse e-mail.</div>`;
+  document.getElementById("modal").style.display="flex";
+}
+async function doInvite(){
+  const email=document.getElementById("minv").value.trim(); const m=document.getElementById("minvmsg");
+  if(!email){m.textContent="Digite o e-mail.";return;}
+  m.style.color="#8a93a8"; m.textContent="Convidando…";
+  const {error}=await sb.rpc("invite_to_collection",{cid:ACTIVE,invite_email:email,invite_role:"editor"});
+  if(error){m.style.color="#f07567";m.textContent=error.message;return;}
+  m.style.color="#3ecf9a"; m.textContent="Convite enviado! ✓";
+}
+
+function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+document.getElementById("modal").addEventListener("click",e=>{ if(e.target.id==="modal") closeModal(); });
+
+initAuth();
+</script>
+</body>
+</html>
