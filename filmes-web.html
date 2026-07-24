@@ -243,19 +243,19 @@ function clearSearch(){ document.getElementById("q").value=""; showReleases(); }
 function refreshResults(){ const q=document.getElementById("q").value.trim(); if(q.length>=2) doSearch(); else showReleases(); }
 async function showReleases(){
   const R=document.getElementById("results");
-  R.innerHTML='<div class="sec-title">🔥 Lançamentos</div><div class="empty">Carregando lançamentos…</div>';
+  R.innerHTML='<div class="sec-title">⭐ Melhores de todos os tempos</div><div class="empty">Carregando…</div>';
   let all=[];
   for(let p=1;p<=3;p++){
-    const d=await tmdb(`/movie/now_playing?language=pt-BR&region=BR&page=${p}`);
+    const d=await tmdb(`/movie/top_rated?language=pt-BR&region=BR&page=${p}`);
     (d.results||[]).forEach(x=>{ x.media_type="movie"; });
     all=all.concat(d.results||[]);
   }
   const seen=new Set();
   all=all.filter(x=>{ if(seen.has(x.id))return false; seen.add(x.id); return true; })
-         .sort((a,b)=>(b.release_date||"").localeCompare(a.release_date||""))
+         .sort((a,b)=>(b.vote_average||0)-(a.vote_average||0))
          .slice(0,50);
   if(!all.length){ R.innerHTML=""; return; }
-  R.innerHTML='<div class="sec-title">🔥 Lançamentos recentes</div><div class="grid">'+all.map(searchCard).join("")+'</div>';
+  R.innerHTML='<div class="sec-title">⭐ Melhores de todos os tempos</div><div class="grid">'+all.map(searchCard).join("")+'</div>';
 }
 async function doSearch(){
   const q=document.getElementById("q").value.trim();
