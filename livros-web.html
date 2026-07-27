@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#4f7cf7">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});}</script>
 <style>
 /* ============ TEMAS (iguais ao Painel Financeiro) ============ */
@@ -124,10 +125,12 @@ select{flex:1}
       <option value="solarizado">🌅 Solarizado</option><option value="oceano">🌊 Oceano</option>
       <option value="floresta">🌲 Floresta</option><option value="sepia">📜 Sépia</option>
     </select>
-    <button onclick="logout()" style="margin-left:auto">Sair</button>
+    <button onclick="pickGoodreads()" style="margin-left:auto">📥 Goodreads</button>
+    <button onclick="logout()">Sair</button>
   </div>
+  <input type="file" id="grFile" accept=".csv" style="display:none" onchange="importGoodreads(event)">
   <h1>📚 Biblioteca de Livros</h1>
-  <div class="sub">Leituras, avaliações e metas.</div>
+  <div class="sub">Leituras, avaliações e metas. Busca no Google Books + Open Library (por título, autor ou ISBN).</div>
 
   <div class="goal" id="goalBox"></div>
 
@@ -278,7 +281,7 @@ function renderItems(){
 function medal(n){ return n===1?"🥇":n===2?"🥈":n===3?"🥉":"#"+n; }
 function bookCard(i,rank){
   const m=i.meta||{};
-  const cover=i.poster?`<img src="${i.poster}" loading="lazy">`:`<div class="noimg">📖</div>`;
+  const cover=i.poster?`<img src="${i.poster}" loading="lazy" onerror="imgFail(this)">`:`<div class="noimg">📖</div>`;
   const st=i.status||"quero";
   const rankB=rank?`<span class="rankbadge">${medal(rank)}${i.rating!=null?' · '+i.rating:''}</span>`:"";
   const running=!!m.started_at;
@@ -321,30 +324,81 @@ function debSearch(){ clearTimeout(_t); _t=setTimeout(doSearch,320); }
 function dd(){ return document.getElementById("dropdown"); }
 function hideDropdown(){ dd().style.display="none"; dd().innerHTML=""; }
 function clearSearch(){ document.getElementById("q").value=""; hideDropdown(); }
-async function doSearch(){
-  const q=document.getElementById("q").value.trim();
-  if(q.length<2){ hideDropdown(); return; }
-  dd().style.display="block"; dd().innerHTML='<div class="dr-msg">Buscando…</div>';
-  const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=20&langRestrict=pt&country=BR`);
-  const d=await r.json();
-  if(document.getElementById("q").value.trim()!==q) return;
-  const res=(d.items||[]);
-  if(!res.length){ dd().innerHTML='<div class="dr-msg">Nada encontrado.</div>'; return; }
-  dd().innerHTML=res.map(dropRow).join("");
+async function searchGoogle(q,isbn){
+  try{
+    const query=isbn?("isbn:"+isbn):q;
+    const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20&langRestrict=pt&country=BR`);
+    const d=await r.json();
+    return (d.items||[]).map(v=>{const vi=v.volumeInfo||{}; return {id:v.id,title:vi.title||"—",authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"",pages:vi.pageCount||0};});
+  }catch(e){ return []; }
 }
-function dropRow(v){
-  const vi=v.volumeInfo||{};
-  const title=vi.title||"—";
-  const au=(vi.authors||[]).join(", ");
-  const yr=(vi.publishedDate||"").slice(0,4);
-  const cover=(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"";
-  const poster=cover?`<img src="${cover}" loading="lazy">`:`<div class="dr-noimg">📖</div>`;
-  const already=ITEMS.find(i=>String(i.ext_id)===String(v.id));
-  const payload=encodeURIComponent(JSON.stringify({id:v.id,title,authors:au,yr,poster:cover,pages:vi.pageCount||0}));
+async function searchOpenLib(q,isbn){
+  try{
+    const url=isbn?`https://openlibrary.org/search.json?isbn=${isbn}&limit=5&fields=key,title,author_name,first_publish_year,cover_i,number_of_pages_median`
+                  :`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=12&fields=key,title,author_name,first_publish_year,cover_i,number_of_pages_median`;
+    const r=await fetch(url); const d=await r.json();
+    return (d.docs||[]).map(x=>({id:"ol:"+String(x.key||"").replace("/works/",""),title:x.title||"—",authors:(x.author_name||[]).join(", "),yr:x.first_publish_year?String(x.first_publish_year):"",poster:x.cover_i?`https://covers.openlibrary.org/b/id/${x.cover_i}-M.jpg`:"",pages:x.number_of_pages_median||0}));
+  }catch(e){ return []; }
+}
+async function doSearch(){
+  const raw=document.getElementById("q").value.trim();
+  if(raw.length<2){ hideDropdown(); return; }
+  dd().style.display="block"; dd().innerHTML='<div class="dr-msg">Buscando…</div>';
+  const clean=raw.replace(/[-\s]/g,"");
+  const isbn=/^\d{9}[\dXx]$|^\d{13}$/.test(clean)?clean:null;
+  const [gb,ol]=await Promise.all([searchGoogle(raw,isbn), searchOpenLib(raw,isbn)]);
+  if(document.getElementById("q").value.trim()!==raw) return;
+  const seen=new Set(), all=[];
+  [...gb,...ol].forEach(b=>{ const k=(b.title+"|"+b.authors).toLowerCase().trim(); if(seen.has(k))return; seen.add(k); all.push(b); });
+  if(!all.length){ dd().innerHTML='<div class="dr-msg">Nada encontrado.</div>'; return; }
+  dd().innerHTML=all.slice(0,25).map(dropRow).join("");
+}
+function dropRow(b){
+  const poster=b.poster?`<img src="${b.poster}" loading="lazy" onerror="imgFail(this,1)">`:`<div class="dr-noimg">📖</div>`;
+  const already=ITEMS.find(i=>String(i.ext_id)===String(b.id));
+  const payload=encodeURIComponent(JSON.stringify(b));
   return `<div class="drow">${poster}
-    <div class="dr-info"><div class="dr-t">${esc(title)}</div>
-    <div class="dr-y">${esc(au)}${yr?" · "+yr:""}</div></div>
+    <div class="dr-info"><div class="dr-t">${esc(b.title)}</div>
+    <div class="dr-y">${esc(b.authors)}${b.yr?" · "+b.yr:""}</div></div>
     <button class="dr-add ${already?'in':''}" onclick="addItem('${payload}')">${already?"✓ Na estante":"+ Adicionar"}</button></div>`;
+}
+function imgFail(el,drop){ el.onerror=null; const d=document.createElement("div"); d.className=drop?"dr-noimg":"noimg"; d.textContent="📖"; el.replaceWith(d); }
+
+// ---------- import Goodreads (CSV) ----------
+function pickGoodreads(){ if(!ACTIVE){ alert("Selecione uma estante primeiro."); return; } document.getElementById("grFile").click(); }
+async function importGoodreads(ev){
+  const file=ev.target.files[0]; if(!file) return;
+  const text=await file.text();
+  const parsed=Papa.parse(text,{header:true,skipEmptyLines:true});
+  const rows=parsed.data||[];
+  const existing=new Set(ITEMS.map(i=>(i.title||"").toLowerCase().trim()));
+  const batch=[]; let skip=0;
+  rows.forEach(r=>{
+    const title=(r["Title"]||"").trim(); if(!title) return;
+    if(existing.has(title.toLowerCase())){ skip++; return; }
+    const shelf=(r["Exclusive Shelf"]||"").trim();
+    const status=shelf==="read"?"lido":shelf==="currently-reading"?"lendo":"quero";
+    const mr=parseInt(r["My Rating"]||"0",10);
+    const isbn=(String(r["ISBN13"]||r["ISBN"]||"").replace(/[^0-9Xx]/g,""));
+    const pages=parseInt(r["Number of Pages"]||"0",10)||0;
+    const dateRead=(r["Date Read"]||"").trim();
+    const row={collection_id:ACTIVE,kind:"livro",ext_id:"gr:"+(r["Book Id"]||title),title,
+      poster:isbn?`https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg?default=false`:"",
+      status, rating: mr>0?mr*2:null,
+      meta:{authors:(r["Author"]||"").trim(),pages,year:String(r["Year Published"]||"").slice(0,4),hours:0,started_at:null}};
+    if(status==="lido" && dateRead) row.done_date=dateRead.replace(/\//g,"-");
+    batch.push(row); existing.add(title.toLowerCase());
+  });
+  ev.target.value="";
+  if(!batch.length){ alert("Nada novo pra importar (ou CSV vazio)."); return; }
+  let ok=0;
+  for(let i=0;i<batch.length;i+=50){
+    const {error}=await sb.from("items").insert(batch.slice(i,i+50));
+    if(error){ alert("Erro no import: "+error.message); break; }
+    ok+=batch.slice(i,i+50).length;
+  }
+  alert(`Importados ${ok} livros do Goodreads.${skip?` (${skip} já estavam na estante)`:""}`);
+  await loadItems();
 }
 let PENDING=null;
 function addItem(payload){
