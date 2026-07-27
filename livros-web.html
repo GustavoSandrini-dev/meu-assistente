@@ -176,6 +176,8 @@ const SB_URL="https://ovpncggowjhualakjaug.supabase.co";
 const SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92cG5jZ2dvd2podWFsYWtqYXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NDI1MDIsImV4cCI6MjEwMDMxODUwMn0.yGWi4aWynDVhIEftBZcayGrbPxgqj93ckDua0zTr4zI";
 const sb=supabase.createClient(SB_URL,SB_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const IMG="https://books.google.com";
+const GBKEY="AIzaSyBcBDhVNjV_Joecv1kfsq6R90BuRLfqeY4";
+const GBK="&key="+GBKEY;
 
 // ----- tema (compartilhado com todos os módulos; pode ter override por tela) -----
 const PAGE="livros";
@@ -301,8 +303,8 @@ function renderStats(){
 // ---------- recomendações / 50 melhores ----------
 async function gbSubject(subject){
   const urls=[
-    `https://www.googleapis.com/books/v1/volumes?q=subject:${encodeURIComponent(subject)}&orderBy=relevance&maxResults=40&langRestrict=pt&country=BR`,
-    `https://www.googleapis.com/books/v1/volumes?q=subject:${encodeURIComponent(subject)}&maxResults=40&langRestrict=pt`
+    `https://www.googleapis.com/books/v1/volumes?q=subject:${encodeURIComponent(subject)}&orderBy=relevance&maxResults=40&langRestrict=pt&country=BR${GBK}`,
+    `https://www.googleapis.com/books/v1/volumes?q=subject:${encodeURIComponent(subject)}&maxResults=40&langRestrict=pt${GBK}`
   ];
   for(const u of urls){
     try{
@@ -468,7 +470,7 @@ function clearSearch(){ document.getElementById("q").value=""; hideDropdown(); }
 async function searchGoogle(q,isbn){
   try{
     const query=isbn?("isbn:"+isbn):q;
-    const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20&langRestrict=pt&country=BR`);
+    const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20&langRestrict=pt&country=BR${GBK}`);
     const d=await r.json();
     return (d.items||[]).map(v=>{const vi=v.volumeInfo||{}; return {id:v.id,title:vi.title||"—",authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"",pages:vi.pageCount||0,genre:(vi.categories||[])[0]||"",publisher:vi.publisher||""};});
   }catch(e){ return []; }
