@@ -537,38 +537,67 @@ function imgFail(el,drop){ el.onerror=null; const d=document.createElement("div"
 
 // ---------- import Goodreads (CSV) ----------
 function pickGoodreads(){ if(!ACTIVE){ alert("Selecione uma estante primeiro."); return; } document.getElementById("grFile").click(); }
+function setImportStatus(txt){
+  let el=document.getElementById("impStatus");
+  if(!txt){ if(el) el.remove(); return; }
+  if(!el){ el=document.createElement("div"); el.id="impStatus"; el.style.cssText="position:fixed;bottom:16px;left:16px;background:var(--accent);color:var(--accent-t);padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;z-index:200;box-shadow:0 4px 16px rgba(0,0,0,.4)"; document.body.appendChild(el); }
+  el.textContent=txt;
+}
+// de/para: acha o livro no Google Books (pelo ISBN, senão título+autor)
+async function gbLookup(isbn,title,author){
+  const tryQ=async(q)=>{ try{ const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&langRestrict=pt&country=BR&maxResults=1${GBK}`); const d=await r.json(); const v=(d.items||[])[0]; return v?gbMap(v):null; }catch(e){ return null; } };
+  let b=null;
+  if(title) b=await tryQ(`intitle:"${title}" inauthor:"${author}"`);   // prioriza edição em português
+  if(!b && isbn) b=await tryQ(`isbn:${isbn}`);
+  return b;
+}
 async function importGoodreads(ev){
   const file=ev.target.files[0]; if(!file) return;
-  const text=await file.text();
+  const text=await file.text(); ev.target.value="";
   const parsed=Papa.parse(text,{header:true,skipEmptyLines:true});
   const rows=parsed.data||[];
-  const existing=new Set(ITEMS.map(i=>(i.title||"").toLowerCase().trim()));
-  const batch=[]; let skip=0;
+  const existing=new Set(ITEMS.map(i=>normTitle(i.title)));
+  const base=[]; let skip=0;
   rows.forEach(r=>{
     const title=(r["Title"]||"").trim(); if(!title) return;
-    if(existing.has(title.toLowerCase())){ skip++; return; }
+    if(existing.has(normTitle(title))){ skip++; return; }
     const shelf=(r["Exclusive Shelf"]||"").trim();
     const status=shelf==="read"?"lido":shelf==="currently-reading"?"lendo":"quero";
     const mr=parseInt(r["My Rating"]||"0",10);
-    const isbn=(String(r["ISBN13"]||r["ISBN"]||"").replace(/[^0-9Xx]/g,""));
-    const pages=parseInt(r["Number of Pages"]||"0",10)||0;
-    const dateRead=(r["Date Read"]||"").trim();
-    const row={collection_id:ACTIVE,kind:"livro",ext_id:"gr:"+(r["Book Id"]||title),title,
-      poster:isbn?`https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg?default=false`:"",
-      status, rating: mr>0?mr*2:null,
-      meta:{authors:(r["Author"]||"").trim(),pages,year:String(r["Year Published"]||"").slice(0,4),publisher:(r["Publisher"]||"").trim(),hours:0,started_at:null}};
-    if(status==="lido" && dateRead) row.done_date=dateRead.replace(/\//g,"-");
-    batch.push(row); existing.add(title.toLowerCase());
+    base.push({ title, author:(r["Author"]||"").trim(),
+      isbn:String(r["ISBN13"]||r["ISBN"]||"").replace(/[^0-9Xx]/g,""),
+      status, rating: mr>0?mr*2:null, pages:parseInt(r["Number of Pages"]||"0",10)||0,
+      year:String(r["Year Published"]||"").slice(0,4), publisher:(r["Publisher"]||"").trim(),
+      bookId:r["Book Id"]||title, dateRead:(r["Date Read"]||"").trim() });
+    existing.add(normTitle(title));
   });
-  ev.target.value="";
-  if(!batch.length){ alert("Nada novo pra importar (ou CSV vazio)."); return; }
-  let ok=0;
-  for(let i=0;i<batch.length;i+=50){
-    const {error}=await sb.from("items").insert(batch.slice(i,i+50));
-    if(error){ alert("Erro no import: "+error.message); break; }
-    ok+=batch.slice(i,i+50).length;
+  if(!base.length){ alert("Nada novo pra importar (ou CSV vazio)."); return; }
+  // enriquece com Google Books em blocos (de/para)
+  const rowsOut=[]; const CH=8;
+  for(let i=0;i<base.length;i+=CH){
+    setImportStatus(`Buscando no Google Books… ${Math.min(i,base.length)}/${base.length}`);
+    const enr=await Promise.all(base.slice(i,i+CH).map(async b=>{
+      const gb=await gbLookup(b.isbn,b.title,b.author);
+      const meta={authors:(gb&&gb.authors)||b.author, pages:(gb&&gb.pages)||b.pages, year:(gb&&gb.yr)||b.year, genre:(gb&&gb.genre)||"", publisher:(gb&&gb.publisher)||b.publisher, hours:0, started_at:null};
+      const row={collection_id:ACTIVE, kind:"livro",
+        ext_id: gb? gb.id : "gr:"+b.bookId,
+        title: (gb&&gb.title)||b.title,
+        poster: (gb&&gb.poster) || (b.isbn?`https://covers.openlibrary.org/b/isbn/${b.isbn}-M.jpg?default=false`:""),
+        status:b.status, rating:b.rating, meta };
+      if(b.status==="lido" && b.dateRead) row.done_date=b.dateRead.replace(/\//g,"-");
+      return row;
+    }));
+    rowsOut.push(...enr);
   }
-  alert(`Importados ${ok} livros do Goodreads.${skip?` (${skip} já estavam na estante)`:""}`);
+  setImportStatus(`Salvando ${rowsOut.length} livros…`);
+  let ok=0;
+  for(let i=0;i<rowsOut.length;i+=50){
+    const {error}=await sb.from("items").insert(rowsOut.slice(i,i+50));
+    if(error){ setImportStatus(""); alert("Erro no import: "+error.message); break; }
+    ok+=rowsOut.slice(i,i+50).length;
+  }
+  setImportStatus("");
+  alert(`Importados ${ok} livros do Goodreads, enriquecidos com o Google Books.${skip?` ${skip} já estavam na estante.`:""}`);
   await loadItems();
 }
 let PENDING=null;
