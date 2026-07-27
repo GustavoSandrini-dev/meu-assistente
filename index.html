@@ -87,8 +87,13 @@ const sb=supabase.createClient(SB_URL,SB_ANON,{auth:{persistSession:true,autoRef
 const MODULES={
   financeiro:{name:"Painel Financeiro",emoji:"💰",url:"painel-financeiro-web.html",desc:"Gastos, orçamento por grupo e importação de extrato/fatura."},
   jogos:{name:"Biblioteca de Jogos",emoji:"🎮",url:"biblioteca-jogos-web.html",desc:"Steam + Xbox, conquistas, ranking e metas."},
-  livros:{name:"Biblioteca de Livros",emoji:"📚",url:"biblioteca-livros-web.html",desc:"Seus livros, leituras e avaliações.",soon:true},
-  filmes:{name:"Filmes & Séries",emoji:"🎬",url:"filmes-web.html",desc:"O que assistir, onde assistir e seu diário."}
+  filmes:{name:"Filmes & Séries",emoji:"🎬",url:"filmes-web.html",desc:"O que assistir, onde assistir e seu diário."},
+  livros:{name:"Biblioteca de Livros",emoji:"📚",url:"livros-web.html",desc:"Leituras, tempo de leitura, avaliações e metas."},
+  estudos:{name:"Estudos",emoji:"📖",url:"#",desc:"Matérias, cronograma de concurso e horas estudadas.",soon:true},
+  tarefas:{name:"Tarefas & To-do",emoji:"✅",url:"#",desc:"Listas de tarefas, prioridades e prazos.",soon:true},
+  habitos:{name:"Hábitos",emoji:"🔁",url:"#",desc:"Rotinas diárias, sequências e acompanhamento.",soon:true},
+  notas:{name:"Notas",emoji:"📝",url:"#",desc:"Anotações rápidas e ideias.",soon:true},
+  metas:{name:"Metas & Objetivos",emoji:"🎯",url:"#",desc:"Objetivos de curto e longo prazo.",soon:true}
 };
 
 // Agenda (rotina) — hoje. (Fase seguinte: rotina por usuário)
@@ -223,15 +228,24 @@ function render(){
       <div class="cd">${m.desc}</div>
       <button class="rm" onclick="event.preventDefault();event.stopPropagation();removeModule('${k}')" title="Remover da tela">✕</button></a>`;
   });
-  // card para adicionar módulos disponíveis
-  const faltando=Object.keys(MODULES).filter(k=>!mods.includes(k)&&!MODULES[k].soon);
-  if(faltando.length){
-    html+=`<div class="card" style="border-style:dashed">
-      <div class="emoji">➕</div><div class="ct">Adicionar módulo</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${
-        faltando.map(k=>`<button class="btn" onclick="addModule('${k}')">${MODULES[k].emoji} ${MODULES[k].name}</button>`).join("")
-      }</div></div>`;
+  // card para adicionar módulos — sempre visível
+  const prontos=Object.keys(MODULES).filter(k=>!mods.includes(k)&&!MODULES[k].soon);
+  const embreve=Object.keys(MODULES).filter(k=>!mods.includes(k)&&MODULES[k].soon);
+  html+=`<div class="card" style="border-style:dashed">
+    <div class="emoji">➕</div><div class="ct">Adicionar módulo</div>`;
+  if(prontos.length){
+    html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${
+      prontos.map(k=>`<button class="btn" onclick="addModule('${k}')">${MODULES[k].emoji} ${MODULES[k].name}</button>`).join("")
+    }</div>`;
   }
+  if(embreve.length){
+    html+=`<div class="cd" style="margin-top:12px;margin-bottom:6px">Em breve:</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${
+        embreve.map(k=>`<span class="badge" style="font-size:11px">${MODULES[k].emoji} ${MODULES[k].name}</span>`).join("")
+      }</div>`;
+  }
+  if(!prontos.length&&!embreve.length){ html+=`<div class="cd" style="margin-top:10px">Todos os módulos já estão na sua tela. 🎉</div>`; }
+  html+=`</div>`;
   // card da agenda
   const d=new Date().getDay();
   let blocks = ROT[d] || (d===0||d===6 ? ROT_FDS : ROT_DEF);

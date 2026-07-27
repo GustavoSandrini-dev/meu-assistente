@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biblioteca de Livros</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#4f7cf7">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});}</script>
+<style>
+/* ============ TEMAS (iguais ao Painel Financeiro) ============ */
+body[data-theme="claro"]{--bg:#f4f6fa;--card:#fff;--text:#1a2233;--muted:#67728a;--label:#4a5568;--border:#d8dfeb;--row:#eef1f7;--head:#e6eaf2;--input:#fff;--accent:#4f7cf7;--accent-h:#3b66e0;--accent-t:#fff;--pos:#0d8a62;--neg:#c0392b;--shadow:0 1px 4px rgba(20,30,60,.07)}
+body[data-theme="escuro"]{color-scheme:dark;--bg:#12151c;--card:#1c212b;--text:#e6eaf2;--muted:#8a93a8;--label:#aab3c5;--border:#323a4a;--row:#272e3b;--head:#323a4a;--input:#151a23;--accent:#4f7cf7;--accent-h:#6b90f9;--accent-t:#fff;--pos:#3ecf9a;--neg:#f07567;--shadow:0 1px 6px rgba(0,0,0,.35)}
+body[data-theme="rosa"]{--bg:#fdf2f7;--card:#fff;--text:#3d2233;--muted:#a1738c;--label:#7c4a63;--border:#f3cfe0;--row:#fae8f1;--head:#f3cfe0;--input:#fffafd;--accent:#e0559a;--accent-h:#c93f85;--accent-t:#fff;--pos:#0d8a62;--neg:#c0392b;--shadow:0 1px 4px rgba(160,60,110,.10)}
+body[data-theme="rosa-escuro"]{color-scheme:dark;--bg:#231018;--card:#321a26;--text:#fce7f3;--muted:#c48aa8;--label:#e3aec9;--border:#553046;--row:#40222f;--head:#553046;--input:#281420;--accent:#f472b6;--accent-h:#f88fc6;--accent-t:#3d0f28;--pos:#3ecf9a;--neg:#f07567;--shadow:0 1px 6px rgba(0,0,0,.4)}
+body[data-theme="dracula"]{color-scheme:dark;--bg:#282a36;--card:#343746;--text:#f8f8f2;--muted:#8b90a8;--label:#bdc0d4;--border:#4d5066;--row:#3d4054;--head:#4d5066;--input:#2c2e3c;--accent:#bd93f9;--accent-h:#cba6fb;--accent-t:#22232e;--pos:#50fa7b;--neg:#ff5555;--shadow:0 1px 6px rgba(0,0,0,.4)}
+body[data-theme="nord"]{color-scheme:dark;--bg:#2e3440;--card:#3b4252;--text:#eceff4;--muted:#94a0b8;--label:#c2cbdc;--border:#4c566a;--row:#434c5e;--head:#4c566a;--input:#333947;--accent:#88c0d0;--accent-h:#9fd0de;--accent-t:#1d2530;--pos:#a3be8c;--neg:#bf616a;--shadow:0 1px 6px rgba(0,0,0,.35)}
+body[data-theme="solarizado"]{--bg:#fdf6e3;--card:#fffbf0;--text:#403a2e;--muted:#93a1a1;--label:#657b83;--border:#e6dcc0;--row:#f3ecd7;--head:#e6dcc0;--input:#fffdf5;--accent:#268bd2;--accent-h:#1c76b6;--accent-t:#fff;--pos:#859900;--neg:#dc322f;--shadow:0 1px 4px rgba(120,100,50,.10)}
+body[data-theme="oceano"]{color-scheme:dark;--bg:#0f1c2e;--card:#16283e;--text:#dcecfb;--muted:#7d95b3;--label:#a8c0dc;--border:#2c4360;--row:#1d3350;--head:#2c4360;--input:#122238;--accent:#38bdf8;--accent-h:#5ecafa;--accent-t:#08243a;--pos:#34d399;--neg:#fb7185;--shadow:0 1px 6px rgba(0,0,0,.4)}
+body[data-theme="floresta"]{color-scheme:dark;--bg:#14211a;--card:#1d2f25;--text:#e2f2e7;--muted:#84a390;--label:#aecbb8;--border:#33503f;--row:#243c2f;--head:#33503f;--input:#182a20;--accent:#4ade80;--accent-h:#6ee79a;--accent-t:#0c2415;--pos:#4ade80;--neg:#f87171;--shadow:0 1px 6px rgba(0,0,0,.4)}
+body[data-theme="sepia"]{--bg:#f4ecd8;--card:#fbf5e6;--text:#43362a;--muted:#96866f;--label:#6e5c46;--border:#dfd0b4;--row:#efe5cd;--head:#dfd0b4;--input:#fffaf0;--accent:#8b5e34;--accent-h:#75492a;--accent-t:#fff8ec;--pos:#3f7d3a;--neg:#b3382c;--shadow:0 1px 4px rgba(110,80,40,.12)}
+/* ============ BASE ============ */
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 32px}
+.wrap{max-width:1400px;margin:0 auto}
+.nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.nav a,.nav button,.nav select{text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer}
+.nav a.act{background:var(--accent);color:var(--accent-t);border-color:var(--accent)}
+h1{font-size:22px;margin-bottom:2px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+.goal{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:14px 18px;margin-bottom:16px;box-shadow:var(--shadow)}
+.goal .gt{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:700;margin-bottom:8px}
+.goal .gt button{background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer}
+.gbar{height:10px;background:var(--row);border-radius:6px;overflow:hidden}
+.gbar>div{height:100%;background:var(--accent);border-radius:6px;transition:width .3s}
+.pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.pill{padding:7px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.pill.act{background:var(--accent);color:var(--accent-t);border-color:var(--accent)}
+.pill.add{border-style:dashed;color:var(--muted)}
+.pill .sh{font-size:10px;opacity:.8;margin-left:4px}
+.bar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;position:relative}
+.bar input{flex:1;min-width:200px;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;background:var(--input);color:var(--text);font-size:14px;outline:none}
+.bar input:focus{border-color:var(--accent)}
+.btn{background:var(--accent);color:var(--accent-t);border:none;border-radius:10px;padding:10px 15px;font-size:13px;font-weight:700;cursor:pointer}
+.btn.ghost{background:var(--card);border:1.5px solid var(--border);color:var(--text)}
+.dropdown{display:none;position:absolute;top:calc(100% + 6px);left:0;width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:12px;max-height:66vh;overflow:auto;z-index:60;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.drow{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border)}
+.drow:last-child{border-bottom:none}
+.drow img{width:38px;height:56px;object-fit:cover;border-radius:5px;flex-shrink:0;background:var(--row)}
+.dr-noimg{width:38px;height:56px;background:var(--row);border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dr-info{flex:1;min-width:0}
+.dr-t{font-size:14px;font-weight:700}
+.dr-y{font-size:12px;color:var(--muted)}
+.dr-add{background:var(--accent);color:var(--accent-t);border:none;border-radius:8px;padding:9px 13px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.dr-add.in{background:var(--row);color:var(--muted)}
+.dr-msg{padding:14px;text-align:center;color:var(--muted);font-size:13px}
+.filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.chip{padding:6px 12px;border-radius:16px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer}
+.chip.act{background:var(--row);color:var(--text)}
+.sec-title{font-size:13px;font-weight:700;color:var(--muted);margin:18px 0 10px;text-transform:uppercase;letter-spacing:.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px}
+.card{background:var(--card);border:1.5px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.cardwrap{position:relative;display:flex;flex-direction:column}
+.card img{width:100%;aspect-ratio:2/3;object-fit:cover;background:var(--row);display:block}
+.noimg{width:100%;aspect-ratio:2/3;background:var(--row);display:flex;align-items:center;justify-content:center;font-size:34px;color:var(--muted)}
+.rankbadge{position:absolute;top:8px;right:8px;background:var(--accent);color:var(--accent-t);font-size:16px;font-weight:800;padding:3px 10px;border-radius:9px}
+.st{position:absolute;bottom:8px;left:8px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px}
+.st.quero{background:#3a4152;color:#c9d0de}.st.lendo{background:#1e5b7a;color:#8fd4ff}.st.lido{background:#1e7a4d;color:#8affc0}
+.cb{padding:10px;display:flex;flex-direction:column;gap:7px;flex:1}
+.tt{font-size:15px;font-weight:700;line-height:1.25}
+.au{font-size:12px;color:var(--muted)}
+.rowb{display:flex;gap:6px;align-items:center}
+select,.note,.cmt{background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:8px;padding:6px;font-size:12px}
+select{flex:1}
+.note{width:52px;text-align:center}
+.cmt{width:100%;font-family:inherit;resize:vertical;min-height:34px;outline:none}
+.timer{display:flex;align-items:center;gap:8px;background:var(--row);border-radius:8px;padding:6px 8px;font-size:12px}
+.timer .tv{font-weight:800;font-variant-numeric:tabular-nums;color:var(--text)}
+.timer button{margin-left:auto;background:var(--accent);color:var(--accent-t);border:none;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer}
+.timer.run button{background:var(--neg)}
+.mini{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:2px}
+.mini:hover{color:var(--neg)}
+.empty{color:var(--muted);font-size:14px;padding:30px;text-align:center}
+/* login */
+#ov{position:fixed;inset:0;z-index:99;background:var(--bg);display:flex;align-items:center;justify-content:center}
+#ovbox{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;width:340px;max-width:92vw}
+#ovbox input{width:100%;padding:11px;margin-bottom:12px;border:1.5px solid var(--border);border-radius:9px;background:var(--input);color:var(--text);font-size:14px;outline:none}
+#ovbox button{width:100%;padding:11px;border:none;border-radius:9px;background:var(--accent);color:var(--accent-t);font-weight:700;font-size:14px;cursor:pointer}
+#ovmsg{font-size:12px;margin-top:12px;min-height:16px;color:var(--neg)}
+#modal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:16px}
+#modalbox{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;width:380px;max-width:94vw}
+#modalbox h3{font-size:16px;margin-bottom:14px}
+#modalbox input,#modalbox select{width:100%;padding:10px;margin-bottom:12px;border:1.5px solid var(--border);border-radius:9px;background:var(--input);color:var(--text);font-size:14px}
+#modalbox label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+</style>
+</head>
+<body data-theme="escuro">
+
+<div id="ov"><div id="ovbox">
+  <div id="ovload" style="text-align:center;color:var(--muted);font-size:14px">Carregando…</div>
+  <div id="ovform" style="display:none">
+    <div style="font-size:20px;font-weight:800;margin-bottom:4px">🔒 Entrar</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:18px">Acesse sua biblioteca.</div>
+    <input id="em" type="email" placeholder="E-mail">
+    <input id="pw" type="password" placeholder="Senha">
+    <button onclick="doLogin()">Entrar</button>
+    <div id="ovmsg"></div>
+  </div>
+</div></div>
+
+<div class="wrap" id="app" style="display:none">
+  <div class="nav">
+    <a href="index.html">🏠 Início</a>
+    <a href="painel-financeiro-web.html">💰 Financeiro</a>
+    <a href="biblioteca-jogos-web.html">🎮 Jogos</a>
+    <a href="filmes-web.html">🎬 Filmes</a>
+    <a href="livros-web.html" class="act">📚 Livros</a>
+    <select id="themeSel" onchange="setTheme(this.value)" title="Tema">
+      <option value="claro">☀️ Claro</option><option value="escuro">🌙 Escuro</option>
+      <option value="rosa">🌸 Rosa</option><option value="rosa-escuro">🌷 Rosa escuro</option>
+      <option value="dracula">🧛 Drácula</option><option value="nord">❄️ Nord</option>
+      <option value="solarizado">🌅 Solarizado</option><option value="oceano">🌊 Oceano</option>
+      <option value="floresta">🌲 Floresta</option><option value="sepia">📜 Sépia</option>
+    </select>
+    <button onclick="logout()" style="margin-left:auto">Sair</button>
+  </div>
+  <h1>📚 Biblioteca de Livros</h1>
+  <div class="sub">Leituras, avaliações e metas.</div>
+
+  <div class="goal" id="goalBox"></div>
+
+  <div class="pills" id="pills"></div>
+  <div id="shareRow" style="margin-bottom:14px;display:none"></div>
+
+  <div class="bar">
+    <input id="q" placeholder="Buscar livro… (ex: O Hobbit)" oninput="debSearch()" autocomplete="off">
+    <button class="btn ghost" onclick="clearSearch()">Limpar</button>
+    <div class="dropdown" id="dropdown"></div>
+  </div>
+
+  <div class="filters" id="filters" style="display:none">
+    <span class="chip act" data-f="todos" onclick="setFilter('todos')">Todos</span>
+    <span class="chip" data-f="quero" onclick="setFilter('quero')">Quero ler</span>
+    <span class="chip" data-f="lendo" onclick="setFilter('lendo')">Lendo</span>
+    <span class="chip" data-f="lido" onclick="setFilter('lido')">Lido</span>
+    <span class="chip" data-f="ranking" onclick="setFilter('ranking')" style="margin-left:auto">🏆 Ranking</span>
+  </div>
+  <div class="sec-title" id="listTitle" style="display:none">📁 Minha estante</div>
+  <div class="grid" id="items"></div>
+</div>
+
+<div id="modal"><div id="modalbox"></div></div>
+
+<script>
+const SB_URL="https://ovpncggowjhualakjaug.supabase.co";
+const SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92cG5jZ2dvd2podWFsYWtqYXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NDI1MDIsImV4cCI6MjEwMDMxODUwMn0.yGWi4aWynDVhIEftBZcayGrbPxgqj93ckDua0zTr4zI";
+const sb=supabase.createClient(SB_URL,SB_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const IMG="https://books.google.com";
+
+// ----- tema (compartilhado com o financeiro via localStorage) -----
+function applyTheme(){ const t=localStorage.getItem("assistTheme")||"escuro"; document.body.dataset.theme=t; const s=document.getElementById("themeSel"); if(s) s.value=t; }
+function setTheme(t){ document.body.dataset.theme=t; localStorage.setItem("assistTheme",t); }
+applyTheme();
+
+let ME=null, COLS=[], ACTIVE=null, ITEMS=[], FILTER="todos";
+let GOAL=parseInt(localStorage.getItem("livrosGoal")||"12",10);
+
+// ---------- login (e-mail + senha) ----------
+async function initAuth(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session) onLogin(); else showForm();
+  sb.auth.onAuthStateChange((_e,s)=>{ if(s && document.getElementById("ov").style.display!=="none") onLogin(); });
+}
+function showForm(){ document.getElementById("ovload").style.display="none"; document.getElementById("ovform").style.display="block"; }
+function amsg(t){ document.getElementById("ovmsg").textContent=t; }
+async function doLogin(){
+  const email=document.getElementById("em").value.trim(), pw=document.getElementById("pw").value;
+  if(!email||!pw){amsg("Preencha e-mail e senha.");return;}
+  amsg("Entrando…");
+  const {error}=await sb.auth.signInWithPassword({email,password:pw});
+  if(error) amsg(/invalid|credentials/i.test(error.message)?"E-mail ou senha incorretos.":error.message);
+}
+async function logout(){ await sb.auth.signOut(); location.reload(); }
+
+async function onLogin(){
+  document.getElementById("ov").style.display="none";
+  document.getElementById("app").style.display="block";
+  const {data:{user}}=await sb.auth.getUser(); ME=user;
+  try{ await sb.rpc("claim_invites"); }catch(e){}
+  await loadCols();
+  setInterval(tickTimers,1000);
+}
+
+async function loadCols(){
+  const {data}=await sb.from("collections").select("*").eq("kind","livros").order("created_at");
+  COLS=data||[];
+  if(!COLS.length){
+    await sb.from("collections").insert({kind:"livros",name:"Minha estante",is_shared:false});
+    const {data:d2}=await sb.from("collections").select("*").eq("kind","livros").order("created_at");
+    COLS=d2||[];
+  }
+  if(!ACTIVE || !COLS.find(c=>c.id===ACTIVE)) ACTIVE=COLS[0]?.id;
+  renderPills();
+  await loadItems();
+}
+function renderPills(){
+  let h="";
+  COLS.forEach(c=>{ h+=`<div class="pill ${c.id===ACTIVE?'act':''}" onclick="selCol('${c.id}')">${esc(c.name)}${c.is_shared?'<span class="sh">👥</span>':''}</div>`; });
+  h+=`<div class="pill add" onclick="newColModal()">+ Nova estante</div>`;
+  document.getElementById("pills").innerHTML=h;
+}
+async function selCol(id){ ACTIVE=id; renderPills(); await loadItems(); }
+
+async function loadItems(){
+  if(!ACTIVE){ document.getElementById("items").innerHTML=""; return; }
+  const {data}=await sb.from("items").select("*").eq("collection_id",ACTIVE).order("created_at",{ascending:false});
+  ITEMS=data||[];
+  document.getElementById("filters").style.display=ITEMS.length?"flex":"none";
+  const c=COLS.find(x=>x.id===ACTIVE);
+  const lt=document.getElementById("listTitle");
+  lt.style.display=ITEMS.length?"block":"none";
+  lt.textContent="📁 "+(c?c.name:"Minha estante")+" — "+ITEMS.length+" livro"+(ITEMS.length===1?"":"s");
+  renderShareRow(); renderGoal(); renderItems();
+}
+function renderShareRow(){
+  const c=COLS.find(x=>x.id===ACTIVE); const row=document.getElementById("shareRow");
+  if(!c || c.owner_id!==ME.id){ row.style.display="none"; return; }
+  row.style.display="block";
+  row.innerHTML=`<button class="btn ghost" onclick="shareModal()">👥 Compartilhar "${esc(c.name)}"</button>`;
+}
+
+// ---------- meta anual ----------
+function renderGoal(){
+  const ano=new Date().getFullYear();
+  const lidos=ITEMS.filter(i=>i.status==="lido" && (i.done_date||"").slice(0,4)==String(ano)).length;
+  const pct=Math.min(100, GOAL>0?Math.round(lidos/GOAL*100):0);
+  document.getElementById("goalBox").innerHTML=
+    `<div class="gt"><span>🎯 Meta de leitura ${ano}: ${lidos} / ${GOAL} livros</span>
+     <button onclick="editGoal()">editar meta</button></div>
+     <div class="gbar"><div style="width:${pct}%"></div></div>`;
+}
+function editGoal(){
+  const v=prompt("Quantos livros você quer ler este ano?", GOAL);
+  if(v===null) return;
+  const n=parseInt(v,10); if(!n||n<1){alert("Digite um número válido.");return;}
+  GOAL=n; localStorage.setItem("livrosGoal",n); renderGoal();
+}
+
+function setFilter(f){ FILTER=f; document.querySelectorAll("#filters .chip").forEach(c=>c.classList.toggle("act",c.dataset.f===f)); renderItems(); }
+
+// ---------- tempo de leitura ----------
+function elapsedSec(i){ const m=i.meta||{}; let s=(m.hours||0)*3600; if(m.started_at) s+=(Date.now()-Date.parse(m.started_at))/1000; return s; }
+function hms(sec){ sec=Math.max(0,Math.floor(sec)); const h=Math.floor(sec/3600), m=Math.floor(sec%3600/60), s=sec%60; return (h>0?h+"h ":"")+String(m).padStart(2,"0")+"m "+String(s).padStart(2,"0")+"s"; }
+function tickTimers(){ ITEMS.forEach(i=>{ if(i.meta&&i.meta.started_at){ const el=document.getElementById("t-"+i.id); if(el) el.textContent=hms(elapsedSec(i)); } }); }
+async function toggleTimer(id){
+  const i=ITEMS.find(x=>x.id===id); if(!i) return; const m=Object.assign({},i.meta||{});
+  if(m.started_at){ m.hours=(m.hours||0)+(Date.now()-Date.parse(m.started_at))/3600000; m.started_at=null; }
+  else { m.started_at=new Date().toISOString(); if(i.status!=="lendo") i.status="lendo"; }
+  i.meta=m;
+  await sb.from("items").update({meta:m,status:i.status,updated_at:new Date().toISOString()}).eq("id",id);
+  renderItems();
+}
+
+const STLBL={quero:"Quero ler",lendo:"Lendo",lido:"Lido"};
+function renderItems(){
+  const box=document.getElementById("items");
+  if(FILTER==="ranking"){
+    const ranked=ITEMS.filter(i=>i.rating!=null).sort((a,b)=>b.rating-a.rating);
+    if(!ranked.length){ box.innerHTML='<div class="empty">Dê notas aos livros pra montar o ranking. 🏆</div>'; return; }
+    box.innerHTML=ranked.map((i,idx)=>bookCard(i,idx+1)).join(""); return;
+  }
+  const list=FILTER==="todos"?ITEMS:ITEMS.filter(i=>(i.status||"quero")===FILTER);
+  if(!list.length){ box.innerHTML='<div class="empty">Nenhum livro aqui ainda. Busque acima e adicione. 📚</div>'; return; }
+  box.innerHTML=list.map(i=>bookCard(i)).join("");
+}
+function medal(n){ return n===1?"🥇":n===2?"🥈":n===3?"🥉":"#"+n; }
+function bookCard(i,rank){
+  const m=i.meta||{};
+  const cover=i.poster?`<img src="${i.poster}" loading="lazy">`:`<div class="noimg">📖</div>`;
+  const st=i.status||"quero";
+  const rankB=rank?`<span class="rankbadge">${medal(rank)}${i.rating!=null?' · '+i.rating:''}</span>`:"";
+  const running=!!m.started_at;
+  return `<div class="card"><div class="cardwrap">
+    ${cover}${rankB}<span class="st ${st}">${STLBL[st]||st}</span></div>
+    <div class="cb">
+      <div class="tt">${esc(i.title)}</div>
+      <div class="au">${esc(m.authors||"")}${m.pages?" · "+m.pages+" pág":""}</div>
+      <div class="rowb">
+        <select onchange="setStatus('${i.id}',this.value)">
+          <option value="quero" ${st==="quero"?"selected":""}>Quero ler</option>
+          <option value="lendo" ${st==="lendo"?"selected":""}>Lendo</option>
+          <option value="lido" ${st==="lido"?"selected":""}>Lido</option>
+        </select>
+        <input class="note" type="number" min="0" max="10" step="0.1" placeholder="—" value="${i.rating??""}" onchange="setRating('${i.id}',this.value)" title="Nota 0-10">
+      </div>
+      <div class="timer ${running?'run':''}">
+        <span>⏱️</span><span class="tv" id="t-${i.id}">${hms(elapsedSec(i))}</span>
+        <button onclick="toggleTimer('${i.id}')">${running?"Pausar":"Ler"}</button>
+      </div>
+      <textarea class="cmt" placeholder="Comentário…" onchange="setNote('${i.id}',this.value)">${esc(i.note||"")}</textarea>
+      <button class="mini" style="align-self:flex-end" onclick="delItem('${i.id}')">remover</button>
+    </div></div>`;
+}
+async function setStatus(id,v){
+  const i=ITEMS.find(x=>x.id===id); const upd={status:v,updated_at:new Date().toISOString()};
+  const m=Object.assign({},i.meta||{});
+  if(v==="lido"){ if(m.started_at){ m.hours=(m.hours||0)+(Date.now()-Date.parse(m.started_at))/3600000; m.started_at=null; } upd.meta=m; upd.done_date=new Date().toISOString().slice(0,10); }
+  await sb.from("items").update(upd).eq("id",id);
+  if(i){ i.status=v; i.meta=m; if(v==="lido") i.done_date=upd.done_date; }
+  renderGoal(); renderItems();
+}
+async function setRating(id,v){ const n=v===""?null:Math.max(0,Math.min(10,parseFloat(v))); await sb.from("items").update({rating:n,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.rating=n; if(FILTER==="ranking") renderItems(); }
+async function setNote(id,v){ const t=v.trim()||null; await sb.from("items").update({note:t,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.note=t; }
+async function delItem(id){ if(!confirm("Remover da estante?"))return; await sb.from("items").delete().eq("id",id); ITEMS=ITEMS.filter(i=>i.id!==id); renderGoal(); renderItems(); }
+
+// ---------- busca Google Books ----------
+let _t;
+function debSearch(){ clearTimeout(_t); _t=setTimeout(doSearch,320); }
+function dd(){ return document.getElementById("dropdown"); }
+function hideDropdown(){ dd().style.display="none"; dd().innerHTML=""; }
+function clearSearch(){ document.getElementById("q").value=""; hideDropdown(); }
+async function doSearch(){
+  const q=document.getElementById("q").value.trim();
+  if(q.length<2){ hideDropdown(); return; }
+  dd().style.display="block"; dd().innerHTML='<div class="dr-msg">Buscando…</div>';
+  const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=20&langRestrict=pt&country=BR`);
+  const d=await r.json();
+  if(document.getElementById("q").value.trim()!==q) return;
+  const res=(d.items||[]);
+  if(!res.length){ dd().innerHTML='<div class="dr-msg">Nada encontrado.</div>'; return; }
+  dd().innerHTML=res.map(dropRow).join("");
+}
+function dropRow(v){
+  const vi=v.volumeInfo||{};
+  const title=vi.title||"—";
+  const au=(vi.authors||[]).join(", ");
+  const yr=(vi.publishedDate||"").slice(0,4);
+  const cover=(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"";
+  const poster=cover?`<img src="${cover}" loading="lazy">`:`<div class="dr-noimg">📖</div>`;
+  const already=ITEMS.find(i=>String(i.ext_id)===String(v.id));
+  const payload=encodeURIComponent(JSON.stringify({id:v.id,title,authors:au,yr,poster:cover,pages:vi.pageCount||0}));
+  return `<div class="drow">${poster}
+    <div class="dr-info"><div class="dr-t">${esc(title)}</div>
+    <div class="dr-y">${esc(au)}${yr?" · "+yr:""}</div></div>
+    <button class="dr-add ${already?'in':''}" onclick="addItem('${payload}')">${already?"✓ Na estante":"+ Adicionar"}</button></div>`;
+}
+let PENDING=null;
+function addItem(payload){
+  const x=JSON.parse(decodeURIComponent(payload));
+  if(ITEMS.find(i=>String(i.ext_id)===String(x.id))) return;
+  PENDING=x;
+  document.getElementById("modalbox").innerHTML=`<h3>Adicionar livro</h3>
+    <div style="display:flex;gap:12px;margin-bottom:14px;align-items:flex-start">
+      ${x.poster?`<img src="${x.poster}" style="width:64px;border-radius:6px">`:''}
+      <div><div style="font-weight:700;font-size:14px">${esc(x.title)}</div>
+      <div style="font-size:12px;color:var(--muted)">${esc(x.authors||"")}${x.yr?" · "+x.yr:""}</div></div>
+    </div>
+    <label>Onde colocar?</label>
+    <select id="mstatus"><option value="quero">Quero ler</option><option value="lendo">Lendo</option><option value="lido">Já li</option></select>
+    <label>Nota (0–10, opcional)</label><input id="mrating" type="number" min="0" max="10" step="0.1" placeholder="—">
+    <button class="btn" style="width:100%;margin-top:4px" onclick="confirmAdd()">Adicionar à estante</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Cancelar</button>`;
+  document.getElementById("modal").style.display="flex";
+}
+async function confirmAdd(){
+  const x=PENDING; if(!x) return;
+  const status=document.getElementById("mstatus").value;
+  const rv=document.getElementById("mrating").value;
+  const rating=rv===""?null:Math.max(0,Math.min(10,parseFloat(rv)));
+  const meta={authors:x.authors,pages:x.pages,year:x.yr,hours:0,started_at:status==="lendo"?new Date().toISOString():null};
+  const row={collection_id:ACTIVE,kind:"livro",ext_id:String(x.id),title:x.title,poster:x.poster,status,rating,meta};
+  if(status==="lido") row.done_date=new Date().toISOString().slice(0,10);
+  const {error}=await sb.from("items").insert(row);
+  if(error){ alert("Erro: "+error.message); return; }
+  PENDING=null; closeModal(); document.getElementById("q").value=""; hideDropdown(); await loadItems();
+}
+
+function closeModal(){ document.getElementById("modal").style.display="none"; }
+function newColModal(){
+  document.getElementById("modalbox").innerHTML=`<h3>Nova estante</h3>
+    <label>Nome</label><input id="mcname" placeholder="Ex: Lidos juntos">
+    <label>Tipo</label>
+    <select id="mcshared"><option value="0">Pessoal (só eu)</option><option value="1">Compartilhada (convidar alguém)</option></select>
+    <button class="btn" style="width:100%" onclick="createCol()">Criar</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Cancelar</button>`;
+  document.getElementById("modal").style.display="flex";
+}
+async function createCol(){
+  const name=document.getElementById("mcname").value.trim(); if(!name){alert("Dê um nome.");return;}
+  const shared=document.getElementById("mcshared").value==="1";
+  const {data,error}=await sb.from("collections").insert({kind:"livros",name,is_shared:shared}).select().single();
+  if(error){alert("Erro: "+error.message);return;}
+  closeModal(); ACTIVE=data.id; await loadCols(); if(shared) shareModal();
+}
+function shareModal(){
+  const c=COLS.find(x=>x.id===ACTIVE);
+  document.getElementById("modalbox").innerHTML=`<h3>Compartilhar "${esc(c.name)}"</h3>
+    <label>E-mail da pessoa</label><input id="minv" type="email" placeholder="email@gmail.com">
+    <div id="minvmsg" style="font-size:12px;color:var(--muted);min-height:16px;margin-bottom:8px"></div>
+    <button class="btn" style="width:100%" onclick="doInvite()">Convidar</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Fechar</button>`;
+  document.getElementById("modal").style.display="flex";
+}
+async function doInvite(){
+  const email=document.getElementById("minv").value.trim(); const m=document.getElementById("minvmsg");
+  if(!email){m.textContent="Digite o e-mail.";return;}
+  m.textContent="Convidando…";
+  const {error}=await sb.rpc("invite_to_collection",{cid:ACTIVE,invite_email:email,invite_role:"editor"});
+  m.style.color=error?"var(--neg)":"var(--pos)"; m.textContent=error?error.message:"Convite enviado! ✓";
+}
+
+function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+document.getElementById("modal").addEventListener("click",e=>{ if(e.target.id==="modal") closeModal(); });
+document.addEventListener("click",e=>{ if(dd().style.display==="block" && !e.target.closest(".bar")) hideDropdown(); });
+
+initAuth();
+</script>
+</body>
+</html>

@@ -398,14 +398,16 @@ function load() {
   if (!state.expenses) state.expenses = {};
   document.getElementById("month").value = nowMonth();
   if (state.salary) document.getElementById("salary").value = state.salary;
-  const t = state.theme || "claro";
+  const t = localStorage.getItem("assistTheme") || state.theme || "claro";
   document.body.dataset.theme = t;
   document.getElementById("theme").value = t;
+  localStorage.setItem("assistTheme", t);
 }
 function persist() { localStorage.setItem("fin5030", JSON.stringify(state)); }
 function setTheme(t) {
   document.body.dataset.theme = t;
   state.theme = t; persist();
+  localStorage.setItem("assistTheme", t); // compartilha o tema com os outros módulos
   render(); // re-render charts com as cores do tema
 }
 function curMonth() { return document.getElementById("month").value || nowMonth(); }
