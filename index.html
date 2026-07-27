@@ -43,16 +43,28 @@ a.card.soon{opacity:.55;pointer-events:none}
 #ovbox input{width:100%;padding:11px;margin-bottom:12px;border:1.5px solid #2e3342;border-radius:9px;background:#151824;color:#e8ebf2;font-size:14px;outline:none}
 #ovbox button{width:100%;padding:11px;border:none;border-radius:9px;background:#6d4bf6;color:#fff;font-weight:700;font-size:14px;cursor:pointer}
 #ovmsg{font-size:12px;margin-top:12px;min-height:16px;color:#f07567}
+#tabs{display:flex;gap:6px;margin-bottom:18px;background:#151824;border-radius:10px;padding:4px}
+#tabs button{flex:1;width:auto;background:none;color:#8a93a8;padding:9px;font-size:13px;border-radius:7px}
+#tabs button.tabsel{background:#6d4bf6;color:#fff}
 </style>
 </head>
 <body>
 <div id="ov"><div id="ovbox">
   <div id="ovload" style="text-align:center;color:#8a93a8;font-size:14px">Carregando…</div>
   <div id="ovform" style="display:none">
-    <div style="font-size:20px;font-weight:800;margin-bottom:4px">🔒 Entrar</div>
-    <div style="font-size:13px;color:#8a93a8;margin-bottom:18px">Acesse seu assistente.</div>
-    <div id="s1"><input id="em" type="email" placeholder="Seu e-mail"><button onclick="sendCode()">Enviar código</button></div>
-    <div id="s2" style="display:none"><input id="cd" inputmode="numeric" maxlength="10" placeholder="código" style="text-align:center;letter-spacing:5px;font-size:20px"><button onclick="verify()">Confirmar e entrar</button><button onclick="reset2()" style="background:none;color:#8a93a8;font-weight:600;font-size:12px;margin-top:8px">Trocar e-mail</button></div>
+    <div id="tabs">
+      <button id="tabLogin" class="tabsel" onclick="setMode('login')">Entrar</button>
+      <button id="tabSignup" onclick="setMode('signup')">Criar conta</button>
+    </div>
+    <div id="s1">
+      <div id="signupFields" style="display:none">
+        <input id="nm" placeholder="Nome completo">
+        <input id="ph" inputmode="tel" placeholder="Telefone / WhatsApp">
+      </div>
+      <input id="em" type="email" placeholder="Seu e-mail">
+      <button onclick="sendCode()" id="sendBtn">Enviar código</button>
+    </div>
+    <div id="s2" style="display:none"><input id="cd" inputmode="numeric" maxlength="10" placeholder="código" style="text-align:center;letter-spacing:5px;font-size:20px"><button onclick="verify()">Confirmar</button><button onclick="reset2()" style="background:none;color:#8a93a8;font-weight:600;font-size:12px;margin-top:8px">Voltar</button></div>
     <div id="ovmsg"></div>
   </div>
 </div></div>
@@ -97,12 +109,34 @@ async function initAuth(){
 }
 function showForm(){ document.getElementById("ovload").style.display="none"; document.getElementById("ovform").style.display="block"; }
 function amsg(t,ok){ const e=document.getElementById("ovmsg"); e.textContent=t; e.style.color=ok?"#3ecf9a":"#f07567"; }
+let MODE="login";
+function setMode(m){
+  MODE=m;
+  document.getElementById("tabLogin").classList.toggle("tabsel",m==="login");
+  document.getElementById("tabSignup").classList.toggle("tabsel",m==="signup");
+  document.getElementById("signupFields").style.display=m==="signup"?"block":"none";
+  document.getElementById("sendBtn").textContent=m==="signup"?"Cadastrar":"Enviar código";
+  amsg("");
+}
 async function sendCode(){
-  const email=document.getElementById("em").value.trim(); if(!email){amsg("Digite seu e-mail.");return;}
+  const email=document.getElementById("em").value.trim();
+  if(!email||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){amsg("Digite um e-mail válido.");return;}
+  if(MODE==="signup"){
+    const nome=document.getElementById("nm").value.trim();
+    const fone=document.getElementById("ph").value.trim();
+    if(!nome){amsg("Digite seu nome.");return;}
+    if(fone.replace(/\D/g,"").length<10){amsg("Digite um telefone válido.");return;}
+    window.__signup={nome,phone:fone};
+  } else { window.__signup=null; }
   amsg("Enviando…",true);
-  const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:true}});
-  if(error){amsg(error.message);return;}
-  document.getElementById("s1").style.display="none"; document.getElementById("s2").style.display="block"; amsg("Código enviado! Confira o e-mail.",true);
+  const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:MODE==="signup"}});
+  if(error){
+    if(/not found|signups|user/i.test(error.message) && MODE==="login"){ amsg("Conta não encontrada. Use \"Criar conta\"."); }
+    else amsg(error.message);
+    return;
+  }
+  document.getElementById("s1").style.display="none"; document.getElementById("s2").style.display="block";
+  amsg("Código enviado! Confira o e-mail.",true);
 }
 async function verify(){
   const email=document.getElementById("em").value.trim(), token=document.getElementById("cd").value.trim();
@@ -111,7 +145,7 @@ async function verify(){
   const {error}=await sb.auth.verifyOtp({email,token,type:"email"});
   if(error) amsg(error.message);
 }
-function reset2(){ document.getElementById("s2").style.display="none"; document.getElementById("s1").style.display="block"; amsg(""); }
+function reset2(){ document.getElementById("s2").style.display="none"; document.getElementById("s1").style.display="block"; document.getElementById("cd").value=""; amsg(""); }
 async function logout(){ await sb.auth.signOut(); location.reload(); }
 async function editName(){
   const novo=(prompt("Seu nome:", profile.name||"")||"").trim();
@@ -129,13 +163,29 @@ async function onLogin(){
   // perfil (cria se não existir)
   let {data}=await sb.from("profiles").select("*").eq("user_id",user.id).maybeSingle();
   if(!data){
+    const s=window.__signup||{};
     const sugestao=(user.email||"").split("@")[0];
-    const nome=(prompt("Como você quer ser chamado(a)? (seu nome)", sugestao)||sugestao).trim();
-    await sb.from("profiles").insert({name:nome,modules:["financeiro","jogos"]});
+    const nome=(s.nome || prompt("Como você quer ser chamado(a)? (seu nome)", sugestao) || sugestao).trim();
+    const token=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now());
+    await sb.from("profiles").insert({name:nome, phone:s.phone||null, modules:["financeiro","filmes"], approve_token:token});
+    window.__signup=null;
     ({data}=await sb.from("profiles").select("*").eq("user_id",user.id).maybeSingle());
+    try{ await sb.functions.invoke("notify-signup",{body:{uid:user.id}}); }catch(e){ console.warn("notify",e); }
   }
-  profile=data||{name:(user.email||"").split("@")[0],modules:["financeiro","jogos"]};
+  profile=data||{name:(user.email||"").split("@")[0],modules:["financeiro","filmes"],approved:false};
   document.getElementById("hi").textContent="Olá, "+(profile.name||"você")+" 👋";
+
+  // aguardando aprovação do admin
+  if(profile.approved!==true){
+    document.getElementById("sub").textContent="Conta aguardando aprovação";
+    document.getElementById("cards").innerHTML=
+      '<div class="card" style="grid-column:1/-1;text-align:center">'
+      +'<div class="emoji">⏳</div>'
+      +'<div class="ct">Cadastro recebido!</div>'
+      +'<div class="cd">Sua conta está aguardando aprovação do administrador. Assim que liberada, é só entrar de novo com seu e-mail. 🙌</div></div>';
+    return;
+  }
+
   document.getElementById("sub").textContent=(profile.is_admin?"Admin · ":"")+"Escolha um módulo:";
   render();
 }
