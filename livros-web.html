@@ -9,6 +9,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});}</script>
 <style>
 /* ============ TEMAS (iguais ao Painel Financeiro) ============ */
@@ -37,6 +38,16 @@ h1{font-size:22px;margin-bottom:2px}
 .goal .gt button{background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer}
 .gbar{height:10px;background:var(--row);border-radius:6px;overflow:hidden}
 .gbar>div{height:100%;background:var(--accent);border-radius:6px;transition:width .3s}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+@media(max-width:700px){.stats-grid{grid-template-columns:1fr 1fr}}
+.stat{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:14px;text-align:center;box-shadow:var(--shadow)}
+.stat .sv{font-size:24px;font-weight:800;color:var(--accent)}
+.stat .sl{font-size:12px;color:var(--muted);margin-top:2px}
+.charts-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+@media(max-width:800px){.charts-grid{grid-template-columns:1fr}}
+.chartcard{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+.chartcard .ch-t{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px;text-align:center}
+.chartcard canvas{max-height:190px}
 .pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
 .pill{padding:7px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
 .pill.act{background:var(--accent);color:var(--accent-t);border-color:var(--accent)}
@@ -134,6 +145,7 @@ select{flex:1}
   <div class="sub">Leituras, avaliações e metas. Busca no Google Books + Open Library (por título, autor ou ISBN).</div>
 
   <div class="goal" id="goalBox"></div>
+  <div id="statsBox"></div>
 
   <div class="pills" id="pills"></div>
   <div id="shareRow" style="margin-bottom:14px;display:none"></div>
@@ -249,7 +261,41 @@ async function loadItems(){
   const lt=document.getElementById("listTitle");
   lt.style.display=ITEMS.length?"block":"none";
   lt.textContent="📁 "+(c?c.name:"Minha estante")+" — "+ITEMS.length+" livro"+(ITEMS.length===1?"":"s");
-  renderShareRow(); renderGoal(); renderItems(); showRecs();
+  renderShareRow(); renderGoal(); renderStats(); renderItems(); showRecs();
+}
+
+// ---------- estatísticas ----------
+let CHARTS={};
+function renderStats(){
+  const box=document.getElementById("statsBox"); if(!box) return;
+  if(!ITEMS.length){ box.innerHTML=""; Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS={}; return; }
+  const lidos=ITEMS.filter(i=>i.status==="lido");
+  const paginas=lidos.reduce((s,i)=>s+((i.meta&&i.meta.pages)||0),0);
+  const favs=ITEMS.filter(i=>i.rating!=null && i.rating>=9).length;
+  const anos=new Set(lidos.map(i=>(i.done_date||"").slice(0,4)).filter(Boolean)).size;
+  const cont=(campo)=>{ const o={}; ITEMS.forEach(i=>{ const v=((i.meta&&i.meta[campo])||"").split(",")[0].trim(); const k=v||(campo==="authors"?"Desconhecido":"Desconhecida"); o[k]=(o[k]||0)+1; }); return o; };
+  const topN=(o,n)=>{ const ks=Object.keys(o).sort((a,b)=>o[b]-o[a]); const t=ks.slice(0,n); const rest=ks.slice(n).reduce((s,x)=>s+o[x],0); const labels=t.slice(),data=t.map(x=>o[x]); if(rest){labels.push("Outros");data.push(rest);} return {labels,data}; };
+  const A=topN(cont("authors"),6), E=topN(cont("publisher"),6);
+  box.innerHTML=`
+    <div class="stats-grid">
+      <div class="stat"><div class="sv">${lidos.length}</div><div class="sl">📚 Livros lidos</div></div>
+      <div class="stat"><div class="sv">${paginas.toLocaleString('pt-BR')}</div><div class="sl">📄 Páginas lidas</div></div>
+      <div class="stat"><div class="sv">${favs}</div><div class="sl">⭐ Favoritos (nota ≥9)</div></div>
+      <div class="stat"><div class="sv">${anos}</div><div class="sl">🗓️ Anos de leitura</div></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chartcard"><div class="ch-t">Lidos vs. não lidos</div><canvas id="chRead"></canvas></div>
+      <div class="chartcard"><div class="ch-t">Autores</div><canvas id="chAut"></canvas></div>
+      <div class="chartcard"><div class="ch-t">Editoras</div><canvas id="chEdt"></canvas></div>
+    </div>`;
+  Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS={};
+  if(typeof Chart==="undefined") return;
+  const txt=(getComputedStyle(document.body).getPropertyValue('--text')||'#e6eaf2').trim();
+  const pal=['#4f7cf7','#3ecf9a','#f59e0b','#f472b6','#a855f7','#38bdf8','#94a0b8'];
+  const dough=(id,labels,data,colors)=>new Chart(document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:txt,font:{size:11},boxWidth:12,padding:8}}},cutout:'55%'}});
+  CHARTS.read=dough('chRead',['Lidos','Não lidos'],[lidos.length,ITEMS.length-lidos.length],['#3ecf9a','#4d5566']);
+  CHARTS.aut=dough('chAut',A.labels,A.data,pal);
+  CHARTS.edt=dough('chEdt',E.labels,E.data,pal);
 }
 
 // ---------- recomendações por gênero da estante ----------
@@ -405,7 +451,7 @@ async function searchGoogle(q,isbn){
     const query=isbn?("isbn:"+isbn):q;
     const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20&langRestrict=pt&country=BR`);
     const d=await r.json();
-    return (d.items||[]).map(v=>{const vi=v.volumeInfo||{}; return {id:v.id,title:vi.title||"—",authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"",pages:vi.pageCount||0,genre:(vi.categories||[])[0]||""};});
+    return (d.items||[]).map(v=>{const vi=v.volumeInfo||{}; return {id:v.id,title:vi.title||"—",authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"",pages:vi.pageCount||0,genre:(vi.categories||[])[0]||"",publisher:vi.publisher||""};});
   }catch(e){ return []; }
 }
 function normTitle(t){ return String(t||"").toLowerCase().split(/[:\(\-–]/)[0].replace(/[^a-z0-9à-ú ]/gi,"").replace(/\s+/g," ").trim(); }
@@ -468,7 +514,7 @@ async function importGoodreads(ev){
     const row={collection_id:ACTIVE,kind:"livro",ext_id:"gr:"+(r["Book Id"]||title),title,
       poster:isbn?`https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg?default=false`:"",
       status, rating: mr>0?mr*2:null,
-      meta:{authors:(r["Author"]||"").trim(),pages,year:String(r["Year Published"]||"").slice(0,4),hours:0,started_at:null}};
+      meta:{authors:(r["Author"]||"").trim(),pages,year:String(r["Year Published"]||"").slice(0,4),publisher:(r["Publisher"]||"").trim(),hours:0,started_at:null}};
     if(status==="lido" && dateRead) row.done_date=dateRead.replace(/\//g,"-");
     batch.push(row); existing.add(title.toLowerCase());
   });
@@ -506,7 +552,7 @@ async function confirmAdd(){
   const status=document.getElementById("mstatus").value;
   const rv=document.getElementById("mrating").value;
   const rating=rv===""?null:Math.max(0,Math.min(10,parseFloat(rv)));
-  const meta={authors:x.authors,pages:x.pages,year:x.yr,genre:x.genre||"",hours:0,started_at:status==="lendo"?new Date().toISOString():null};
+  const meta={authors:x.authors,pages:x.pages,year:x.yr,genre:x.genre||"",publisher:x.publisher||"",hours:0,started_at:status==="lendo"?new Date().toISOString():null};
   const row={collection_id:ACTIVE,kind:"livro",ext_id:String(x.id),title:x.title,poster:x.poster,status,rating,meta};
   if(status==="lido") row.done_date=new Date().toISOString().slice(0,10);
   const {error}=await sb.from("items").insert(row);
