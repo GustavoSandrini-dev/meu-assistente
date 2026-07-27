@@ -129,12 +129,17 @@ async function sendCode(){
     window.__signup={nome,phone:fone};
   } else { window.__signup=null; }
   amsg("Enviando…",true);
-  const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:MODE==="signup"}});
-  if(error){
-    if(/not found|signups|user/i.test(error.message) && MODE==="login"){ amsg("Conta não encontrada. Use \"Criar conta\"."); }
-    else amsg(error.message);
-    return;
-  }
+  try{
+    const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:MODE==="signup"}});
+    if(error){
+      console.error("OTP error:",error);
+      const msg=error.message||error.error_description||(error.status?("erro "+error.status):"")||"Não foi possível enviar o código.";
+      if(/not found|signup|user/i.test(msg) && MODE==="login"){ amsg('Conta não encontrada. Use "Criar conta".'); }
+      else if(/rate|limit|smtp|send|deliver/i.test(msg)){ amsg("Falha no envio do e-mail: "+msg); }
+      else amsg(msg);
+      return;
+    }
+  }catch(e){ console.error(e); amsg("Erro: "+(e&&e.message?e.message:JSON.stringify(e))); return; }
   document.getElementById("s1").style.display="none"; document.getElementById("s2").style.display="block";
   amsg("Código enviado! Confira o e-mail.",true);
 }
