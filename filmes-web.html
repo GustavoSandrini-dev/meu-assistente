@@ -28,6 +28,17 @@ h1{font-size:22px;margin-bottom:2px}
 .bar input{flex:1;min-width:200px;padding:11px 13px;border:1.5px solid #2e3342;border-radius:10px;background:#151824;color:#e8ebf2;font-size:14px;outline:none}
 .btn{background:#6d4bf6;color:#fff;border:none;border-radius:10px;padding:10px 15px;font-size:13px;font-weight:700;cursor:pointer}
 .btn.ghost{background:#1b1e28;border:1.5px solid #2e3342;color:#c9d0de}
+.dropdown{display:none;position:absolute;top:calc(100% + 6px);left:0;width:100%;background:#1b1e28;border:1.5px solid #2e3342;border-radius:12px;max-height:66vh;overflow:auto;z-index:60;box-shadow:0 12px 40px rgba(0,0,0,.55)}
+.drow{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid #2e3342}
+.drow:last-child{border-bottom:none}
+.drow img{width:42px;height:62px;object-fit:cover;border-radius:6px;flex-shrink:0}
+.dr-noimg{width:42px;height:62px;background:#151824;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#3a4152}
+.dr-info{flex:1;min-width:0}
+.dr-t{font-size:14px;font-weight:700}
+.dr-y{font-size:12px;color:#8a93a8}
+.dr-add{background:#6d4bf6;color:#fff;border:none;border-radius:8px;padding:9px 13px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.dr-add.in{background:#25324a;color:#7fa8ff}
+.dr-msg{padding:14px;text-align:center;color:#8a93a8;font-size:13px}
 .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .chip{padding:6px 12px;border-radius:16px;border:1.5px solid #2e3342;background:#1b1e28;color:#8a93a8;font-size:12px;font-weight:600;cursor:pointer}
 .chip.act{background:#2e3342;color:#fff}
@@ -101,9 +112,10 @@ select{flex:1}
   <div class="pills" id="pills"></div>
   <div id="shareRow" style="margin-bottom:14px;display:none"></div>
 
-  <div class="bar">
-    <input id="q" placeholder="Buscar filme ou série… (ex: Interestelar)" oninput="debSearch()">
+  <div class="bar" style="position:relative">
+    <input id="q" placeholder="Buscar filme ou série… (ex: Interestelar)" oninput="debSearch()" autocomplete="off">
     <button class="btn ghost" onclick="clearSearch()">Limpar</button>
+    <div class="dropdown" id="dropdown"></div>
   </div>
 
   <div class="filters" id="filters" style="display:none">
@@ -262,9 +274,20 @@ function itemCard(i,rank){
 
 // ---------- busca TMDB ----------
 let _t;
-function debSearch(){ clearTimeout(_t); _t=setTimeout(doSearch,350); }
-function clearSearch(){ document.getElementById("q").value=""; showReleases(); }
-function refreshResults(){ const q=document.getElementById("q").value.trim(); if(q.length>=2) doSearch(); else showReleases(); }
+function debSearch(){ clearTimeout(_t); _t=setTimeout(doSearch,300); }
+function dd(){ return document.getElementById("dropdown"); }
+function hideDropdown(){ dd().style.display="none"; dd().innerHTML=""; }
+// mostra/esconde a "casa" (lista + 50 melhores) durante a busca
+function setSearchMode(on){
+  document.getElementById("items").style.display   = on?"none":"grid";
+  document.getElementById("results").style.display = on?"none":"block";
+  document.getElementById("listTitle").style.display = (on||!ITEMS.length)?"none":"block";
+  document.getElementById("filters").style.display   = (on||!ITEMS.length)?"none":"flex";
+}
+function restoreHome(){ document.getElementById("q").value=""; hideDropdown(); setSearchMode(false); }
+function clearSearch(){ restoreHome(); }
+function refreshResults(){ const q=document.getElementById("q").value.trim(); if(q.length>=2) doSearch(); }
+
 async function showReleases(){
   const R=document.getElementById("results");
   R.innerHTML='<div class="sec-title">⭐ Melhores de todos os tempos</div><div class="empty">Carregando…</div>';
@@ -281,15 +304,31 @@ async function showReleases(){
   if(!all.length){ R.innerHTML=""; return; }
   R.innerHTML='<div class="sec-title">⭐ Melhores de todos os tempos</div><div class="grid">'+all.map(searchCard).join("")+'</div>';
 }
+
 async function doSearch(){
   const q=document.getElementById("q").value.trim();
-  const R=document.getElementById("results");
-  if(q.length<2){ showReleases(); return; }
-  R.innerHTML='<div class="empty">Buscando…</div>';
+  if(q.length<2){ restoreHome(); return; }
+  setSearchMode(true);
+  dd().style.display="block";
+  dd().innerHTML='<div class="dr-msg">Buscando…</div>';
   const d=await tmdb(`/search/multi?query=${encodeURIComponent(q)}&language=pt-BR&page=1`);
-  const res=(d.results||[]).filter(x=>x.media_type==="movie"||x.media_type==="tv").slice(0,12);
-  if(!res.length){ R.innerHTML='<div class="empty">Nada encontrado.</div>'; return; }
-  R.innerHTML='<div class="sec-title">Resultados da busca</div><div class="grid">'+res.map(searchCard).join("")+'</div>';
+  const res=(d.results||[]).filter(x=>x.media_type==="movie"||x.media_type==="tv").slice(0,20);
+  if(document.getElementById("q").value.trim()!==q) return; // busca antiga
+  if(!res.length){ dd().innerHTML='<div class="dr-msg">Nada encontrado.</div>'; return; }
+  dd().innerHTML=res.map(dropRow).join("");
+}
+function dropRow(x){
+  const title=x.title||x.name||"—";
+  const date=x.release_date||x.first_air_date||"";
+  const yr=date?date.slice(0,4):"";
+  const kind=x.media_type==="tv"?"serie":"filme";
+  const poster=x.poster_path?`<img src="${LOGO}${x.poster_path}" loading="lazy">`:`<div class="dr-noimg">🎬</div>`;
+  const already=ITEMS.find(i=>String(i.ext_id)===String(x.id));
+  const payload=encodeURIComponent(JSON.stringify({id:x.id,title,yr,kind,poster:x.poster_path?IMG+x.poster_path:"",media:x.media_type,vote:x.vote_average}));
+  return `<div class="drow">${poster}
+    <div class="dr-info"><div class="dr-t">${esc(title)}</div>
+    <div class="dr-y">${yr} · ${kind==="serie"?"Série":"Filme"}${x.vote_average?" · ⭐"+x.vote_average.toFixed(1):""}</div></div>
+    <button class="dr-add ${already?'in':''}" onclick="addItem('${payload}')">${already?"✓ Na lista":"+ Adicionar"}</button></div>`;
 }
 function searchCard(x){
   const title=x.title||x.name||"—";
@@ -340,7 +379,9 @@ async function confirmAdd(){
     meta:{year:x.yr,media:x.media,vote:x.vote}};
   const {error}=await sb.from("items").insert(row);
   if(error){ alert("Erro ao adicionar: "+error.message); return; }
-  PENDING=null; closeModal(); await loadItems(); refreshResults();
+  PENDING=null; closeModal();
+  document.getElementById("q").value=""; hideDropdown();
+  await loadItems(); setSearchMode(false);
 }
 async function setStatus(id,v){ await sb.from("items").update({status:v,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.status=v; renderItems(); }
 async function setRating(id,v){ const n=v===""?null:Math.max(0,Math.min(10,parseFloat(v))); await sb.from("items").update({rating:n,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.rating=n; if(FILTER==="ranking") renderItems(); }
@@ -403,6 +444,9 @@ async function doInvite(){
 
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 document.getElementById("modal").addEventListener("click",e=>{ if(e.target.id==="modal") closeModal(); });
+document.addEventListener("click",e=>{
+  if(dd().style.display==="block" && !e.target.closest(".bar") && !e.target.closest("#modal")) restoreHome();
+});
 
 initAuth();
 </script>
