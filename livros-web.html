@@ -61,7 +61,11 @@ h1{font-size:22px;margin-bottom:2px}
 .chip{padding:6px 12px;border-radius:16px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer}
 .chip.act{background:var(--row);color:var(--text)}
 .sec-title{font-size:13px;font-weight:700;color:var(--muted);margin:18px 0 10px;text-transform:uppercase;letter-spacing:.5px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px}
+@media(min-width:1100px){#items.grid{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}}
+.where{display:flex;gap:6px;flex-wrap:wrap}
+.where a{font-size:11px;color:var(--accent);text-decoration:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px}
+.where a:hover{border-color:var(--accent)}
 .card{background:var(--card);border:1.5px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow)}
 .cardwrap{position:relative;display:flex;flex-direction:column}
 .card img{width:100%;aspect-ratio:2/3;object-fit:cover;background:var(--row);display:block}
@@ -303,7 +307,11 @@ function bookCard(i,rank){
         <button onclick="toggleTimer('${i.id}')">${running?"Pausar":"Ler"}</button>
       </div>
       <textarea class="cmt" placeholder="Comentário…" onchange="setNote('${i.id}',this.value)">${esc(i.note||"")}</textarea>
-      <button class="mini" style="align-self:flex-end" onclick="delItem('${i.id}')">remover</button>
+      <div class="where" id="wh-${i.id}"></div>
+      <div class="rowb" style="justify-content:space-between">
+        <button class="mini" onclick="showWhere('${i.id}')">📖 Onde ler</button>
+        <button class="mini" onclick="delItem('${i.id}')">remover</button>
+      </div>
     </div></div>`;
 }
 async function setStatus(id,v){
@@ -317,6 +325,21 @@ async function setStatus(id,v){
 async function setRating(id,v){ const n=v===""?null:Math.max(0,Math.min(10,parseFloat(v))); await sb.from("items").update({rating:n,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.rating=n; if(FILTER==="ranking") renderItems(); }
 async function setNote(id,v){ const t=v.trim()||null; await sb.from("items").update({note:t,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.note=t; }
 async function delItem(id){ if(!confirm("Remover da estante?"))return; await sb.from("items").delete().eq("id",id); ITEMS=ITEMS.filter(i=>i.id!==id); renderGoal(); renderItems(); }
+function showWhere(id){
+  const i=ITEMS.find(x=>x.id===id); if(!i) return;
+  const box=document.getElementById("wh-"+id); if(!box) return;
+  const t=encodeURIComponent(i.title+" "+((i.meta&&i.meta.authors)||""));
+  const nome=encodeURIComponent(i.title);
+  const amazon=`https://www.amazon.com.br/s?k=${nome}&i=digital-text`;
+  const play=`https://play.google.com/store/search?q=${t}&c=books`;
+  const skoob=`https://www.skoob.com.br/livro/lista/busca:${nome}`;
+  const eid=String(i.ext_id||"");
+  const gbook=(eid && !eid.startsWith("ol:") && !eid.startsWith("gr:"))?`https://books.google.com/books?id=${eid}`:`https://www.google.com/search?tbm=bks&q=${t}`;
+  box.innerHTML=`<a href="${amazon}" target="_blank">📖 Kindle</a>
+    <a href="${play}" target="_blank">Google Play</a>
+    <a href="${gbook}" target="_blank">Google Books</a>
+    <a href="${skoob}" target="_blank">Skoob</a>`;
+}
 
 // ---------- busca Google Books ----------
 let _t;
