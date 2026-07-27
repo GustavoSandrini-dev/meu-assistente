@@ -300,46 +300,68 @@ function renderStats(){
   CHARTS.edt=dough('chEdt',E.labels,E.data,pal);
 }
 
-// ---------- recomendações / 50 melhores ----------
-async function gbSubject(subject){
-  const urls=[
-    `https://www.googleapis.com/books/v1/volumes?q=subject:${encodeURIComponent(subject)}&orderBy=relevance&maxResults=40&langRestrict=pt&country=BR${GBK}`,
-    `https://www.googleapis.com/books/v1/volumes?q=subject:${encodeURIComponent(subject)}&maxResults=40&langRestrict=pt${GBK}`
-  ];
-  for(const u of urls){
+// ---------- recomendações / 50 melhores (em português) ----------
+function gbMap(v){ const vi=v.volumeInfo||{}; return {id:v.id,title:vi.title||"",authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"",pages:vi.pageCount||0,genre:(vi.categories||[])[0]||"",publisher:vi.publisher||"",lang:vi.language||""}; }
+async function fetchOne(t,a){
+  try{
+    const q=`intitle:"${t}" inauthor:"${a}"`;
+    const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&langRestrict=pt&country=BR&maxResults=3${GBK}`);
+    const d=await r.json();
+    const bad=/an[áa]lise|resumo|guia de estudo|summary|study guide|s[ií]ntese/i;
+    let v=(d.items||[]).find(x=>{ const vt=(x.volumeInfo&&x.volumeInfo.title)||""; return !bad.test(vt); }) || (d.items||[])[0];
+    if(!v) return null;
+    const b=gbMap(v); if(!b.title) return null; if(!b.authors) b.authors=a; return b;
+  }catch(e){ return null; }
+}
+const CURADOS=[
+  ["Dom Casmurro","Machado de Assis"],["Memórias Póstumas de Brás Cubas","Machado de Assis"],
+  ["Grande Sertão: Veredas","Guimarães Rosa"],["Vidas Secas","Graciliano Ramos"],
+  ["Capitães da Areia","Jorge Amado"],["Gabriela, Cravo e Canela","Jorge Amado"],
+  ["A Hora da Estrela","Clarice Lispector"],["Torto Arado","Itamar Vieira Junior"],
+  ["O Cortiço","Aluísio Azevedo"],["Iracema","José de Alencar"],
+  ["O Alquimista","Paulo Coelho"],["Ensaio sobre a Cegueira","José Saramago"],
+  ["Os Maias","Eça de Queirós"],["O Primo Basílio","Eça de Queirós"],
+  ["Livro do Desassossego","Fernando Pessoa"],["Triste Fim de Policarpo Quaresma","Lima Barreto"],
+  ["Olhos d'Água","Conceição Evaristo"],["A Culpa é das Estrelas","John Green"],
+  ["Harry Potter e a Pedra Filosofal","J.K. Rowling"],["O Senhor dos Anéis","J.R.R. Tolkien"],
+  ["O Hobbit","J.R.R. Tolkien"],["1984","George Orwell"],
+  ["O Pequeno Príncipe","Antoine de Saint-Exupéry"],["A Revolução dos Bichos","George Orwell"],
+  ["Dias Perfeitos","Raphael Montes"],["Cem Anos de Solidão","Gabriel García Márquez"],
+  ["O Nome do Vento","Patrick Rothfuss"],["A Menina que Roubava Livros","Markus Zusak"],
+  ["É Assim que Acaba","Colleen Hoover"],["A Paixão Segundo G.H.","Clarice Lispector"]
+];
+async function melhores(){
+  const cache=localStorage.getItem("recs50v1");
+  if(cache){ try{ const a=JSON.parse(cache); if(a&&a.length) return a; }catch(e){} }
+  const res=await Promise.all(CURADOS.map(([t,a])=>fetchOne(t,a)));
+  const out=res.filter(b=>b&&b.title);
+  if(out.length) localStorage.setItem("recs50v1",JSON.stringify(out));
+  return out;
+}
+async function porAutor(){
+  const aut={}; ITEMS.forEach(i=>{ const a=((i.meta&&i.meta.authors)||"").split(",")[0].trim(); if(a) aut[a]=(aut[a]||0)+1; });
+  const top=Object.keys(aut).sort((a,b)=>aut[b]-aut[a]).slice(0,3);
+  let out=[];
+  for(const a of top){
     try{
-      const r=await fetch(u); const d=await r.json();
-      if(d.items&&d.items.length){
-        return d.items.map(v=>{const vi=v.volumeInfo||{}; return {id:v.id,title:vi.title||"",authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"",pages:vi.pageCount||0,genre:(vi.categories||[])[0]||subject,publisher:vi.publisher||""};})
-          .filter(b=>b.title);
-      }
+      const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=inauthor:${encodeURIComponent('"'+a+'"')}&langRestrict=pt&country=BR&maxResults=20${GBK}`);
+      const d=await r.json();
+      (d.items||[]).map(gbMap).forEach(b=>{ if(String(b.lang).startsWith("pt") && b.title) out.push(b); });
     }catch(e){}
   }
-  return [];
-}
-async function olSubject(subject){
-  try{
-    const s=String(subject).toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"")||"fiction";
-    const r=await fetch(`https://openlibrary.org/subjects/${s}.json?limit=50`);
-    const d=await r.json();
-    return (d.works||[]).map(w=>({id:"ol:"+String(w.key||"").replace("/works/",""),title:w.title||"",authors:(w.authors||[]).map(a=>a.name).join(", "),yr:w.first_publish_year?String(w.first_publish_year):"",poster:w.cover_id?`https://covers.openlibrary.org/b/id/${w.cover_id}-M.jpg`:"",pages:0,genre:subject,publisher:""}));
-  }catch(e){ return []; }
+  return out;
 }
 async function showRecs(){
   const box=document.getElementById("recs"); if(!box) return;
-  const cont={};
-  ITEMS.forEach(i=>{ const g=(i.meta&&i.meta.genre)||""; if(g){ const key=g.split("/")[0].trim(); cont[key]=(cont[key]||0)+1; } });
-  const top=Object.keys(cont).sort((a,b)=>cont[b]-cont[a]);
-  const subject=top[0]||"Fiction";
-  box.innerHTML='<div class="sec-title">'+(top.length?'✨ Recomendados pra você':'⭐ 50 melhores pra começar')+'</div><div class="empty">Carregando…</div>';
-  // preferência: Google Books (títulos em português). Só usa Open Library se o Google não vier.
-  let fonte=await gbSubject(subject);
-  if(!fonte.length && subject!=="Fiction") fonte=await gbSubject("Fiction");
+  const temAutor=ITEMS.some(i=>((i.meta&&i.meta.authors)||"").trim());
+  box.innerHTML='<div class="sec-title">'+(temAutor?'✨ Recomendados pra você':'⭐ 50 melhores pra começar')+'</div><div class="empty">Carregando…</div>';
+  let fonte = temAutor ? await porAutor() : [];
+  if(!fonte.length) fonte = await melhores();
   const shelf=new Set(ITEMS.map(i=>normTitle(i.title)));
   const seen=new Set(), recs=[];
   fonte.forEach(b=>{ const nt=normTitle(b.title); if(!b.title||shelf.has(nt)||seen.has(nt)) return; seen.add(nt); recs.push(b); });
   const final=recs.slice(0,50);
-  const titulo=top.length?`✨ Recomendados — ${esc(top[0])}`:"⭐ 50 melhores pra começar";
+  const titulo=temAutor?"✨ Recomendados — mais dos autores que você lê":"⭐ 50 melhores pra começar";
   box.innerHTML=`<div class="sec-title">${titulo}</div>`+(final.length?`<div class="grid">${final.map(recCard).join("")}</div>`:`<div class="empty">Não consegui carregar agora. Recarregue a página. 📚</div>`);
 }
 function recCard(b){
