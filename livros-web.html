@@ -298,29 +298,39 @@ function renderStats(){
   CHARTS.edt=dough('chEdt',E.labels,E.data,pal);
 }
 
-// ---------- recomendações por gênero da estante ----------
+// ---------- recomendações / 50 melhores ----------
+async function gbSubject(subject){
+  let out=[];
+  for(let start=0; start<80 && out.length<80; start+=40){
+    try{
+      const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:${encodeURIComponent(subject)}&orderBy=relevance&maxResults=40&startIndex=${start}&langRestrict=pt&country=BR`);
+      const d=await r.json();
+      if(!d.items||!d.items.length) break;
+      out=out.concat(d.items);
+    }catch(e){ break; }
+  }
+  return out;
+}
 async function showRecs(){
   const box=document.getElementById("recs"); if(!box) return;
   const cont={};
-  ITEMS.forEach(i=>{ const g=(i.meta&&i.meta.genre)||""; if(g){ cont[g]=(cont[g]||0)+1; } });
+  ITEMS.forEach(i=>{ const g=(i.meta&&i.meta.genre)||""; if(g){ const key=g.split("/")[0].trim(); cont[key]=(cont[key]||0)+1; } });
   const top=Object.keys(cont).sort((a,b)=>cont[b]-cont[a]);
-  const subject=top[0]||"ficção";
-  box.innerHTML='<div class="sec-title">✨ Recomendados pra você</div><div class="empty">Montando recomendações…</div>';
-  let recs=[];
-  try{
-    const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:${encodeURIComponent(subject)}&orderBy=relevance&maxResults=40&langRestrict=pt&country=BR`);
-    const d=await r.json();
-    const shelf=new Set(ITEMS.map(i=>normTitle(i.title)));
-    const seen=new Set();
-    (d.items||[]).forEach(v=>{
-      const vi=v.volumeInfo||{}; const title=vi.title||"";
-      const nt=normTitle(title); if(!title||shelf.has(nt)||seen.has(nt)) return; seen.add(nt);
-      recs.push({id:v.id,title,authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"",pages:vi.pageCount||0,genre:(vi.categories||[])[0]||subject});
-    });
-    recs=recs.slice(0,50);
-  }catch(e){}
-  const titulo=top.length?`✨ Recomendados — ${esc(top[0])}`:"✨ Populares pra começar";
-  box.innerHTML=`<div class="sec-title">${titulo}</div>`+(recs.length?`<div class="grid">${recs.map(recCard).join("")}</div>`:`<div class="empty">Adicione livros à estante pra receber recomendações do seu gênero. 📚</div>`);
+  const subject=top[0]||"Fiction";
+  box.innerHTML='<div class="sec-title">'+(top.length?'✨ Recomendados pra você':'⭐ 50 melhores pra começar')+'</div><div class="empty">Carregando…</div>';
+  let items=await gbSubject(subject);
+  if(!items.length && subject!=="Fiction") items=await gbSubject("Fiction");
+  if(!items.length) items=await gbSubject("bestseller");
+  const shelf=new Set(ITEMS.map(i=>normTitle(i.title)));
+  const seen=new Set(), recs=[];
+  items.forEach(v=>{
+    const vi=v.volumeInfo||{}; const title=vi.title||""; const nt=normTitle(title);
+    if(!title||shelf.has(nt)||seen.has(nt)) return; seen.add(nt);
+    recs.push({id:v.id,title,authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"",pages:vi.pageCount||0,genre:(vi.categories||[])[0]||subject,publisher:vi.publisher||""});
+  });
+  const final=recs.slice(0,50);
+  const titulo=top.length?`✨ Recomendados — ${esc(top[0])}`:"⭐ 50 melhores pra começar";
+  box.innerHTML=`<div class="sec-title">${titulo}</div>`+(final.length?`<div class="grid">${final.map(recCard).join("")}</div>`:`<div class="empty">Não consegui carregar agora. Recarregue a página. 📚</div>`);
 }
 function recCard(b){
   const poster=b.poster?`<img src="${b.poster}" loading="lazy" onerror="imgFail(this)">`:`<div class="noimg">📖</div>`;
