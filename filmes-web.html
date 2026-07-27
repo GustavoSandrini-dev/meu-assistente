@@ -99,11 +99,8 @@ select{flex:1}
 </div></div>
 
 <div class="wrap" id="app" style="display:none">
-  <div class="nav">
+  <div class="nav" id="navLinks">
     <a href="index.html">🏠 Início</a>
-    <a href="painel-financeiro-web.html">💰 Financeiro</a>
-    <a href="biblioteca-jogos-web.html">🎮 Jogos</a>
-    <a href="filmes-web.html" class="act">🎬 Filmes</a>
     <button onclick="logout()" style="margin-left:auto">Sair</button>
   </div>
   <h1>🎬 Filmes & Séries</h1>
@@ -171,11 +168,26 @@ async function verify(){
 function reset2(){ document.getElementById("s2").style.display="none"; document.getElementById("s1").style.display="block"; amsg(""); }
 async function logout(){ await sb.auth.signOut(); location.reload(); }
 
+const NAVMODS={financeiro:{name:"Financeiro",emoji:"💰",url:"painel-financeiro-web.html"},jogos:{name:"Jogos",emoji:"🎮",url:"biblioteca-jogos-web.html"},filmes:{name:"Filmes",emoji:"🎬",url:"filmes-web.html"},livros:{name:"Livros",emoji:"📚",url:"livros-web.html"}};
+const NAV_CURR="filmes";
+async function buildNav(){
+  try{
+    const {data:{user}}=await sb.auth.getUser();
+    const {data:p}=await sb.from("profiles").select("modules").eq("user_id",user.id).maybeSingle();
+    const mods=(p&&p.modules&&p.modules.length)?p.modules:["financeiro","jogos","filmes","livros"];
+    let h=`<a href="index.html">🏠 Início</a>`;
+    mods.forEach(k=>{ const m=NAVMODS[k]; if(!m)return; h+=`<a href="${m.url}" class="${k===NAV_CURR?'act':''}">${m.emoji} ${m.name}</a>`; });
+    h+=`<button onclick="logout()" style="margin-left:auto">Sair</button>`;
+    document.getElementById("navLinks").innerHTML=h;
+  }catch(e){ console.warn("nav",e); }
+}
+
 // ---------- boot ----------
 async function onLogin(){
   document.getElementById("ov").style.display="none";
   document.getElementById("app").style.display="block";
   const {data:{user}}=await sb.auth.getUser(); ME=user;
+  buildNav();
   try{ await sb.rpc("claim_invites"); }catch(e){ console.warn("claim",e); }
   await loadCols();
 }
