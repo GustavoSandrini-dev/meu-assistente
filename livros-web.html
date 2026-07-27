@@ -500,8 +500,8 @@ async function doSearch(){
     if(!cur || (!cur.poster && b.poster)) seen.set(k,b);
   });
   const all=[...seen.values()];
-  if(!all.length){ dd().innerHTML='<div class="dr-msg">Nada encontrado.</div>'; return; }
-  dd().innerHTML=all.slice(0,15).map(dropRow).join("");
+  if(!all.length){ dd().innerHTML=`<div class="dr-msg">Nada encontrado.<br><button class="btn" style="margin-top:8px" onclick="manualModal()">➕ Adicionar "${esc(raw)}" manualmente</button></div>`; return; }
+  dd().innerHTML=all.slice(0,15).map(dropRow).join("")+`<div style="padding:10px;text-align:center;border-top:1px solid var(--border)"><button class="btn ghost" onclick="manualModal()">➕ Não achou? Adicionar manualmente</button></div>`;
 }
 function dropRow(b){
   const poster=b.poster?`<img src="${b.poster}" loading="lazy" onerror="imgFail(this,1)">`:`<div class="dr-noimg">📖</div>`;
@@ -581,6 +581,34 @@ async function confirmAdd(){
   PENDING=null; closeModal(); document.getElementById("q").value=""; hideDropdown(); await loadItems();
 }
 
+function manualModal(){
+  hideDropdown();
+  const q=document.getElementById("q").value.trim();
+  document.getElementById("modalbox").innerHTML=`<h3>Adicionar livro manualmente</h3>
+    <label>Título</label><input id="mmTitle" value="${esc(q)}" placeholder="Nome do livro">
+    <label>Autor(a)</label><input id="mmAuthor" placeholder="Nome do autor(a)">
+    <label>Páginas (opcional)</label><input id="mmPages" type="number" placeholder="—">
+    <label>Capa — URL da imagem (opcional)</label><input id="mmCover" placeholder="https://...">
+    <label>Onde colocar?</label>
+    <select id="mmStatus"><option value="quero">Quero ler</option><option value="lendo">Lendo</option><option value="lido">Já li</option></select>
+    <label>Nota (0–10, opcional)</label><input id="mmRating" type="number" min="0" max="10" step="0.1" placeholder="—">
+    <button class="btn" style="width:100%;margin-top:4px" onclick="confirmManual()">Adicionar à estante</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Cancelar</button>`;
+  document.getElementById("modal").style.display="flex";
+}
+async function confirmManual(){
+  const title=document.getElementById("mmTitle").value.trim(); if(!title){alert("Digite o título.");return;}
+  const status=document.getElementById("mmStatus").value;
+  const rv=document.getElementById("mmRating").value;
+  const rating=rv===""?null:Math.max(0,Math.min(10,parseFloat(rv)));
+  const pages=parseInt(document.getElementById("mmPages").value,10)||0;
+  const meta={authors:document.getElementById("mmAuthor").value.trim(),pages,year:"",genre:"",publisher:"",hours:0,started_at:status==="lendo"?new Date().toISOString():null};
+  const row={collection_id:ACTIVE,kind:"livro",ext_id:"manual:"+Date.now(),title,poster:document.getElementById("mmCover").value.trim(),status,rating,meta};
+  if(status==="lido") row.done_date=new Date().toISOString().slice(0,10);
+  const {error}=await sb.from("items").insert(row);
+  if(error){ alert("Erro: "+error.message); return; }
+  closeModal(); document.getElementById("q").value=""; await loadItems();
+}
 function closeModal(){ document.getElementById("modal").style.display="none"; }
 function newColModal(){
   document.getElementById("modalbox").innerHTML=`<h3>Nova estante</h3>
