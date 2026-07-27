@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Biblioteca de Jogos</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#6d4bf6">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -148,6 +149,7 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
   </div>
 
   <div class="stats" id="stats"></div>
+  <div id="gameCharts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:14px 0"></div>
 
   <div id="incentivo"></div>
 
@@ -371,6 +373,32 @@ function renderStats(){
     const clk = fv===null ? "" : `class="stat clickable" onclick="filterStatus('${fv}')"`;
     return `<div ${clk||'class="stat"'}><div class="n">${n}</div><div class="l">${l}</div></div>`;
   }).join("");
+  renderCharts();
+}
+
+let GCHARTS={};
+function renderCharts(){
+  const box=document.getElementById("gameCharts"); if(!box) return;
+  const g=allGames();
+  if(!g.length){ box.innerHTML=""; Object.values(GCHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); GCHARTS={}; return; }
+  const fin=g.filter(x=>["zer","plat"].includes(statusOf(x))).length;
+  const gen={}, hrs={};
+  g.forEach(x=>{ const k=genreOf(x)||"Outros"; gen[k]=(gen[k]||0)+1; hrs[k]=(hrs[k]||0)+(x.playtime||0); });
+  const topN=(o,n,round)=>{ const ks=Object.keys(o).sort((a,b)=>o[b]-o[a]); const t=ks.slice(0,n); const rest=ks.slice(n).reduce((s,x)=>s+o[x],0); const labels=t.slice(),data=t.map(x=>round?Math.round(o[x]):o[x]); if(rest>0){labels.push("Outros");data.push(round?Math.round(rest):rest);} return {labels,data}; };
+  const Gc=topN(gen,8,false), Hc=topN(hrs,8,true);
+  const genColors=Gc.labels.map(l=>GENRE_COLOR[l]||"#64748b");
+  const cc="background:#1b1e28;border:1.5px solid #2e3342;border-radius:14px;padding:14px";
+  const ct="font-size:13px;font-weight:700;color:#8a93a8;margin-bottom:8px;text-align:center";
+  box.innerHTML=`
+    <div style="${cc}"><div style="${ct}">Zerados vs. não zerados</div><canvas id="cgFin" style="max-height:200px"></canvas></div>
+    <div style="${cc}"><div style="${ct}">Jogos por gênero</div><canvas id="cgGen" style="max-height:200px"></canvas></div>
+    <div style="${cc}"><div style="${ct}">Horas por gênero</div><canvas id="cgHrs" style="max-height:200px"></canvas></div>`;
+  Object.values(GCHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); GCHARTS={};
+  if(typeof Chart==="undefined") return;
+  const leg=(sz)=>({position:'bottom',labels:{color:'#c9d0de',font:{size:sz},boxWidth:11,padding:6}});
+  GCHARTS.fin=new Chart(document.getElementById('cgFin'),{type:'doughnut',data:{labels:['Zerados','Não zerados'],datasets:[{data:[fin,g.length-fin],backgroundColor:['#22c55e','#475569'],borderWidth:0}]},options:{plugins:{legend:leg(11)},cutout:'55%'}});
+  GCHARTS.gen=new Chart(document.getElementById('cgGen'),{type:'doughnut',data:{labels:Gc.labels,datasets:[{data:Gc.data,backgroundColor:genColors,borderWidth:0}]},options:{plugins:{legend:leg(10)},cutout:'55%'}});
+  GCHARTS.hrs=new Chart(document.getElementById('cgHrs'),{type:'bar',data:{labels:Hc.labels,datasets:[{data:Hc.data,backgroundColor:'#6d4bf6'}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a93a8',font:{size:9},maxRotation:60,minRotation:45}},y:{ticks:{color:'#8a93a8'},grid:{color:'#2a3140'}}}}});
 }
 
 function gameCard(g,pos){

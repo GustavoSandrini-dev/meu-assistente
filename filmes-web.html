@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#6d4bf6">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});}</script>
 <style>
 :root{color-scheme:dark}
@@ -71,6 +72,16 @@ select{flex:1}
 .add-btn.in{background:#25324a;color:#7fa8ff}
 .sec-title{font-size:13px;font-weight:700;color:#8a93a8;margin:18px 0 10px;text-transform:uppercase;letter-spacing:.5px}
 .empty{color:#57617a;font-size:14px;padding:30px;text-align:center}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+@media(max-width:700px){.stats-grid{grid-template-columns:1fr 1fr}}
+.stat{background:#1b1e28;border:1.5px solid #2e3342;border-radius:14px;padding:14px;text-align:center}
+.stat .sv{font-size:24px;font-weight:800;color:#6d4bf6}
+.stat .sl{font-size:12px;color:#8a93a8;margin-top:2px}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+@media(max-width:800px){.charts-grid{grid-template-columns:1fr}}
+.chartcard{background:#1b1e28;border:1.5px solid #2e3342;border-radius:14px;padding:14px}
+.chartcard .ch-t{font-size:13px;font-weight:700;color:#8a93a8;margin-bottom:8px;text-align:center}
+.chartcard canvas{max-height:200px}
 /* login */
 #ov{position:fixed;inset:0;z-index:99;background:#12141c;display:flex;align-items:center;justify-content:center}
 #ovbox{background:#1b1e28;border:1px solid #2e3342;border-radius:16px;padding:28px;width:340px;max-width:92vw}
@@ -108,6 +119,7 @@ select{flex:1}
 
   <div class="pills" id="pills"></div>
   <div id="shareRow" style="margin-bottom:14px;display:none"></div>
+  <div id="statsBox"></div>
 
   <div class="bar" style="position:relative">
     <input id="q" placeholder="Buscar filme ou série… (ex: Interestelar)" oninput="debSearch()" autocomplete="off">
@@ -139,6 +151,9 @@ const IMG="https://image.tmdb.org/t/p/w300";
 const LOGO="https://image.tmdb.org/t/p/w92";
 const sb=supabase.createClient(SB_URL,SB_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 async function tmdb(path){ const r=await fetch("https://api.themoviedb.org/3"+path,{headers:{Authorization:"Bearer "+TMDB}}); return r.json(); }
+const GEN_MOVIE={28:"Ação",12:"Aventura",16:"Animação",35:"Comédia",80:"Crime",99:"Documentário",18:"Drama",10751:"Família",14:"Fantasia",36:"História",27:"Terror",10402:"Música",9648:"Mistério",10749:"Romance",878:"Ficção científica",10770:"Cinema TV",53:"Thriller",10752:"Guerra",37:"Faroeste"};
+const GEN_TV={10759:"Ação & Aventura",16:"Animação",35:"Comédia",80:"Crime",99:"Documentário",18:"Drama",10751:"Família",10762:"Infantil",9648:"Mistério",10763:"Notícias",10764:"Reality",10765:"Sci-Fi & Fantasia",10766:"Novela",10767:"Talk",10768:"Guerra & Política",37:"Faroeste"};
+function genreName(ids,media){ const map=(media==="tv")?GEN_TV:GEN_MOVIE; if(!ids||!ids.length) return ""; return map[ids[0]]||""; }
 
 let ME=null, COLS=[], ACTIVE=null, ITEMS=[], FILTER="todos";
 const provCache={};
@@ -228,7 +243,40 @@ async function loadItems(){
   lt.style.display=ITEMS.length?"block":"none";
   lt.textContent="📁 "+(c?c.name:"Minha lista")+" — "+ITEMS.length+" título"+(ITEMS.length===1?"":"s");
   renderShareRow();
+  renderStats();
   renderItems();
+}
+
+// ---------- estatísticas ----------
+let CHARTS={};
+function renderStats(){
+  const box=document.getElementById("statsBox"); if(!box) return;
+  if(!ITEMS.length){ box.innerHTML=""; Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS={}; return; }
+  const vistos=ITEMS.filter(i=>i.status==="assistido");
+  const favs=ITEMS.filter(i=>i.rating!=null && i.rating>=9).length;
+  const ano=new Date().getFullYear();
+  const esteAno=vistos.filter(i=>(i.done_date||"").slice(0,4)==String(ano)).length;
+  const gen={}; ITEMS.forEach(i=>{ const g=((i.meta&&i.meta.genre)||"").trim()||"Outros"; gen[g]=(gen[g]||0)+1; });
+  const filmes=ITEMS.filter(i=>i.kind!=="serie").length, series=ITEMS.length-filmes;
+  const topN=(o,n)=>{ const ks=Object.keys(o).sort((a,b)=>o[b]-o[a]); const t=ks.slice(0,n); const rest=ks.slice(n).reduce((s,x)=>s+o[x],0); const labels=t.slice(),data=t.map(x=>o[x]); if(rest){labels.push("Outros");data.push(rest);} return {labels,data}; };
+  const G=topN(gen,7);
+  box.innerHTML=`
+    <div class="stats-grid">
+      <div class="stat"><div class="sv">${vistos.length}</div><div class="sl">🎬 Assistidos</div></div>
+      <div class="stat"><div class="sv">${ITEMS.length}</div><div class="sl">📺 Na lista</div></div>
+      <div class="stat"><div class="sv">${favs}</div><div class="sl">⭐ Favoritos (nota ≥9)</div></div>
+      <div class="stat"><div class="sv">${esteAno}</div><div class="sl">🗓️ Assistidos em ${ano}</div></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chartcard"><div class="ch-t">Gêneros</div><canvas id="chGen"></canvas></div>
+      <div class="chartcard"><div class="ch-t">Assistido vs. a ver · Filmes vs. séries</div><canvas id="chStatus"></canvas></div>
+    </div>`;
+  Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS={};
+  if(typeof Chart==="undefined") return;
+  const pal=['#6d4bf6','#3ecf9a','#f59e0b','#f472b6','#38bdf8','#a855f7','#f07567','#94a0b8'];
+  const dough=(id,labels,data,colors)=>new Chart(document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#aab3c5',font:{size:11},boxWidth:12,padding:8}}},cutout:'55%'}});
+  CHARTS.gen=dough('chGen',G.labels,G.data,pal);
+  CHARTS.status=dough('chStatus',['Assistidos','A ver','Filmes','Séries'],[vistos.length,ITEMS.length-vistos.length,filmes,series],['#3ecf9a','#4d5566','#6d4bf6','#38bdf8']);
 }
 
 function renderShareRow(){
@@ -336,7 +384,7 @@ function dropRow(x){
   const kind=x.media_type==="tv"?"serie":"filme";
   const poster=x.poster_path?`<img src="${LOGO}${x.poster_path}" loading="lazy">`:`<div class="dr-noimg">🎬</div>`;
   const already=ITEMS.find(i=>String(i.ext_id)===String(x.id));
-  const payload=encodeURIComponent(JSON.stringify({id:x.id,title,yr,kind,poster:x.poster_path?IMG+x.poster_path:"",media:x.media_type,vote:x.vote_average}));
+  const payload=encodeURIComponent(JSON.stringify({id:x.id,title,yr,kind,poster:x.poster_path?IMG+x.poster_path:"",media:x.media_type,vote:x.vote_average,genre:genreName(x.genre_ids,x.media_type)}));
   return `<div class="drow">${poster}
     <div class="dr-info"><div class="dr-t">${esc(title)}</div>
     <div class="dr-y">${yr} · ${kind==="serie"?"Série":"Filme"}${x.vote_average?" · ⭐"+x.vote_average.toFixed(1):""}</div></div>
@@ -349,7 +397,7 @@ function searchCard(x){
   const poster=x.poster_path?`<img src="${IMG}${x.poster_path}" loading="lazy">`:`<div class="noimg">🎬</div>`;
   const kind=x.media_type==="tv"?"serie":"filme";
   const already=ITEMS.find(i=>String(i.ext_id)===String(x.id));
-  const payload=encodeURIComponent(JSON.stringify({id:x.id,title,yr,kind,poster:x.poster_path?IMG+x.poster_path:"",media:x.media_type,vote:x.vote_average}));
+  const payload=encodeURIComponent(JSON.stringify({id:x.id,title,yr,kind,poster:x.poster_path?IMG+x.poster_path:"",media:x.media_type,vote:x.vote_average,genre:genreName(x.genre_ids,x.media_type)}));
   return `<div class="card"><div class="cardwrap">${poster}<span class="tag">${kind==="serie"?"Série":"Filme"}</span></div>
     <div class="cb"><div class="tt">${esc(title)}</div><div class="yr">${yr}${x.vote_average?" · ⭐"+x.vote_average.toFixed(1):""}</div>
     <button class="add-btn ${already?'in':''}" onclick="addItem('${payload}')">${already?"✓ Na lista":"+ Adicionar"}</button></div></div>`;
@@ -388,7 +436,7 @@ async function confirmAdd(){
   const rating=rv===""?null:Math.max(0,Math.min(10,parseFloat(rv)));
   const note=document.getElementById("mnote").value.trim()||null;
   const row={collection_id:ACTIVE,kind:x.kind,ext_id:String(x.id),title:x.title,poster:x.poster,status,rating,note,
-    meta:{year:x.yr,media:x.media,vote:x.vote}};
+    meta:{year:x.yr,media:x.media,vote:x.vote,genre:x.genre||""}};
   const {error}=await sb.from("items").insert(row);
   if(error){ alert("Erro ao adicionar: "+error.message); return; }
   PENDING=null; closeModal();
