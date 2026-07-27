@@ -300,11 +300,20 @@ function renderStats(){
 
 // ---------- recomendações / 50 melhores ----------
 async function gbSubject(subject){
-  try{
-    const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:${encodeURIComponent(subject)}&orderBy=relevance&maxResults=40&langRestrict=pt&country=BR`);
-    const d=await r.json();
-    return (d.items||[]).map(v=>{const vi=v.volumeInfo||{}; return {id:v.id,title:vi.title||"",authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"",pages:vi.pageCount||0,genre:(vi.categories||[])[0]||subject,publisher:vi.publisher||""};});
-  }catch(e){ return []; }
+  const urls=[
+    `https://www.googleapis.com/books/v1/volumes?q=subject:${encodeURIComponent(subject)}&orderBy=relevance&maxResults=40&langRestrict=pt&country=BR`,
+    `https://www.googleapis.com/books/v1/volumes?q=subject:${encodeURIComponent(subject)}&maxResults=40&langRestrict=pt`
+  ];
+  for(const u of urls){
+    try{
+      const r=await fetch(u); const d=await r.json();
+      if(d.items&&d.items.length){
+        return d.items.map(v=>{const vi=v.volumeInfo||{}; return {id:v.id,title:vi.title||"",authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"",pages:vi.pageCount||0,genre:(vi.categories||[])[0]||subject,publisher:vi.publisher||""};})
+          .filter(b=>b.title);
+      }
+    }catch(e){}
+  }
+  return [];
 }
 async function olSubject(subject){
   try{
@@ -321,11 +330,13 @@ async function showRecs(){
   const top=Object.keys(cont).sort((a,b)=>cont[b]-cont[a]);
   const subject=top[0]||"Fiction";
   box.innerHTML='<div class="sec-title">'+(top.length?'✨ Recomendados pra você':'⭐ 50 melhores pra começar')+'</div><div class="empty">Carregando…</div>';
-  let [gb,ol]=await Promise.all([gbSubject(subject), olSubject(subject)]);
-  if(!gb.length && !ol.length) ol=await olSubject("fiction");
+  // preferência: Google Books (títulos em português). Só usa Open Library se o Google não vier.
+  let fonte=await gbSubject(subject);
+  if(!fonte.length) fonte=await olSubject(subject);
+  if(!fonte.length) fonte=await olSubject("fiction");
   const shelf=new Set(ITEMS.map(i=>normTitle(i.title)));
   const seen=new Set(), recs=[];
-  [...gb,...ol].forEach(b=>{ const nt=normTitle(b.title); if(!b.title||shelf.has(nt)||seen.has(nt)) return; seen.add(nt); recs.push(b); });
+  fonte.forEach(b=>{ const nt=normTitle(b.title); if(!b.title||shelf.has(nt)||seen.has(nt)) return; seen.add(nt); recs.push(b); });
   const final=recs.slice(0,50);
   const titulo=top.length?`✨ Recomendados — ${esc(top[0])}`:"⭐ 50 melhores pra começar";
   box.innerHTML=`<div class="sec-title">${titulo}</div>`+(final.length?`<div class="grid">${final.map(recCard).join("")}</div>`:`<div class="empty">Não consegui carregar agora. Recarregue a página. 📚</div>`);
