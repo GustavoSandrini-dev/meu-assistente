@@ -142,7 +142,7 @@ select{flex:1}
   </div>
   <input type="file" id="grFile" accept=".csv" style="display:none" onchange="importGoodreads(event)">
   <h1>📚 Biblioteca de Livros</h1>
-  <div class="sub">Leituras, avaliações e metas. Busca no Google Books + Open Library (por título, autor ou ISBN).</div>
+  <div class="sub">Leituras, avaliações e metas. Busca no Google Books (por título, autor ou ISBN).</div>
 
   <div class="goal" id="goalBox"></div>
   <div id="statsBox"></div>
@@ -334,8 +334,7 @@ async function showRecs(){
   box.innerHTML='<div class="sec-title">'+(top.length?'✨ Recomendados pra você':'⭐ 50 melhores pra começar')+'</div><div class="empty">Carregando…</div>';
   // preferência: Google Books (títulos em português). Só usa Open Library se o Google não vier.
   let fonte=await gbSubject(subject);
-  if(!fonte.length) fonte=await olSubject(subject);
-  if(!fonte.length) fonte=await olSubject("fiction");
+  if(!fonte.length && subject!=="Fiction") fonte=await gbSubject("Fiction");
   const shelf=new Set(ITEMS.map(i=>normTitle(i.title)));
   const seen=new Set(), recs=[];
   fonte.forEach(b=>{ const nt=normTitle(b.title); if(!b.title||shelf.has(nt)||seen.has(nt)) return; seen.add(nt); recs.push(b); });
@@ -490,11 +489,11 @@ async function doSearch(){
   dd().style.display="block"; dd().innerHTML='<div class="dr-msg">Buscando…</div>';
   const clean=raw.replace(/[-\s]/g,"");
   const isbn=/^\d{9}[\dXx]$|^\d{13}$/.test(clean)?clean:null;
-  const [gb,ol]=await Promise.all([searchGoogle(raw,isbn), searchOpenLib(raw,isbn)]);
+  const gb=await searchGoogle(raw,isbn);
   if(document.getElementById("q").value.trim()!==raw) return;
-  // prioriza os que têm capa, e junta sem repetir por título (ignorando subtítulo/edição)
+  // junta sem repetir por título (ignorando subtítulo/edição), priorizando quem tem capa
   const seen=new Map();
-  [...gb,...ol].forEach(b=>{
+  gb.forEach(b=>{
     const k=normTitle(b.title)+"|"+(b.authors||"").toLowerCase().split(",")[0].trim();
     const cur=seen.get(k);
     if(!cur || (!cur.poster && b.poster)) seen.set(k,b);
