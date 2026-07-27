@@ -63,6 +63,7 @@ a.card.soon{opacity:.55;pointer-events:none}
       </div>
       <input id="em" type="email" placeholder="Seu e-mail">
       <input id="pw" type="password" placeholder="Senha">
+      <div id="pwHint" style="display:none;font-size:11px;color:#8a93a8;margin:-6px 0 12px;line-height:1.4">Senha: mín. 8 caracteres, com maiúscula, minúscula, número e símbolo.</div>
       <button onclick="submitAuth()" id="sendBtn">Entrar</button>
     </div>
     <div id="ovmsg"></div>
@@ -116,41 +117,40 @@ function setMode(m){
   document.getElementById("tabLogin").classList.toggle("tabsel",m==="login");
   document.getElementById("tabSignup").classList.toggle("tabsel",m==="signup");
   document.getElementById("signupFields").style.display=m==="signup"?"block":"none";
+  document.getElementById("pwHint").style.display=m==="signup"?"block":"none";
   document.getElementById("sendBtn").textContent=m==="signup"?"Cadastrar":"Entrar";
   amsg("");
 }
+function pwStrong(p){ return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(p); }
 async function submitAuth(){
   const email=document.getElementById("em").value.trim();
   const pw=document.getElementById("pw").value;
   if(!email||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){amsg("Digite um e-mail válido.");return;}
-  if(pw.length<6){amsg("A senha precisa ter no mínimo 6 caracteres.");return;}
 
-  // ---- CADASTRO: cria a conta (senha) e manda pedido de aprovação pro admin ----
+  // ---- CADASTRO: cria a conta e entra direto (sem aprovação) ----
   if(MODE==="signup"){
     const nome=document.getElementById("nm").value.trim();
     const fone=document.getElementById("ph").value.trim();
     if(!nome){amsg("Digite seu nome.");return;}
     if(fone.replace(/\D/g,"").length<10){amsg("Digite um telefone válido.");return;}
+    if(!pwStrong(pw)){amsg("Senha fraca: mín. 8 caracteres, com maiúscula, minúscula, número e símbolo.");return;}
+    window.__signup={nome,phone:fone};
     amsg("Criando conta…",true);
     try{
-      SUPPRESS_LOGIN=true;
       const {error}=await sb.auth.signUp({email,password:pw});
       if(error){
-        SUPPRESS_LOGIN=false;
+        window.__signup=null;
         if(/already|registered|exists/i.test(error.message)) amsg("Esse e-mail já tem conta. Use a aba Entrar.");
         else amsg(error.message);
         return;
       }
-      await sb.auth.signOut();              // não loga até ser aprovado
-      SUPPRESS_LOGIN=false;
-      const {data,error:e2}=await sb.functions.invoke("notify-signup",{body:{name:nome,email,phone:fone}});
-      if(e2) throw e2;
-      signupSent(data&&data.already);
-    }catch(e){ SUPPRESS_LOGIN=false; console.error(e); amsg("Erro ao cadastrar: "+(e&&e.message?e.message:JSON.stringify(e))); }
+      // onAuthStateChange chama onLogin() → cria o perfil e entra
+    }catch(e){ window.__signup=null; console.error(e); amsg("Erro ao cadastrar: "+(e&&e.message?e.message:JSON.stringify(e))); }
     return;
   }
 
   // ---- LOGIN: e-mail + senha ----
+  if(!pw){amsg("Digite sua senha.");return;}
   amsg("Entrando…",true);
   try{
     const {error}=await sb.auth.signInWithPassword({email,password:pw});
@@ -161,15 +161,6 @@ async function submitAuth(){
     }
     // onAuthStateChange chama onLogin()
   }catch(e){ console.error(e); amsg("Erro: "+(e&&e.message?e.message:JSON.stringify(e))); }
-}
-function signupSent(already){
-  document.getElementById("ovform").innerHTML=
-    '<div style="text-align:center">'
-    +'<div style="font-size:42px;margin-bottom:8px">'+(already?'✅':'📨')+'</div>'
-    +'<div style="font-size:18px;font-weight:800;margin-bottom:8px">'+(already?'Você já está aprovado!':'Cadastro enviado!')+'</div>'
-    +'<div style="font-size:13px;color:#8a93a8;margin-bottom:18px">'
-    +(already?'É só clicar em Voltar e entrar com e-mail e senha.':'Assim que o administrador aprovar, você entra com seu e-mail e senha. 🙌')
-    +'</div><button onclick="location.reload()">Voltar</button></div>';
 }
 async function logout(){ await sb.auth.signOut(); location.reload(); }
 async function setPassword(){
@@ -195,25 +186,14 @@ async function onLogin(){
   // perfil (cria se não existir)
   let {data}=await sb.from("profiles").select("*").eq("user_id",user.id).maybeSingle();
   if(!data){
-    // cria o perfil; o banco preenche nome/telefone e aprova se o e-mail foi liberado
+    const s=window.__signup||{};
     const sugestao=(user.email||"").split("@")[0];
-    await sb.from("profiles").insert({name:sugestao, modules:["financeiro","filmes"]});
+    await sb.from("profiles").insert({name:s.nome||sugestao, phone:s.phone||null, modules:["financeiro","filmes"]});
+    window.__signup=null;
     ({data}=await sb.from("profiles").select("*").eq("user_id",user.id).maybeSingle());
   }
-  profile=data||{name:(user.email||"").split("@")[0],modules:["financeiro","filmes"],approved:false};
+  profile=data||{name:(user.email||"").split("@")[0],modules:["financeiro","filmes"]};
   document.getElementById("hi").textContent="Olá, "+(profile.name||"você")+" 👋";
-
-  // aguardando aprovação do admin
-  if(profile.approved!==true){
-    document.getElementById("sub").textContent="Conta aguardando aprovação";
-    document.getElementById("cards").innerHTML=
-      '<div class="card" style="grid-column:1/-1;text-align:center">'
-      +'<div class="emoji">⏳</div>'
-      +'<div class="ct">Cadastro recebido!</div>'
-      +'<div class="cd">Sua conta está aguardando aprovação do administrador. Assim que liberada, é só entrar de novo com seu e-mail. 🙌</div></div>';
-    return;
-  }
-
   document.getElementById("sub").textContent=(profile.is_admin?"Admin · ":"")+"Escolha um módulo:";
   render();
 }
