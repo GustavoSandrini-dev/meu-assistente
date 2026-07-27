@@ -5,52 +5,62 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Meu Assistente</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#6d4bf6">
+<meta name="theme-color" content="#4f7cf7">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});}</script>
 <style>
-:root{color-scheme:dark}
+body[data-theme="claro"]{--bg:#f4f6fa;--card:#fff;--text:#1a2233;--muted:#67728a;--border:#d8dfeb;--input:#fff;--accent:#4f7cf7;--accent-t:#fff;--neg:#c0392b}
+body[data-theme="escuro"]{color-scheme:dark;--bg:#12151c;--card:#1c212b;--text:#e6eaf2;--muted:var(--muted);--border:#323a4a;--input:#151a23;--accent:#4f7cf7;--accent-t:#fff;--neg:var(--neg)}
+body[data-theme="rosa"]{--bg:#fdf2f7;--card:#fff;--text:#3d2233;--muted:#a1738c;--border:#f3cfe0;--input:#fffafd;--accent:#e0559a;--accent-t:#fff;--neg:#c0392b}
+body[data-theme="rosa-escuro"]{color-scheme:dark;--bg:#231018;--card:#321a26;--text:#fce7f3;--muted:#c48aa8;--border:#553046;--input:#281420;--accent:#f472b6;--accent-t:#3d0f28;--neg:var(--neg)}
+body[data-theme="dracula"]{color-scheme:dark;--bg:#282a36;--card:#343746;--text:#f8f8f2;--muted:#8b90a8;--border:#4d5066;--input:#2c2e3c;--accent:#bd93f9;--accent-t:#22232e;--neg:#ff5555}
+body[data-theme="nord"]{color-scheme:dark;--bg:#2e3440;--card:#3b4252;--text:#eceff4;--muted:#94a0b8;--border:#4c566a;--input:#333947;--accent:#88c0d0;--accent-t:#1d2530;--neg:#bf616a}
+body[data-theme="solarizado"]{--bg:#fdf6e3;--card:#fffbf0;--text:#403a2e;--muted:#93a1a1;--border:#e6dcc0;--input:#fffdf5;--accent:#268bd2;--accent-t:#fff;--neg:#dc322f}
+body[data-theme="oceano"]{color-scheme:dark;--bg:#0f1c2e;--card:#16283e;--text:#dcecfb;--muted:#7d95b3;--border:#2c4360;--input:#122238;--accent:#38bdf8;--accent-t:#08243a;--neg:#fb7185}
+body[data-theme="floresta"]{color-scheme:dark;--bg:#14211a;--card:#1d2f25;--text:#e2f2e7;--muted:#84a390;--border:#33503f;--input:#182a20;--accent:#4ade80;--accent-t:#0c2415;--neg:#f87171}
+body[data-theme="sepia"]{--bg:#f4ecd8;--card:#fbf5e6;--text:#43362a;--muted:#96866f;--border:#dfd0b4;--input:#fffaf0;--accent:#8b5e34;--accent-t:#fff8ec;--neg:#b3382c}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#12141c;color:#e8ebf2;min-height:100vh;padding:24px}
+.themeSel{font-size:12px;font-weight:600;padding:7px 10px;border-radius:9px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer;max-width:150px}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px}
 .wrap{max-width:1100px;margin:0 auto}
 .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
 h1{font-size:24px}
-.sub{color:#8a93a8;font-size:14px;margin-bottom:24px}
+.sub{color:var(--muted);font-size:14px;margin-bottom:24px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:620px){.grid{grid-template-columns:1fr}}
-a.card,.card{position:relative;display:block;text-decoration:none;background:#1b1e28;border:1.5px solid #2e3342;border-radius:16px;padding:20px;color:#e8ebf2;transition:border-color .15s,transform .15s}
-a.card:hover{border-color:#6d4bf6;transform:translateY(-2px)}
-.rm{position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:8px;border:1.5px solid #2e3342;background:#12141c;color:#8a93a8;font-size:12px;cursor:pointer;opacity:0;transition:opacity .15s}
+a.card,.card{position:relative;display:block;text-decoration:none;background:var(--card);border:1.5px solid var(--border);border-radius:16px;padding:20px;color:var(--text);transition:border-color .15s,transform .15s}
+a.card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.rm{position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);font-size:12px;cursor:pointer;opacity:0;transition:opacity .15s}
 a.card:hover .rm{opacity:1}
-.rm:hover{color:#f07567;border-color:#f07567}
+.rm:hover{color:var(--neg);border-color:var(--neg)}
 a.card.soon{opacity:.55;pointer-events:none}
 .emoji{font-size:32px}
 .ct{font-size:17px;font-weight:800;margin:10px 0 4px}
-.cd{font-size:13px;color:#8a93a8}
-.badge{font-size:10px;font-weight:700;background:#2e3342;color:#8a93a8;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle}
-.agenda{grid-column:1/-1;background:#1b1e28;border:1.5px solid #2e3342;border-radius:16px;padding:18px}
+.cd{font-size:13px;color:var(--muted)}
+.badge{font-size:10px;font-weight:700;background:var(--border);color:var(--muted);padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle}
+.agenda{grid-column:1/-1;background:var(--card);border:1.5px solid var(--border);border-radius:16px;padding:18px}
 .agenda h2{font-size:15px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
-.agenda a{color:#8b6cff;font-size:12px;text-decoration:none}
+.agenda a{color:var(--accent);font-size:12px;text-decoration:none}
 .slot{display:flex;gap:12px;padding:7px 0;font-size:14px;align-items:center}
-.slot+.slot{border-top:1px dashed #2e3342}
-.slot .t{color:#8a93a8;font-size:12px;min-width:96px}
+.slot+.slot{border-top:1px dashed var(--border)}
+.slot .t{color:var(--muted);font-size:12px;min-width:96px}
 .slot .dot{width:9px;height:9px;border-radius:3px;flex-shrink:0}
-.btn{background:none;border:1.5px solid #2e3342;color:#8a93a8;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer}
-.foot{margin-top:22px;font-size:12px;color:#57617a;text-align:center}
-#ov{position:fixed;inset:0;z-index:99;background:#12141c;display:flex;align-items:center;justify-content:center}
-#ovbox{background:#1b1e28;border:1px solid #2e3342;border-radius:16px;padding:28px;width:340px;max-width:92vw}
-#ovbox input{width:100%;padding:11px;margin-bottom:12px;border:1.5px solid #2e3342;border-radius:9px;background:#151824;color:#e8ebf2;font-size:14px;outline:none}
-#ovbox button{width:100%;padding:11px;border:none;border-radius:9px;background:#6d4bf6;color:#fff;font-weight:700;font-size:14px;cursor:pointer}
-#ovmsg{font-size:12px;margin-top:12px;min-height:16px;color:#f07567}
-#tabs{display:flex;gap:6px;margin-bottom:18px;background:#151824;border-radius:10px;padding:4px}
-#tabs button{flex:1;width:auto;background:none;color:#8a93a8;padding:9px;font-size:13px;border-radius:7px}
-#tabs button.tabsel{background:#6d4bf6;color:#fff}
+.btn{background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer}
+.foot{margin-top:22px;font-size:12px;color:var(--muted);text-align:center}
+#ov{position:fixed;inset:0;z-index:99;background:var(--bg);display:flex;align-items:center;justify-content:center}
+#ovbox{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;width:340px;max-width:92vw}
+#ovbox input{width:100%;padding:11px;margin-bottom:12px;border:1.5px solid var(--border);border-radius:9px;background:var(--input);color:var(--text);font-size:14px;outline:none}
+#ovbox button{width:100%;padding:11px;border:none;border-radius:9px;background:var(--accent);color:var(--accent-t);font-weight:700;font-size:14px;cursor:pointer}
+#ovmsg{font-size:12px;margin-top:12px;min-height:16px;color:var(--neg)}
+#tabs{display:flex;gap:6px;margin-bottom:18px;background:var(--input);border-radius:10px;padding:4px}
+#tabs button{flex:1;width:auto;background:none;color:var(--muted);padding:9px;font-size:13px;border-radius:7px}
+#tabs button.tabsel{background:var(--accent);color:var(--accent-t)}
 </style>
 </head>
-<body>
+<body data-theme="escuro">
 <div id="ov"><div id="ovbox">
-  <div id="ovload" style="text-align:center;color:#8a93a8;font-size:14px">Carregando…</div>
+  <div id="ovload" style="text-align:center;color:var(--muted);font-size:14px">Carregando…</div>
   <div id="ovform" style="display:none">
     <div id="tabs">
       <button id="tabLogin" class="tabsel" onclick="setMode('login')">Entrar</button>
@@ -63,7 +73,7 @@ a.card.soon{opacity:.55;pointer-events:none}
       </div>
       <input id="em" type="email" placeholder="Seu e-mail">
       <input id="pw" type="password" placeholder="Senha">
-      <div id="pwHint" style="display:none;font-size:11px;color:#8a93a8;margin:-6px 0 12px;line-height:1.4">Senha: mín. 8 caracteres, com maiúscula, minúscula, número e símbolo.</div>
+      <div id="pwHint" style="display:none;font-size:11px;color:var(--muted);margin:-6px 0 12px;line-height:1.4">Senha: mín. 8 caracteres, com maiúscula, minúscula, número e símbolo.</div>
       <button onclick="submitAuth()" id="sendBtn">Entrar</button>
     </div>
     <div id="ovmsg"></div>
@@ -73,7 +83,15 @@ a.card.soon{opacity:.55;pointer-events:none}
 <div class="wrap" id="app" style="display:none">
   <div class="top">
     <div><h1 id="hi">🚀 Meu Assistente</h1><p class="sub" id="sub">Bem-vindo de volta.</p></div>
-    <div style="display:flex;gap:8px"><button class="btn" onclick="editName()">✏️ Nome</button><button class="btn" onclick="setPassword()">🔑 Senha</button><button class="btn" onclick="logout()">Sair</button></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select class="themeSel" id="themeSel" onchange="setTheme(this.value)" title="Tema">
+        <option value="claro">☀️ Claro</option><option value="escuro">🌙 Escuro</option>
+        <option value="rosa">🌸 Rosa</option><option value="rosa-escuro">🌷 Rosa escuro</option>
+        <option value="dracula">🧛 Drácula</option><option value="nord">❄️ Nord</option>
+        <option value="solarizado">🌅 Solarizado</option><option value="oceano">🌊 Oceano</option>
+        <option value="floresta">🌲 Floresta</option><option value="sepia">📜 Sépia</option>
+      </select>
+      <button class="btn" onclick="editName()">✏️ Nome</button><button class="btn" onclick="setPassword()">🔑 Senha</button><button class="btn" onclick="logout()">Sair</button></div>
   </div>
   <div class="grid" id="cards"></div>
   <p class="foot">Plataforma pessoal · dados protegidos por login · sincronizado via Supabase</p>
@@ -83,6 +101,18 @@ a.card.soon{opacity:.55;pointer-events:none}
 const SB_URL="https://ovpncggowjhualakjaug.supabase.co";
 const SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92cG5jZ2dvd2podWFsYWtqYXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NDI1MDIsImV4cCI6MjEwMDMxODUwMn0.yGWi4aWynDVhIEftBZcayGrbPxgqj93ckDua0zTr4zI";
 const sb=supabase.createClient(SB_URL,SB_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+
+// ----- tema compartilhado (com override por tela) -----
+const PAGE="index";
+function currentTheme(){ return localStorage.getItem("themeOverride_"+PAGE)||localStorage.getItem("assistTheme")||"escuro"; }
+function applyTheme(){ const t=currentTheme(); document.body.dataset.theme=t; const s=document.getElementById("themeSel"); if(s) s.value=t; }
+function setTheme(t){
+  const all=confirm("Aplicar este tema em TODOS os módulos?\n\nOK = todos os módulos\nCancelar = só nesta tela");
+  if(all){ localStorage.setItem("assistTheme",t); localStorage.removeItem("themeOverride_"+PAGE); }
+  else { localStorage.setItem("themeOverride_"+PAGE,t); }
+  document.body.dataset.theme=t;
+}
+applyTheme();
 
 const MODULES={
   financeiro:{name:"Painel Financeiro",emoji:"💰",url:"painel-financeiro-web.html",desc:"Gastos, orçamento por grupo e importação de extrato/fatura."},
@@ -115,7 +145,7 @@ async function initAuth(){
   sb.auth.onAuthStateChange((_e,s)=>{ if(SUPPRESS_LOGIN) return; if(s && document.getElementById("ov").style.display!=="none") onLogin(); });
 }
 function showForm(){ document.getElementById("ovload").style.display="none"; document.getElementById("ovform").style.display="block"; }
-function amsg(t,ok){ const e=document.getElementById("ovmsg"); e.textContent=t; e.style.color=ok?"#3ecf9a":"#f07567"; }
+function amsg(t,ok){ const e=document.getElementById("ovmsg"); e.textContent=t; e.style.color=ok?"#3ecf9a":"var(--neg)"; }
 let MODE="login";
 function setMode(m){
   MODE=m;
@@ -250,7 +280,7 @@ function render(){
   const d=new Date().getDay();
   let blocks = ROT[d] || (d===0||d===6 ? ROT_FDS : ROT_DEF);
   if(d===2||d===5) blocks=ROT[d];
-  const ag=blocks.map(b=>`<div class="slot"><span class="dot" style="background:${b[2]||'#6d4bf6'}"></span><span class="t">${b[0]}</span><span>${b[1]}</span></div>`).join("");
+  const ag=blocks.map(b=>`<div class="slot"><span class="dot" style="background:${b[2]||'var(--accent)'}"></span><span class="t">${b[0]}</span><span>${b[1]}</span></div>`).join("");
   html+=`<div class="agenda">
     <h2>🗓️ Agenda de hoje — ${DIA[d]} <a href="https://calendar.google.com/calendar/r/day" target="_blank">Abrir Google Agenda ↗</a></h2>
     ${ag||'<div class="cd">Dia livre.</div>'}
