@@ -689,9 +689,9 @@ function manualModal(){
   hideDropdown();
   const q=document.getElementById("q").value.trim();
   document.getElementById("modalbox").innerHTML=`<h3>Adicionar livro manualmente</h3>
-    <label>Título</label><input id="mmTitle" value="${esc(q)}" placeholder="Nome do livro">
-    <label>Autor(a)</label><input id="mmAuthor" placeholder="Nome do autor(a)">
-    <button class="btn" style="width:100%;margin-bottom:12px" onclick="mmFetch()">🔎 Buscar dados na internet</button>
+    <label>Título <span style="color:var(--neg)">*</span></label><input id="mmTitle" value="${esc(q)}" placeholder="Nome do livro">
+    <label>Autor(a) <span style="color:var(--neg)">*</span></label><input id="mmAuthor" placeholder="Nome do autor(a)">
+    <button class="btn" style="width:100%;margin-bottom:12px" onclick="mmFetch()">🔎 Buscar dados na internet (título + autor)</button>
     <div id="mmMsg" style="font-size:12px;color:var(--muted);min-height:14px;margin-bottom:6px"></div>
     <div id="mmPreview" style="text-align:center;margin-bottom:8px"></div>
     <label>Ano de lançamento</label><input id="mmYear" type="number" placeholder="—">
@@ -747,9 +747,11 @@ async function webCover(t,a){
   return null;
 }
 async function mmFetch(){
-  const t=document.getElementById("mmTitle").value.trim(); if(!t){ document.getElementById("mmMsg").textContent="Digite o título primeiro."; return; }
+  const t=document.getElementById("mmTitle").value.trim();
   const a=document.getElementById("mmAuthor").value.trim();
-  const msg=document.getElementById("mmMsg"); msg.style.color="var(--muted)"; msg.textContent="Buscando no Google Books…";
+  const msg=document.getElementById("mmMsg");
+  if(!t || !a){ msg.style.color="var(--neg)"; msg.textContent="Preencha o Título E o Autor pra buscar (só o autor traz resultado errado)."; return; }
+  msg.style.color="var(--muted)"; msg.textContent="Buscando no Google Books…";
   const q=a?`intitle:"${t}" inauthor:"${a}"`:`intitle:"${t}"`;
   let b=null;
   try{ const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&langRestrict=pt&country=BR&maxResults=1${GBK}`); const d=await r.json(); const v=(d.items||[])[0]; if(v) b=gbMap(v); }catch(e){}
