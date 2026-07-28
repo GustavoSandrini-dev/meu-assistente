@@ -756,16 +756,9 @@ async function mmFetch(){
     if(b.poster) document.getElementById("mmCover").value=b.poster;
     if(b.title) document.getElementById("mmTitle").value=b.title;
   }
-  // se não achou no Google Books, ou achou mas sem capa, busca a capa na web (Amazon/Goodreads/Skoob)
-  if(!b || !b.poster){
-    msg.textContent="Não achei no catálogo. Buscando a capa na web…";
-    const w=await webCover(t,a);
-    if(w && w.cover) document.getElementById("mmCover").value=w.cover;
-  }
   mmShowCover();
-  const temCapa=document.getElementById("mmCover").value.trim();
-  if(b || temCapa){ msg.style.color="var(--pos)"; msg.textContent="Pronto! ✓ Confira os dados e a capa antes de adicionar."; }
-  else { msg.style.color="var(--neg)"; msg.textContent="Não achei nada. Preencha manualmente (e cole a URL da capa)."; }
+  if(b){ msg.style.color="var(--pos)"; msg.textContent="Pronto! ✓ Confira os dados e a capa antes de adicionar."; }
+  else { msg.style.color="var(--neg)"; msg.textContent="Não está no Google Books (comum em indie). Preencha os campos e cole a URL da capa."; }
 }
 async function confirmManual(){
   const title=document.getElementById("mmTitle").value.trim(); if(!title){alert("Digite o título.");return;}
