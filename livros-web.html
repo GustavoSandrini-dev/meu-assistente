@@ -756,9 +756,19 @@ async function mmFetch(){
     if(b.poster) document.getElementById("mmCover").value=b.poster;
     if(b.title) document.getElementById("mmTitle").value=b.title;
   }
+  // se não achou no Google Books (ou veio sem capa), busca a capa na web via Brave (Edge Function)
+  if(!b || !b.poster){
+    msg.style.color="var(--muted)"; msg.textContent="Não está no catálogo — buscando a capa na web…";
+    try{
+      const {data}=await sb.functions.invoke("book-cover",{body:{title:t,author:a}});
+      if(data && data.cover){ document.getElementById("mmCover").value=data.cover; }
+    }catch(e){ console.warn("brave",e); }
+  }
   mmShowCover();
+  const temCapa=document.getElementById("mmCover").value.trim();
   if(b){ msg.style.color="var(--pos)"; msg.textContent="Pronto! ✓ Confira os dados e a capa antes de adicionar."; }
-  else { msg.style.color="var(--neg)"; msg.textContent="Não está no Google Books (comum em indie). Preencha os campos e cole a URL da capa."; }
+  else if(temCapa){ msg.style.color="var(--pos)"; msg.textContent="Achei uma capa na web ✓ — confira se é a certa (senão, cole outra URL)."; }
+  else { msg.style.color="var(--neg)"; msg.textContent="Não achei. Preencha os campos e cole a URL da capa."; }
 }
 async function confirmManual(){
   const title=document.getElementById("mmTitle").value.trim(); if(!title){alert("Digite o título.");return;}
