@@ -154,6 +154,7 @@ select{flex:1}
     <input id="q" placeholder="Buscar livro… (ex: O Hobbit)" oninput="debSearch()" autocomplete="off">
     <button class="btn ghost" onclick="clearSearch()">Limpar</button>
     <button class="btn ghost" onclick="manualModal()">➕ Manual</button>
+    <button class="btn ghost" onclick="bulkModal()">📋 Lista</button>
     <div class="dropdown" id="dropdown"></div>
   </div>
 
@@ -179,6 +180,7 @@ const sb=supabase.createClient(SB_URL,SB_ANON,{auth:{persistSession:true,autoRef
 const IMG="https://books.google.com";
 const GBKEY="AIzaSyBcBDhVNjV_Joecv1kfsq6R90BuRLfqeY4";
 const GBK="&key="+GBKEY;
+const CSE="e6f02571c42bc4c16"; // Google Custom Search (busca web de capas)
 
 // ----- tema (compartilhado com todos os módulos; pode ter override por tela) -----
 const PAGE="livros";
@@ -652,22 +654,72 @@ function manualModal(){
   document.getElementById("modal").style.display="flex";
 }
 function mmShowCover(){ const u=document.getElementById("mmCover").value.trim(); document.getElementById("mmPreview").innerHTML=u?`<img src="${u}" style="width:70px;border-radius:6px">`:""; }
+function bulkModal(){
+  hideDropdown();
+  document.getElementById("modalbox").innerHTML=`<h3>Adicionar vários livros</h3>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Um por linha, no formato:<br><b>Título | Autor | Ano | URL da capa</b><br>(autor, ano e capa são opcionais)</div>
+    <textarea id="bulkTxt" style="width:100%;min-height:150px;padding:10px;border:1.5px solid var(--border);border-radius:9px;background:var(--input);color:var(--text);font-size:12px;font-family:monospace;outline:none" placeholder="Meu Livro | Fulana de Tal | 2024 | https://..."></textarea>
+    <label style="margin-top:10px">Status pra todos</label>
+    <select id="bulkStatus"><option value="quero">Quero ler</option><option value="lendo">Lendo</option><option value="lido">Lido</option></select>
+    <button class="btn" style="width:100%;margin-top:6px" onclick="confirmBulk()">Adicionar todos</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Cancelar</button>`;
+  document.getElementById("modal").style.display="flex";
+}
+async function confirmBulk(){
+  const lines=document.getElementById("bulkTxt").value.split("\n").map(l=>l.trim()).filter(Boolean);
+  if(!lines.length){ alert("Cole ao menos um livro."); return; }
+  const status=document.getElementById("bulkStatus").value;
+  const rows=lines.map((l,idx)=>{
+    const p=l.split("|").map(x=>x.trim());
+    const row={collection_id:ACTIVE,kind:"livro",ext_id:"manual:"+Date.now()+"_"+idx,
+      title:p[0], poster:p[3]||"", status:status, rating:null,
+      meta:{authors:p[1]||"", pages:0, year:p[2]||"", genre:"", publisher:"", hours:0, started_at:status==="lendo"?new Date().toISOString():null}};
+    if(status==="lido") row.done_date=new Date().toISOString().slice(0,10);
+    return row;
+  }).filter(r=>r.title);
+  if(!rows.length){ alert("Nenhum título válido."); return; }
+  const {error}=await sb.from("items").insert(rows);
+  if(error){ alert("Erro: "+error.message); return; }
+  closeModal(); await loadItems();
+}
+async function webCover(t,a){
+  try{
+    const r=await fetch(`https://www.googleapis.com/customsearch/v1?key=${GBKEY}&cx=${CSE}&num=6&q=${encodeURIComponent(t+" "+a+" livro")}`);
+    const d=await r.json();
+    for(const it of (d.items||[])){
+      const pm=it.pagemap||{};
+      const img=(pm.cse_image&&pm.cse_image[0]&&pm.cse_image[0].src) || (pm.metatags&&pm.metatags[0]&&pm.metatags[0]["og:image"]);
+      const ttl=(pm.metatags&&pm.metatags[0]&&pm.metatags[0]["og:title"])||it.title||"";
+      if(img && /^https?:/.test(img)) return {cover:img, title:ttl};
+    }
+  }catch(e){}
+  return null;
+}
 async function mmFetch(){
   const t=document.getElementById("mmTitle").value.trim(); if(!t){ document.getElementById("mmMsg").textContent="Digite o título primeiro."; return; }
   const a=document.getElementById("mmAuthor").value.trim();
-  const msg=document.getElementById("mmMsg"); msg.style.color="var(--muted)"; msg.textContent="Buscando na internet…";
+  const msg=document.getElementById("mmMsg"); msg.style.color="var(--muted)"; msg.textContent="Buscando no Google Books…";
   const q=a?`intitle:"${t}" inauthor:"${a}"`:`intitle:"${t}"`;
   let b=null;
   try{ const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&langRestrict=pt&country=BR&maxResults=1${GBK}`); const d=await r.json(); const v=(d.items||[])[0]; if(v) b=gbMap(v); }catch(e){}
   if(!b){ try{ const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(t+" "+a)}&maxResults=1${GBK}`); const d=await r.json(); const v=(d.items||[])[0]; if(v) b=gbMap(v); }catch(e){} }
-  if(!b){ msg.style.color="var(--neg)"; msg.textContent="Não achei na internet. Preencha os campos manualmente."; return; }
-  if(b.authors) document.getElementById("mmAuthor").value=b.authors;
-  if(b.yr) document.getElementById("mmYear").value=b.yr;
-  if(b.pages) document.getElementById("mmPages").value=b.pages;
-  if(b.poster) document.getElementById("mmCover").value=b.poster;
-  if(b.title) document.getElementById("mmTitle").value=b.title;
+  if(b){
+    if(b.authors) document.getElementById("mmAuthor").value=b.authors;
+    if(b.yr) document.getElementById("mmYear").value=b.yr;
+    if(b.pages) document.getElementById("mmPages").value=b.pages;
+    if(b.poster) document.getElementById("mmCover").value=b.poster;
+    if(b.title) document.getElementById("mmTitle").value=b.title;
+  }
+  // se não achou no Google Books, ou achou mas sem capa, busca a capa na web (Amazon/Goodreads/Skoob)
+  if(!b || !b.poster){
+    msg.textContent="Não achei no catálogo. Buscando a capa na web…";
+    const w=await webCover(t,a);
+    if(w && w.cover) document.getElementById("mmCover").value=w.cover;
+  }
   mmShowCover();
-  msg.style.color="var(--pos)"; msg.textContent="Dados encontrados! ✓ (confira e ajuste se precisar)";
+  const temCapa=document.getElementById("mmCover").value.trim();
+  if(b || temCapa){ msg.style.color="var(--pos)"; msg.textContent="Pronto! ✓ Confira os dados e a capa antes de adicionar."; }
+  else { msg.style.color="var(--neg)"; msg.textContent="Não achei nada. Preencha manualmente (e cole a URL da capa)."; }
 }
 async function confirmManual(){
   const title=document.getElementById("mmTitle").value.trim(); if(!title){alert("Digite o título.");return;}
