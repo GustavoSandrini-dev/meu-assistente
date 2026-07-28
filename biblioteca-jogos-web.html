@@ -315,7 +315,7 @@ function addManual(){
   } else {
     const mid="m"+Date.now();
     manualList().push({ mid, name, platform:plat, playtime, unlocked, total, hltb:rp.hltb||0, manual:true, img:rp.img||"", year:rp.year||"" });
-    U(mid).status=status; if(rp.genre) U(mid).genre=rp.genre;
+    U(mid).status=status; if(rp.genre) U(mid).genre=rp.genre; if((status==="zer"||status==="plat")) U(mid).doneYear=new Date().getFullYear();
   }
   RAWG_PENDING=null;
   persist();
@@ -397,7 +397,7 @@ function toggleTheme(){ const b=document.body; const d=b.dataset.theme==="dark";
   b.dataset.theme=d?"light":"dark"; document.getElementById("themeBtn").textContent=d?"🌙 Escuro":"☀️ Claro";
   localStorage.setItem("gamelib_theme",b.dataset.theme); }
 
-function setStatus(ap,v){ U(ap).status=v; persist(); render(); }
+function setStatus(ap,v){ U(ap).status=v; if((v==="zer"||v==="plat") && !U(ap).doneYear) U(ap).doneYear=new Date().getFullYear(); persist(); render(); }
 function setRating(ap,v){ v=parseFloat(String(v).replace(",",".")); if(isNaN(v)){U(ap).rating=null;} else {U(ap).rating=Math.max(0,Math.min(10,v));} persist(); render(); }
 function setComment(ap,v){ U(ap).comment=v; persist(); }
 
@@ -473,13 +473,17 @@ function renderCharts(){
   box.innerHTML=`
     <div style="${cc}"><div style="${ct}">Zerados vs. não zerados</div><canvas id="cgFin" style="max-height:200px"></canvas></div>
     <div style="${cc}"><div style="${ct}">Jogos por gênero</div><canvas id="cgGen" style="max-height:200px"></canvas></div>
-    <div style="${cc}"><div style="${ct}">Horas por gênero</div><canvas id="cgHrs" style="max-height:200px"></canvas></div>`;
+    <div style="${cc}"><div style="${ct}">Horas por gênero</div><canvas id="cgHrs" style="max-height:200px"></canvas></div>
+    <div style="${cc}"><div style="${ct}">Zerados por ano</div><canvas id="cgYear" style="max-height:200px"></canvas></div>`;
   Object.values(GCHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); GCHARTS={};
   if(typeof Chart==="undefined") return;
   const leg=(sz)=>({position:'bottom',labels:{color:'#c9d0de',font:{size:sz},boxWidth:11,padding:6}});
   GCHARTS.fin=new Chart(document.getElementById('cgFin'),{type:'doughnut',data:{labels:['Zerados','Não zerados'],datasets:[{data:[fin,g.length-fin],backgroundColor:['#22c55e','#475569'],borderWidth:0}]},options:{onClick:(e,el)=>{ if(el.length) filterStatus(el[0].index===0?'zer':'__all__'); },plugins:{legend:leg(11)},cutout:'55%'}});
   GCHARTS.gen=new Chart(document.getElementById('cgGen'),{type:'doughnut',data:{labels:Gc.labels,datasets:[{data:Gc.data,backgroundColor:genColors,borderWidth:0}]},options:{onClick:(e,el)=>{ if(el.length){ const l=Gc.labels[el[0].index]; if(l!=='Outros') pickGenre(l); } },plugins:{legend:leg(10)},cutout:'55%'}});
   GCHARTS.hrs=new Chart(document.getElementById('cgHrs'),{type:'bar',data:{labels:Hc.labels,datasets:[{data:Hc.data,backgroundColor:'#6d4bf6'}]},options:{onClick:(e,el)=>{ if(el.length){ const l=Hc.labels[el[0].index]; if(l!=='Outros') pickGenre(l); } },plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a93a8',font:{size:9},maxRotation:60,minRotation:45}},y:{ticks:{color:'#8a93a8'},grid:{color:'#2a3140'}}}}});
+  const yr={}; g.forEach(x=>{ if(["zer","plat"].includes(statusOf(x))){ const y=U(gid(x)).doneYear; if(y) yr[y]=(yr[y]||0)+1; } });
+  const ys=Object.keys(yr).sort();
+  GCHARTS.year=new Chart(document.getElementById('cgYear'),{type:'bar',data:{labels:ys,datasets:[{data:ys.map(y=>yr[y]),backgroundColor:'#22c55e'}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a93a8'}},y:{beginAtZero:true,ticks:{color:'#8a93a8',precision:0},grid:{color:'#2a3140'}}}}});
 }
 
 function gameCard(g,pos){

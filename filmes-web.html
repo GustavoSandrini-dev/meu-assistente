@@ -270,13 +270,17 @@ function renderStats(){
     <div class="charts-grid">
       <div class="chartcard"><div class="ch-t">Gêneros</div><canvas id="chGen"></canvas></div>
       <div class="chartcard"><div class="ch-t">Assistido vs. a ver · Filmes vs. séries</div><canvas id="chStatus"></canvas></div>
-    </div>`;
+    </div>
+    <div class="chartcard" style="margin-bottom:16px"><div class="ch-t">📅 Assistidos por ano</div><canvas id="chYear" style="max-height:170px"></canvas></div>`;
   Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS={};
   if(typeof Chart==="undefined") return;
   const pal=['#6d4bf6','#3ecf9a','#f59e0b','#f472b6','#38bdf8','#a855f7','#f07567','#94a0b8'];
   const dough=(id,labels,data,colors,onClick)=>new Chart(document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0}]},options:{responsive:true,onClick:onClick,plugins:{legend:{position:'bottom',labels:{color:'#aab3c5',font:{size:11},boxWidth:12,padding:8}}},cutout:'55%'}});
   CHARTS.gen=dough('chGen',G.labels,G.data,pal,(e,el)=>{ if(!el.length)return; const l=G.labels[el[0].index]; FGEN=(FGEN===l)?"":l; FKIND=""; FILTER="todos"; document.querySelectorAll("#filters .chip").forEach(c=>c.classList.toggle("act",c.dataset.f==="todos")); renderItems(); });
   CHARTS.status=dough('chStatus',['Assistidos','A ver','Filmes','Séries'],[vistos.length,ITEMS.length-vistos.length,filmes,series],['#3ecf9a','#4d5566','#6d4bf6','#38bdf8'],(e,el)=>{ if(!el.length)return; const idx=el[0].index; if(idx===0){setFilter('assistido');} else if(idx===1){setFilter('todos');} else { FGEN=""; FKIND=(idx===3)?((FKIND==="serie")?"":"serie"):((FKIND==="filme")?"":"filme"); FILTER="todos"; renderItems(); } });
+  const anosMap={}; vistos.forEach(i=>{ const y=(i.done_date||"").slice(0,4); if(y) anosMap[y]=(anosMap[y]||0)+1; });
+  const years=Object.keys(anosMap).sort();
+  CHARTS.year=new Chart(document.getElementById('chYear'),{type:'bar',data:{labels:years,datasets:[{data:years.map(y=>anosMap[y]),backgroundColor:'#6d4bf6'}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#aab3c5',font:{size:11}}},y:{beginAtZero:true,ticks:{color:'#aab3c5',precision:0}}}}});
 }
 
 function renderShareRow(){
@@ -353,19 +357,29 @@ function refreshResults(){ const q=document.getElementById("q").value.trim(); if
 
 async function showReleases(){
   const R=document.getElementById("results");
-  R.innerHTML='<div class="sec-title">⭐ Melhores de todos os tempos</div><div class="empty">Carregando…</div>';
+  // recomenda pelo gênero mais comum da sua lista (igual livros); se lista vazia, mostra os melhores de todos os tempos
+  const gc={}; ITEMS.forEach(i=>{ const g=(i.meta&&i.meta.genre)||""; if(g) gc[g]=(gc[g]||0)+1; });
+  const topGenre=Object.keys(gc).sort((a,b)=>gc[b]-gc[a])[0];
+  const REV={}; Object.entries(GEN_MOVIE).forEach(([id,nm])=>{ REV[nm]=id; });
+  const gid=topGenre?REV[topGenre]:null;
+  const perso=!!gid;
+  const titulo=perso?`✨ Recomendados — ${esc(topGenre)}`:"⭐ Melhores de todos os tempos";
+  R.innerHTML=`<div class="sec-title">${titulo}</div><div class="empty">Carregando…</div>`;
   let all=[];
   for(let p=1;p<=3;p++){
-    const d=await tmdb(`/movie/top_rated?language=pt-BR&region=BR&page=${p}`);
+    const path=perso ? `/discover/movie?with_genres=${gid}&sort_by=popularity.desc&vote_count.gte=200&language=pt-BR&page=${p}`
+                     : `/movie/top_rated?language=pt-BR&region=BR&page=${p}`;
+    const d=await tmdb(path);
     (d.results||[]).forEach(x=>{ x.media_type="movie"; });
     all=all.concat(d.results||[]);
   }
+  const shelf=new Set(ITEMS.map(i=>String(i.ext_id)));
   const seen=new Set();
-  all=all.filter(x=>{ if(seen.has(x.id))return false; seen.add(x.id); return true; })
-         .sort((a,b)=>(b.vote_average||0)-(a.vote_average||0))
-         .slice(0,50);
+  all=all.filter(x=>{ if(seen.has(x.id)||shelf.has(String(x.id)))return false; seen.add(x.id); return true; });
+  if(!perso) all.sort((a,b)=>(b.vote_average||0)-(a.vote_average||0));
+  all=all.slice(0,50);
   if(!all.length){ R.innerHTML=""; return; }
-  R.innerHTML='<div class="sec-title">⭐ Melhores de todos os tempos</div><div class="grid">'+all.map(searchCard).join("")+'</div>';
+  R.innerHTML=`<div class="sec-title">${titulo}</div><div class="grid">`+all.map(searchCard).join("")+'</div>';
 }
 
 async function doSearch(){

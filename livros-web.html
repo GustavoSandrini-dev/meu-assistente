@@ -315,7 +315,8 @@ function renderStats(){
       <div class="chartcard"><div class="ch-t">Lidos vs. não lidos</div><canvas id="chRead"></canvas></div>
       <div class="chartcard"><div class="ch-t">Autores</div><canvas id="chAut"></canvas></div>
       <div class="chartcard"><div class="ch-t">Editoras</div><canvas id="chEdt"></canvas></div>
-    </div>`;
+    </div>
+    <div class="chartcard" style="margin-bottom:16px"><div class="ch-t">📅 Livros lidos por ano</div><canvas id="chYear" style="max-height:170px"></canvas></div>`;
   Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS={};
   if(typeof Chart==="undefined") return;
   const txt=(getComputedStyle(document.body).getPropertyValue('--text')||'#e6eaf2').trim();
@@ -324,6 +325,10 @@ function renderStats(){
   CHARTS.read=dough('chRead',['Lidos','Não lidos'],[lidos.length,ITEMS.length-lidos.length],['#3ecf9a','#4d5566'],(e,el)=>{ if(el.length) setFilter(el[0].index===0?'lido':'todos'); });
   CHARTS.aut=dough('chAut',A.labels,A.data,pal,(e,el)=>{ if(!el.length)return; const l=A.labels[el[0].index]; if(l==='Outros')return; FAUTHOR=(FAUTHOR===l)?'':l; FGENRE=''; const s=document.getElementById('fAuthor'); if(s)s.value=FAUTHOR; setFilter('todos'); });
   CHARTS.edt=dough('chEdt',E.labels,E.data,pal,(e,el)=>{ if(!el.length)return; const l=E.labels[el[0].index]; if(l==='Outros'||l==='Desconhecida')return; FPUB=(FPUB===l)?'':l; setFilter('todos'); });
+  // por ano
+  const anosMap={}; lidos.forEach(i=>{ const y=(i.done_date||"").slice(0,4); if(y) anosMap[y]=(anosMap[y]||0)+1; });
+  const years=Object.keys(anosMap).sort();
+  CHARTS.year=new Chart(document.getElementById('chYear'),{type:'bar',data:{labels:years,datasets:[{data:years.map(y=>anosMap[y]),backgroundColor:'#4f7cf7'}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:txt,font:{size:11}}},y:{beginAtZero:true,ticks:{color:txt,precision:0}}}}});
 }
 
 // ---------- recomendações / 50 melhores (em português) ----------
