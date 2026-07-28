@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel Financeiro 50/20/30</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="common.js"></script>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#6d4bf6">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -988,24 +989,10 @@ function authReset(){
   amsg("");
 }
 async function authLogout(){ await _sb.auth.signOut(); location.reload(); }
-const NAVMODS={financeiro:{name:"Financeiro",emoji:"💰",url:"painel-financeiro-web.html"},jogos:{name:"Jogos",emoji:"🎮",url:"biblioteca-jogos-web.html"},filmes:{name:"Filmes",emoji:"🎬",url:"filmes-web.html"},livros:{name:"Livros",emoji:"📚",url:"livros-web.html"}};
-const NAV_CURR="financeiro";
-async function buildNav(){
-  try{
-    const {data:{user}}=await _sb.auth.getUser();
-    const {data:p}=await _sb.from("profiles").select("modules").eq("user_id",user.id).maybeSingle();
-    const mods=(p&&p.modules&&p.modules.length)?p.modules:["financeiro","jogos","filmes","livros"];
-    const base="text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);";
-    let h=`<a href="index.html" style="${base}background:var(--card);color:var(--muted)">🏠 Início</a>`;
-    mods.forEach(k=>{ const m=NAVMODS[k]; if(!m)return; const act=k===NAV_CURR;
-      h+=`<a href="${m.url}" style="${base}${act?'background:var(--accent);color:var(--accent-t);border-color:var(--accent)':'background:var(--card);color:var(--muted)'}">${m.emoji} ${m.name}</a>`; });
-    document.getElementById("appNav").innerHTML=h;
-  }catch(e){ console.warn("nav",e); }
-}
 async function onLogin(){
   document.getElementById("authOverlay").style.display="none";
   document.getElementById("logoutBtn").style.display="block";
-  buildNav();
+  buildNav(_sb,"financeiro");
   await hydrate();
   if(window.__boot) window.__boot();
 }

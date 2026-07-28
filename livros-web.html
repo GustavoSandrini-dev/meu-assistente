@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="common.js"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});}</script>
 <style>
 /* ============ TEMAS (iguais ao Painel Financeiro) ============ */
@@ -222,24 +223,11 @@ async function doLogin(){
 }
 async function logout(){ await sb.auth.signOut(); location.reload(); }
 
-const NAVMODS={financeiro:{name:"Financeiro",emoji:"💰",url:"painel-financeiro-web.html"},jogos:{name:"Jogos",emoji:"🎮",url:"biblioteca-jogos-web.html"},filmes:{name:"Filmes",emoji:"🎬",url:"filmes-web.html"},livros:{name:"Livros",emoji:"📚",url:"livros-web.html"}};
-const NAV_CURR="livros";
-async function buildNav(){
-  try{
-    const {data:{user}}=await sb.auth.getUser();
-    const {data:p}=await sb.from("profiles").select("modules").eq("user_id",user.id).maybeSingle();
-    const mods=(p&&p.modules&&p.modules.length)?p.modules:["financeiro","jogos","filmes","livros"];
-    let h=`<a href="index.html">🏠 Início</a>`;
-    mods.forEach(k=>{ const m=NAVMODS[k]; if(!m)return; h+=`<a href="${m.url}" class="${k===NAV_CURR?'act':''}">${m.emoji} ${m.name}</a>`; });
-    document.getElementById("navLinks").innerHTML=h;
-  }catch(e){ console.warn("nav",e); }
-}
-
 async function onLogin(){
   document.getElementById("ov").style.display="none";
   document.getElementById("app").style.display="block";
   const {data:{user}}=await sb.auth.getUser(); ME=user;
-  buildNav();
+  buildNav(sb,"livros");
   try{ await sb.rpc("claim_invites"); }catch(e){}
   await loadCols();
 }
