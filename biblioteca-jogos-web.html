@@ -265,16 +265,24 @@ async function rawgSearch(){
     drop.style.display="block";
     drop.innerHTML=res.map(g=>{
       const yr=(g.released||"").slice(0,4), gen=(g.genres||[]).map(x=>x.name).slice(0,2).join(", "), img=g.background_image||"";
-      const payload=encodeURIComponent(JSON.stringify({name:g.name,year:yr,genre:mapGenre(gen),img}));
+      const payload=encodeURIComponent(JSON.stringify({id:g.id,name:g.name,year:yr,genre:mapGenre(gen),img}));
       return `<div class="rawg-row" onclick="rawgPick('${payload}')">${img?`<img src="${img}">`:`<div class="ph"></div>`}<div><div style="font-weight:700;font-size:13px">${g.name.replace(/</g,'&lt;')}</div><div style="font-size:11px;color:var(--muted)">${yr}${gen?" · "+gen:""}</div></div></div>`;
     }).join("");
   }catch(e){ prev.textContent="Erro ao buscar na RAWG."; }
 }
-function rawgPick(payload){
+async function rawgPick(payload){
   const x=JSON.parse(decodeURIComponent(payload)); RAWG_PENDING=x;
   document.getElementById("aName").value=x.name;
   document.getElementById("rawgDrop").style.display="none";
-  document.getElementById("rawgPrev").innerHTML=`✓ <b>${x.name.replace(/</g,'&lt;')}</b> ${x.year||""} ${x.genre?"· "+x.genre:""} ${x.img?`<br><img src="${x.img}" style="width:130px;border-radius:6px;margin-top:4px">`:""}`;
+  const prev=document.getElementById("rawgPrev"); prev.textContent="Buscando detalhes na RAWG…";
+  let ach=0, hrs=0;
+  try{ const r=await fetch(`https://api.rawg.io/api/games/${x.id}?key=${RAWG_KEY}`); const d=await r.json(); ach=d.achievements_count||0; hrs=d.playtime||0; }catch(e){}
+  if(ach) document.getElementById("aTotal").value=ach;
+  if(hrs && !document.getElementById("aHours").value) document.getElementById("aHours").value=hrs;
+  const nm=x.name.replace(/</g,'&lt;');
+  prev.innerHTML=`✓ <b>${nm}</b> ${x.year||""}${x.genre?" · "+x.genre:""}${ach?` · ${ach} conquistas`:""}${hrs?` · ~${hrs}h (média)`:""}`
+    +(x.img?`<br><img src="${x.img}" style="width:130px;border-radius:6px;margin-top:4px">`:"")
+    +`<br><span style="color:var(--muted);font-size:12px">Ajuste <b>Horas</b> pras suas horas reais e <b>Conquistas</b> pras que você desbloqueou.</span>`;
 }
 function editManual(mid){
   const g=manualList().find(x=>x.mid===mid); if(!g) return;
