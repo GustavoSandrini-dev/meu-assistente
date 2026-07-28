@@ -187,6 +187,7 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
     </select>
     <button class="btn" onclick="toggleAdd()">➕ Adicionar jogo</button>
     <button class="btn on" onclick="rollGame()">🎲 O que jogar?</button>
+    <button class="btn" id="hiddenToggle" onclick="toggleHidden()" style="display:none"></button>
   </div>
 
   <div class="addbar" id="addbar">
@@ -227,8 +228,15 @@ function load(){ try{ return JSON.parse(localStorage.getItem("gamelib")||"{}"); 
 function persist(){ localStorage.setItem("gamelib", JSON.stringify(user)); }
 function U(ap){ if(!user[ap]) user[ap]={}; return user[ap]; }
 function manualList(){ if(!user._manual) user._manual=[]; return user._manual; }
-function allGames(){ return GAMES.concat(manualList()); }
 function gid(g){ return g.appid!=null ? g.appid : g.mid; }
+let SHOW_HIDDEN=false;
+function isHidden(g){ return !!U(gid(g)).hidden; }
+function allGamesRaw(){ return GAMES.concat(manualList()); }
+function allGames(){ return SHOW_HIDDEN ? allGamesRaw() : allGamesRaw().filter(g=>!isHidden(g)); }
+function hiddenCount(){ return allGamesRaw().filter(isHidden).length; }
+function hideGame(id){ U(id).hidden=true; persist(); render(); }
+function unhideGame(id){ delete U(id).hidden; persist(); render(); }
+function toggleHidden(){ SHOW_HIDDEN=!SHOW_HIDDEN; render(); }
 
 function toggleAdd(){ document.getElementById("addbar").classList.toggle("open"); }
 function addManual(){
@@ -415,6 +423,8 @@ function gameCard(g,pos){
   else if(plat==="Xbox") linkItems=`<a href="https://www.trueachievements.com/searchresults.aspx?search=${encodeURIComponent(g.name)}" target="_blank">TrueAchievements ↗</a>`;
   linkItems+=`<a href="https://howlongtobeat.com/?q=${encodeURIComponent(g.name)}" target="_blank">HLTB ↗</a>`;
   if(g.manual) linkItems+=`<button class="del-mini" onclick="delManual('${aps}')">Excluir</button>`;
+  if(isHidden(g)) linkItems+=`<button class="del-mini" style="color:#7fa8ff" onclick="unhideGame(${idArg})">↩ Restaurar</button>`;
+  else linkItems+=`<button class="del-mini" onclick="hideGame(${idArg})" title="Tirar da lista (sem apagar)">🚫 Ocultar</button>`;
   const links=`<div class="links">${linkItems}</div>`;
   const tp=typeOf(g);
   const tbadge=`<span class="plat-tag" style="background:${TYPE_TAG[tp]};color:#fff">${TYPES[tp].split(" ")[0]}</span>`;
@@ -471,6 +481,8 @@ function gameCard(g,pos){
 function render(){
   renderStats();
   renderIncentive();
+  const hc=hiddenCount(), ht=document.getElementById("hiddenToggle");
+  if(ht){ ht.style.display=(hc>0||SHOW_HIDDEN)?"inline-block":"none"; ht.textContent=SHOW_HIDDEN?`👁 Mostrando ocultos — voltar`:`🙈 Ocultos (${hc})`; }
   const q=document.getElementById("search").value.toLowerCase();
   const fs=document.getElementById("fStatus").value;
   const fp=document.getElementById("fPlat").value;
