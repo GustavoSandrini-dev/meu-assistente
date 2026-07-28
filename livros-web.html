@@ -93,10 +93,10 @@ select,.note,.cmt{background:var(--input);border:1.5px solid var(--border);color
 select{flex:1}
 .note{width:52px;text-align:center}
 .cmt{width:100%;font-family:inherit;resize:vertical;min-height:34px;outline:none}
-.timer{display:flex;align-items:center;gap:8px;background:var(--row);border-radius:8px;padding:6px 8px;font-size:12px}
-.timer .tv{font-weight:800;font-variant-numeric:tabular-nums;color:var(--text)}
-.timer button{margin-left:auto;background:var(--accent);color:var(--accent-t);border:none;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer}
-.timer.run button{background:var(--neg)}
+.dates{display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:var(--row);border-radius:8px;padding:6px 8px;font-size:11px;color:var(--muted)}
+.dates input{background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:6px;padding:3px 5px;font-size:11px}
+.dates b{color:var(--pos)}
+.ffilter{background:var(--card);border:1.5px solid var(--border);color:var(--text);border-radius:16px;padding:6px 10px;font-size:12px;font-weight:600}
 .mini{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:2px}
 .mini:hover{color:var(--neg)}
 .empty{color:var(--muted);font-size:14px;padding:30px;text-align:center}
@@ -163,6 +163,8 @@ select{flex:1}
     <span class="chip" data-f="quero" onclick="setFilter('quero')">Quero ler</span>
     <span class="chip" data-f="lendo" onclick="setFilter('lendo')">Lendo</span>
     <span class="chip" data-f="lido" onclick="setFilter('lido')">Lido</span>
+    <select id="fGenre" class="ffilter" onchange="FGENRE=this.value;renderItems()"><option value="">Todos os gêneros</option></select>
+    <select id="fAuthor" class="ffilter" onchange="FAUTHOR=this.value;renderItems()"><option value="">Todos os autores</option></select>
     <span class="chip" data-f="ranking" onclick="setFilter('ranking')" style="margin-left:auto">🏆 Ranking</span>
   </div>
   <div class="sec-title" id="listTitle" style="display:none">📁 Minha estante</div>
@@ -234,7 +236,6 @@ async function onLogin(){
   buildNav();
   try{ await sb.rpc("claim_invites"); }catch(e){}
   await loadCols();
-  setInterval(tickTimers,1000);
 }
 
 async function loadCols(){
@@ -266,7 +267,7 @@ async function loadItems(){
   const lt=document.getElementById("listTitle");
   lt.style.display=ITEMS.length?"block":"none";
   lt.textContent="📁 "+(c?c.name:"Minha estante")+" — "+ITEMS.length+" livro"+(ITEMS.length===1?"":"s");
-  renderShareRow(); renderGoal(); renderStats(); renderItems(); showRecs();
+  renderShareRow(); renderGoal(); renderStats(); fillFilters(); renderItems(); showRecs();
 }
 
 // ---------- estatísticas ----------
@@ -297,10 +298,10 @@ function renderStats(){
   if(typeof Chart==="undefined") return;
   const txt=(getComputedStyle(document.body).getPropertyValue('--text')||'#e6eaf2').trim();
   const pal=['#4f7cf7','#3ecf9a','#f59e0b','#f472b6','#a855f7','#38bdf8','#94a0b8'];
-  const dough=(id,labels,data,colors)=>new Chart(document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:txt,font:{size:11},boxWidth:12,padding:8}}},cutout:'55%'}});
-  CHARTS.read=dough('chRead',['Lidos','Não lidos'],[lidos.length,ITEMS.length-lidos.length],['#3ecf9a','#4d5566']);
-  CHARTS.aut=dough('chAut',A.labels,A.data,pal);
-  CHARTS.edt=dough('chEdt',E.labels,E.data,pal);
+  const dough=(id,labels,data,colors,onClick)=>new Chart(document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0}]},options:{responsive:true,onClick:onClick,plugins:{legend:{position:'bottom',labels:{color:txt,font:{size:11},boxWidth:12,padding:8}}},cutout:'55%'}});
+  CHARTS.read=dough('chRead',['Lidos','Não lidos'],[lidos.length,ITEMS.length-lidos.length],['#3ecf9a','#4d5566'],(e,el)=>{ if(el.length) setFilter(el[0].index===0?'lido':'todos'); });
+  CHARTS.aut=dough('chAut',A.labels,A.data,pal,(e,el)=>{ if(!el.length)return; const l=A.labels[el[0].index]; if(l==='Outros')return; FAUTHOR=(FAUTHOR===l)?'':l; FGENRE=''; const s=document.getElementById('fAuthor'); if(s)s.value=FAUTHOR; setFilter('todos'); });
+  CHARTS.edt=dough('chEdt',E.labels,E.data,pal,(e,el)=>{ if(!el.length)return; const l=E.labels[el[0].index]; if(l==='Outros'||l==='Desconhecida')return; FPUB=(FPUB===l)?'':l; setFilter('todos'); });
 }
 
 // ---------- recomendações / 50 melhores (em português) ----------
@@ -400,18 +401,36 @@ function editGoal(){
 }
 
 function setFilter(f){ FILTER=f; document.querySelectorAll("#filters .chip").forEach(c=>c.classList.toggle("act",c.dataset.f===f)); renderItems(); }
+let FGENRE="", FAUTHOR="", FPUB="";
+function genreKey(i){ return (((i.meta&&i.meta.genre)||"").split("/")[0].trim())||""; }
+function authorKey(i){ return (((i.meta&&i.meta.authors)||"").split(",")[0].trim())||""; }
+function fillFilters(){
+  const gs=[...new Set(ITEMS.map(genreKey).filter(Boolean))].sort();
+  const as=[...new Set(ITEMS.map(authorKey).filter(Boolean))].sort();
+  const g=document.getElementById("fGenre"), a=document.getElementById("fAuthor");
+  if(g){ g.innerHTML='<option value="">Todos os gêneros</option>'+gs.map(x=>`<option value="${esc(x)}" ${x===FGENRE?'selected':''}>${esc(x)}</option>`).join(""); }
+  if(a){ a.innerHTML='<option value="">Todos os autores</option>'+as.map(x=>`<option value="${esc(x)}" ${x===FAUTHOR?'selected':''}>${esc(x)}</option>`).join(""); }
+}
 
-// ---------- tempo de leitura ----------
-function elapsedSec(i){ const m=i.meta||{}; let s=(m.hours||0)*3600; if(m.started_at) s+=(Date.now()-Date.parse(m.started_at))/1000; return s; }
-function hms(sec){ sec=Math.max(0,Math.floor(sec)); const h=Math.floor(sec/3600), m=Math.floor(sec%3600/60), s=sec%60; return (h>0?h+"h ":"")+String(m).padStart(2,"0")+"m "+String(s).padStart(2,"0")+"s"; }
-function tickTimers(){ ITEMS.forEach(i=>{ if(i.meta&&i.meta.started_at){ const el=document.getElementById("t-"+i.id); if(el) el.textContent=hms(elapsedSec(i)); } }); }
-async function toggleTimer(id){
+// ---------- datas de leitura ----------
+function daysBetween(a,b){ if(!a||!b) return null; const d=Math.round((Date.parse(b)-Date.parse(a))/86400000); return d>=0?d:null; }
+function datesBlock(i){
+  const m=i.meta||{}, st=i.status||"quero";
+  if(st==="quero") return "";
+  if(st==="lendo") return `<div class="dates">📖 Comecei <input type="date" value="${m.startDate||''}" onchange="setDate('${i.id}','start',this.value)"></div>`;
+  const dias=daysBetween(m.startDate, m.endDate||i.done_date);
+  return `<div class="dates">Início <input type="date" value="${m.startDate||''}" onchange="setDate('${i.id}','start',this.value)">
+    Fim <input type="date" value="${m.endDate||i.done_date||''}" onchange="setDate('${i.id}','end',this.value)">
+    ${dias!=null?`<b>${dias===0?'no mesmo dia':dias+' dia'+(dias>1?'s':'')}</b>`:''}</div>`;
+}
+async function setDate(id,which,val){
   const i=ITEMS.find(x=>x.id===id); if(!i) return; const m=Object.assign({},i.meta||{});
-  if(m.started_at){ m.hours=(m.hours||0)+(Date.now()-Date.parse(m.started_at))/3600000; m.started_at=null; }
-  else { m.started_at=new Date().toISOString(); if(i.status!=="lendo") i.status="lendo"; }
+  if(which==="start") m.startDate=val||null; else m.endDate=val||null;
+  const upd={meta:m,updated_at:new Date().toISOString()};
+  if(which==="end"){ upd.done_date=val||null; i.done_date=val||null; }
   i.meta=m;
-  await sb.from("items").update({meta:m,status:i.status,updated_at:new Date().toISOString()}).eq("id",id);
-  renderItems();
+  await sb.from("items").update(upd).eq("id",id);
+  renderGoal(); renderStats(); renderItems();
 }
 
 const STLBL={quero:"Quero ler",lendo:"Lendo",lido:"Lido"};
@@ -422,8 +441,11 @@ function renderItems(){
     if(!ranked.length){ box.innerHTML='<div class="empty">Dê notas aos livros pra montar o ranking. 🏆</div>'; return; }
     box.innerHTML=ranked.map((i,idx)=>bookCard(i,idx+1)).join(""); return;
   }
-  const list=FILTER==="todos"?ITEMS:ITEMS.filter(i=>(i.status||"quero")===FILTER);
-  if(!list.length){ box.innerHTML='<div class="empty">Nenhum livro aqui ainda. Busque acima e adicione. 📚</div>'; return; }
+  let list=FILTER==="todos"?ITEMS:ITEMS.filter(i=>(i.status||"quero")===FILTER);
+  if(FGENRE) list=list.filter(i=>genreKey(i)===FGENRE);
+  if(FAUTHOR) list=list.filter(i=>authorKey(i)===FAUTHOR);
+  if(FPUB) list=list.filter(i=>((i.meta&&i.meta.publisher)||"").split(",")[0].trim()===FPUB);
+  if(!list.length){ box.innerHTML='<div class="empty">Nenhum livro com esses filtros. 📚</div>'; return; }
   box.innerHTML=list.map(i=>bookCard(i)).join("");
 }
 function medal(n){ return n===1?"🥇":n===2?"🥈":n===3?"🥉":"#"+n; }
@@ -432,7 +454,6 @@ function bookCard(i,rank){
   const cover=i.poster?`<img src="${i.poster}" loading="lazy" onerror="imgFail(this)">`:`<div class="noimg">📖</div>`;
   const st=i.status||"quero";
   const rankB=rank?`<span class="rankbadge">${medal(rank)}${i.rating!=null?' · '+i.rating:''}</span>`:"";
-  const running=!!m.started_at;
   return `<div class="card"><div class="cardwrap">
     ${cover}${rankB}<span class="st ${st}">${STLBL[st]||st}</span></div>
     <div class="cb">
@@ -446,10 +467,7 @@ function bookCard(i,rank){
         </select>
         <input class="note" type="number" min="0" max="10" step="0.1" placeholder="—" value="${i.rating??""}" onchange="setRating('${i.id}',this.value)" title="Nota 0-10">
       </div>
-      <div class="timer ${running?'run':''}">
-        <span>⏱️</span><span class="tv" id="t-${i.id}">${hms(elapsedSec(i))}</span>
-        <button onclick="toggleTimer('${i.id}')">${running?"Pausar":"Ler"}</button>
-      </div>
+      ${datesBlock(i)}
       <textarea class="cmt" placeholder="Comentário…" onchange="setNote('${i.id}',this.value)">${esc(i.note||"")}</textarea>
       <div class="where" id="wh-${i.id}"></div>
       <div class="rowb" style="justify-content:space-between">
@@ -461,10 +479,13 @@ function bookCard(i,rank){
 async function setStatus(id,v){
   const i=ITEMS.find(x=>x.id===id); const upd={status:v,updated_at:new Date().toISOString()};
   const m=Object.assign({},i.meta||{});
-  if(v==="lido"){ if(m.started_at){ m.hours=(m.hours||0)+(Date.now()-Date.parse(m.started_at))/3600000; m.started_at=null; } upd.meta=m; upd.done_date=new Date().toISOString().slice(0,10); }
+  const today=new Date().toISOString().slice(0,10);
+  if(v==="lendo" && !m.startDate) m.startDate=today;
+  if(v==="lido"){ if(!m.startDate) m.startDate=today; if(!m.endDate) m.endDate=today; upd.done_date=m.endDate; }
+  upd.meta=m;
   await sb.from("items").update(upd).eq("id",id);
   if(i){ i.status=v; i.meta=m; if(v==="lido") i.done_date=upd.done_date; }
-  renderGoal(); renderItems();
+  renderGoal(); renderStats(); renderItems();
 }
 async function setRating(id,v){ const n=v===""?null:Math.max(0,Math.min(10,parseFloat(v))); await sb.from("items").update({rating:n,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.rating=n; if(FILTER==="ranking") renderItems(); }
 async function setNote(id,v){ const t=v.trim()||null; await sb.from("items").update({note:t,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.note=t; }

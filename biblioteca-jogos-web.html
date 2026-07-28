@@ -396,9 +396,9 @@ function renderCharts(){
   Object.values(GCHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); GCHARTS={};
   if(typeof Chart==="undefined") return;
   const leg=(sz)=>({position:'bottom',labels:{color:'#c9d0de',font:{size:sz},boxWidth:11,padding:6}});
-  GCHARTS.fin=new Chart(document.getElementById('cgFin'),{type:'doughnut',data:{labels:['Zerados','Não zerados'],datasets:[{data:[fin,g.length-fin],backgroundColor:['#22c55e','#475569'],borderWidth:0}]},options:{plugins:{legend:leg(11)},cutout:'55%'}});
-  GCHARTS.gen=new Chart(document.getElementById('cgGen'),{type:'doughnut',data:{labels:Gc.labels,datasets:[{data:Gc.data,backgroundColor:genColors,borderWidth:0}]},options:{plugins:{legend:leg(10)},cutout:'55%'}});
-  GCHARTS.hrs=new Chart(document.getElementById('cgHrs'),{type:'bar',data:{labels:Hc.labels,datasets:[{data:Hc.data,backgroundColor:'#6d4bf6'}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a93a8',font:{size:9},maxRotation:60,minRotation:45}},y:{ticks:{color:'#8a93a8'},grid:{color:'#2a3140'}}}}});
+  GCHARTS.fin=new Chart(document.getElementById('cgFin'),{type:'doughnut',data:{labels:['Zerados','Não zerados'],datasets:[{data:[fin,g.length-fin],backgroundColor:['#22c55e','#475569'],borderWidth:0}]},options:{onClick:(e,el)=>{ if(el.length) filterStatus(el[0].index===0?'zer':'__all__'); },plugins:{legend:leg(11)},cutout:'55%'}});
+  GCHARTS.gen=new Chart(document.getElementById('cgGen'),{type:'doughnut',data:{labels:Gc.labels,datasets:[{data:Gc.data,backgroundColor:genColors,borderWidth:0}]},options:{onClick:(e,el)=>{ if(el.length){ const l=Gc.labels[el[0].index]; if(l!=='Outros') pickGenre(l); } },plugins:{legend:leg(10)},cutout:'55%'}});
+  GCHARTS.hrs=new Chart(document.getElementById('cgHrs'),{type:'bar',data:{labels:Hc.labels,datasets:[{data:Hc.data,backgroundColor:'#6d4bf6'}]},options:{onClick:(e,el)=>{ if(el.length){ const l=Hc.labels[el[0].index]; if(l!=='Outros') pickGenre(l); } },plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a93a8',font:{size:9},maxRotation:60,minRotation:45}},y:{ticks:{color:'#8a93a8'},grid:{color:'#2a3140'}}}}});
 }
 
 function gameCard(g,pos){
