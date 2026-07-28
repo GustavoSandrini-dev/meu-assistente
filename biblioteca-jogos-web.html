@@ -72,6 +72,11 @@ input:focus,select:focus { border-color:var(--accent); }
 @media(max-width:700px){.addgrid{grid-template-columns:1fr 1fr}}
 .addgrid label{font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px}
 .del-mini{background:none;border:none;color:#c0392b;cursor:pointer;font-size:13px}
+#rawgDrop{display:none;position:absolute;top:100%;left:0;z-index:50;background:var(--card);border:1.5px solid var(--border);border-radius:10px;max-height:280px;overflow:auto;min-width:260px;box-shadow:0 8px 30px rgba(0,0,0,.45)}
+.rawg-row{display:flex;gap:8px;align-items:center;padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--border)}
+.rawg-row:hover{background:var(--row)}
+.rawg-row img{width:46px;height:26px;object-fit:cover;border-radius:4px;flex-shrink:0}
+.rawg-row .ph{width:46px;height:26px;background:var(--row);border-radius:4px;flex-shrink:0}
 textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padding:8px; font-size:13px; background:var(--input); color:var(--text); resize:vertical; min-height:38px; font-family:inherit; }
 .links { font-size:11px; margin-top:8px; display:flex; gap:12px; }
 .links a { color:var(--accent); text-decoration:none; }
@@ -192,12 +197,14 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
 
   <div class="addbar" id="addbar">
     <div class="addgrid">
-      <div><label>Nome do jogo</label><input id="aName" placeholder="Ex: Hades"></div>
+      <div style="position:relative"><label>Nome do jogo</label><input id="aName" placeholder="Ex: Hades" oninput="RAWG_PENDING=null" autocomplete="off"><div id="rawgDrop"></div></div>
       <div><label>Plataforma</label><select id="aPlat"><option>Epic</option><option>GOG</option><option>Nintendo</option><option>Xbox</option><option>Steam</option><option>Outro</option></select></div>
       <div><label>Horas (opcional)</label><input id="aHours" type="number" min="0" step="0.1" placeholder="0"></div>
       <div><label>Status</label><select id="aStatus"><option value="back">📥 Backlog</option><option value="play">🎮 Jogando</option><option value="zer">✅ Zerado</option><option value="plat">🏆 Platinado</option><option value="aband">🚫 Abandonei</option></select></div>
+      <button class="btn" onclick="rawgSearch()">🔎 Buscar dados</button>
       <button class="btn on" onclick="addManual()">Salvar</button>
     </div>
+    <div id="rawgPrev" style="margin-top:8px;font-size:13px;color:var(--muted)"></div>
   </div>
 
   <div id="catbar" style="display:none;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap"></div>
@@ -239,15 +246,47 @@ function unhideGame(id){ delete U(id).hidden; persist(); render(); }
 function toggleHidden(){ SHOW_HIDDEN=!SHOW_HIDDEN; render(); }
 
 function toggleAdd(){ document.getElementById("addbar").classList.toggle("open"); }
+// ---------- busca RAWG (capa/ano/gênero) ----------
+const RAWG_KEY="181e0a24eb0c4032b881c9490e59f0b6";
+let RAWG_PENDING=null;
+function mapGenre(g){ const m={"Shooter":"Shooter","RPG":"RPG","Role-Playing Games (RPG)":"RPG","Fighting":"Fighting","Racing":"Corrida","Sports":"Esporte","Platformer":"Plataforma","Strategy":"Estratégia","Simulation":"Simulação","Puzzle":"Puzzle","Adventure":"Aventura","Card":"Card Game","Board Games":"Card Game","Arcade":"Plataforma","Massively Multiplayer":"MOBA"}; const first=(g||"").split(",")[0].trim(); return m[first]||"Outros"; }
+async function rawgSearch(){
+  const name=document.getElementById("aName").value.trim();
+  const prev=document.getElementById("rawgPrev"), drop=document.getElementById("rawgDrop");
+  if(name.length<2){ prev.textContent="Digite o nome do jogo primeiro."; return; }
+  prev.textContent="Buscando na RAWG…";
+  try{
+    const r=await fetch(`https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(name)}&page_size=6`);
+    const d=await r.json(); const res=d.results||[];
+    if(!res.length){ prev.textContent="Nada encontrado. Você ainda pode salvar manual."; return; }
+    prev.innerHTML="";
+    drop.style.display="block";
+    drop.innerHTML=res.map(g=>{
+      const yr=(g.released||"").slice(0,4), gen=(g.genres||[]).map(x=>x.name).slice(0,2).join(", "), img=g.background_image||"";
+      const payload=encodeURIComponent(JSON.stringify({name:g.name,year:yr,genre:mapGenre(gen),img}));
+      return `<div class="rawg-row" onclick="rawgPick('${payload}')">${img?`<img src="${img}">`:`<div class="ph"></div>`}<div><div style="font-weight:700;font-size:13px">${g.name.replace(/</g,'&lt;')}</div><div style="font-size:11px;color:var(--muted)">${yr}${gen?" · "+gen:""}</div></div></div>`;
+    }).join("");
+  }catch(e){ prev.textContent="Erro ao buscar na RAWG."; }
+}
+function rawgPick(payload){
+  const x=JSON.parse(decodeURIComponent(payload)); RAWG_PENDING=x;
+  document.getElementById("aName").value=x.name;
+  document.getElementById("rawgDrop").style.display="none";
+  document.getElementById("rawgPrev").innerHTML=`✓ <b>${x.name.replace(/</g,'&lt;')}</b> ${x.year||""} ${x.genre?"· "+x.genre:""} ${x.img?`<br><img src="${x.img}" style="width:130px;border-radius:6px;margin-top:4px">`:""}`;
+}
 function addManual(){
   const name=document.getElementById("aName").value.trim();
   if(!name){ alert("Informe o nome do jogo."); return; }
-  const mid="m"+Date.now();
+  const mid="m"+Date.now(); const rp=RAWG_PENDING||{};
   manualList().push({ mid, name, platform:document.getElementById("aPlat").value,
-    playtime:parseFloat(document.getElementById("aHours").value)||0, unlocked:0, total:0, hltb:0, manual:true });
+    playtime:parseFloat(document.getElementById("aHours").value)||0, unlocked:0, total:0, hltb:0, manual:true,
+    img:rp.img||"", year:rp.year||"" });
   U(mid).status=document.getElementById("aStatus").value;
+  if(rp.genre) U(mid).genre=rp.genre;
+  RAWG_PENDING=null;
   persist();
   document.getElementById("aName").value=""; document.getElementById("aHours").value="";
+  document.getElementById("rawgPrev").innerHTML=""; document.getElementById("rawgDrop").style.display="none";
   document.getElementById("addbar").classList.remove("open");
   render();
 }
