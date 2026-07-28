@@ -183,6 +183,7 @@ const IMG="https://books.google.com";
 const GBKEY="AIzaSyBcBDhVNjV_Joecv1kfsq6R90BuRLfqeY4";
 const GBK="&key="+GBKEY;
 const CSE="e6f02571c42bc4c16"; // Google Custom Search (busca web de capas)
+const CSEKEY="AIzaSyBdFTcI9zzUwikn0mtraL5eZ09tQUKnb_s"; // chave dedicada à Custom Search
 
 // ----- tema (compartilhado com todos os módulos; pode ter override por tela) -----
 const PAGE="livros";
@@ -705,7 +706,7 @@ async function confirmBulk(){
 }
 async function webCover(t,a){
   try{
-    const r=await fetch(`https://www.googleapis.com/customsearch/v1?key=${GBKEY}&cx=${CSE}&num=6&q=${encodeURIComponent(t+" "+a+" livro")}`);
+    const r=await fetch(`https://www.googleapis.com/customsearch/v1?key=${CSEKEY}&cx=${CSE}&num=6&q=${encodeURIComponent(t+" "+a+" livro")}`);
     const d=await r.json();
     for(const it of (d.items||[])){
       const pm=it.pagemap||{};
