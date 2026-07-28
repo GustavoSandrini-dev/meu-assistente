@@ -250,7 +250,7 @@ function toggleHidden(){ SHOW_HIDDEN=!SHOW_HIDDEN; render(); }
 function toggleAdd(){ document.getElementById("addbar").classList.toggle("open"); }
 // ---------- busca RAWG (capa/ano/gênero) ----------
 const RAWG_KEY="181e0a24eb0c4032b881c9490e59f0b6";
-let RAWG_PENDING=null;
+let RAWG_PENDING=null, EDITING_MID=null;
 function mapGenre(g){ const m={"Shooter":"Shooter","RPG":"RPG","Role-Playing Games (RPG)":"RPG","Fighting":"Fighting","Racing":"Corrida","Sports":"Esporte","Platformer":"Plataforma","Strategy":"Estratégia","Simulation":"Simulação","Puzzle":"Puzzle","Adventure":"Aventura","Card":"Card Game","Board Games":"Card Game","Arcade":"Plataforma","Massively Multiplayer":"MOBA"}; const first=(g||"").split(",")[0].trim(); return m[first]||"Outros"; }
 async function rawgSearch(){
   const name=document.getElementById("aName").value.trim();
@@ -276,21 +276,42 @@ function rawgPick(payload){
   document.getElementById("rawgDrop").style.display="none";
   document.getElementById("rawgPrev").innerHTML=`✓ <b>${x.name.replace(/</g,'&lt;')}</b> ${x.year||""} ${x.genre?"· "+x.genre:""} ${x.img?`<br><img src="${x.img}" style="width:130px;border-radius:6px;margin-top:4px">`:""}`;
 }
+function editManual(mid){
+  const g=manualList().find(x=>x.mid===mid); if(!g) return;
+  document.getElementById("addbar").classList.add("open");
+  document.getElementById("aName").value=g.name;
+  document.getElementById("aPlat").value=g.platform||"Outro";
+  document.getElementById("aHours").value=g.playtime||"";
+  document.getElementById("aUnlocked").value=g.unlocked||"";
+  document.getElementById("aTotal").value=g.total||"";
+  document.getElementById("aStatus").value=U(mid).status||"back";
+  EDITING_MID=mid; RAWG_PENDING=null;
+  document.getElementById("rawgPrev").innerHTML=g.img?`Capa atual: <img src="${g.img}" style="width:90px;border-radius:6px;vertical-align:middle"> — use 🔎 Buscar dados pra trocar`:"";
+  const b=document.querySelector('#addbar .btn.on'); if(b) b.textContent="Atualizar jogo";
+  document.getElementById("addbar").scrollIntoView({behavior:"smooth",block:"center"});
+}
 function addManual(){
   const name=document.getElementById("aName").value.trim();
   if(!name){ alert("Informe o nome do jogo."); return; }
-  const mid="m"+Date.now(); const rp=RAWG_PENDING||{};
+  const rp=RAWG_PENDING||{};
   const unlocked=parseInt(document.getElementById("aUnlocked").value,10)||0;
   const total=parseInt(document.getElementById("aTotal").value,10)||0;
-  manualList().push({ mid, name, platform:document.getElementById("aPlat").value,
-    playtime:parseFloat(document.getElementById("aHours").value)||0, unlocked, total, hltb:0, manual:true,
-    img:rp.img||"", year:rp.year||"" });
-  U(mid).status=document.getElementById("aStatus").value;
-  if(rp.genre) U(mid).genre=rp.genre;
+  const playtime=parseFloat(document.getElementById("aHours").value)||0;
+  const plat=document.getElementById("aPlat").value, status=document.getElementById("aStatus").value;
+  if(EDITING_MID){
+    const g=manualList().find(x=>x.mid===EDITING_MID);
+    if(g){ g.name=name; g.platform=plat; g.playtime=playtime; g.unlocked=unlocked; g.total=total; if(rp.img) g.img=rp.img; if(rp.year) g.year=rp.year; }
+    U(EDITING_MID).status=status; if(rp.genre) U(EDITING_MID).genre=rp.genre;
+    EDITING_MID=null;
+    const b=document.querySelector('#addbar .btn.on'); if(b) b.textContent="Salvar";
+  } else {
+    const mid="m"+Date.now();
+    manualList().push({ mid, name, platform:plat, playtime, unlocked, total, hltb:0, manual:true, img:rp.img||"", year:rp.year||"" });
+    U(mid).status=status; if(rp.genre) U(mid).genre=rp.genre;
+  }
   RAWG_PENDING=null;
   persist();
-  document.getElementById("aName").value=""; document.getElementById("aHours").value="";
-  document.getElementById("aUnlocked").value=""; document.getElementById("aTotal").value="";
+  ["aName","aHours","aUnlocked","aTotal"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("rawgPrev").innerHTML=""; document.getElementById("rawgDrop").style.display="none";
   document.getElementById("addbar").classList.remove("open");
   render();
@@ -466,7 +487,7 @@ function gameCard(g,pos){
   if(plat==="Steam") linkItems=`<a href="https://store.steampowered.com/app/${ap}" target="_blank">Steam ↗</a><a href="https://steamhunters.com/apps/${ap}" target="_blank">SteamHunters ↗</a>`;
   else if(plat==="Xbox") linkItems=`<a href="https://www.trueachievements.com/searchresults.aspx?search=${encodeURIComponent(g.name)}" target="_blank">TrueAchievements ↗</a>`;
   linkItems+=`<a href="https://howlongtobeat.com/?q=${encodeURIComponent(g.name)}" target="_blank">HLTB ↗</a>`;
-  if(g.manual) linkItems+=`<button class="del-mini" onclick="delManual('${aps}')">Excluir</button>`;
+  if(g.manual) linkItems+=`<button class="del-mini" style="color:#7fa8ff" onclick="editManual('${aps}')">✏️ Editar</button><button class="del-mini" onclick="delManual('${aps}')">Excluir</button>`;
   if(isHidden(g)) linkItems+=`<button class="del-mini" style="color:#7fa8ff" onclick="unhideGame(${idArg})">↩ Restaurar</button>`;
   else linkItems+=`<button class="del-mini" onclick="hideGame(${idArg})" title="Tirar da lista (sem apagar)">🚫 Ocultar</button>`;
   const links=`<div class="links">${linkItems}</div>`;
