@@ -96,9 +96,11 @@ select{flex:1}
 .stars .bg{color:var(--border)}
 .stars .fg{position:absolute;left:0;top:0;color:#f5b301;overflow:hidden;white-space:nowrap}
 .cmt{width:100%;font-family:inherit;resize:vertical;min-height:34px;outline:none}
-.dates{display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:var(--row);border-radius:8px;padding:6px 8px;font-size:11px;color:var(--muted)}
-.dates input{background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:6px;padding:3px 5px;font-size:11px}
-.dates b{color:var(--pos)}
+.dates{display:flex;flex-direction:column;gap:6px;background:var(--row);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--muted)}
+.dates .drow{display:flex;align-items:center;gap:8px}
+.dates .drow span{min-width:64px}
+.dates input{flex:1;background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:7px;padding:7px 9px;font-size:13px}
+.dates b{color:var(--pos);text-align:center}
 .ffilter{background:var(--card);border:1.5px solid var(--border);color:var(--text);border-radius:16px;padding:6px 10px;font-size:12px;font-weight:600}
 .mini{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:2px}
 .mini:hover{color:var(--neg)}
@@ -437,11 +439,12 @@ function daysBetween(a,b){ if(!a||!b) return null; const d=Math.round((Date.pars
 function datesBlock(i){
   const m=i.meta||{}, st=i.status||"quero";
   if(st==="quero") return "";
-  if(st==="lendo") return `<div class="dates">📖 Comecei <input type="date" value="${m.startDate||''}" onchange="setDate('${i.id}','start',this.value)"></div>`;
+  if(st==="lendo") return `<div class="dates"><div class="drow"><span>📖 Comecei</span><input type="date" value="${m.startDate||''}" onchange="setDate('${i.id}','start',this.value)"></div></div>`;
   const dias=daysBetween(m.startDate, m.endDate||i.done_date);
-  return `<div class="dates">Início <input type="date" value="${m.startDate||''}" onchange="setDate('${i.id}','start',this.value)">
-    Fim <input type="date" value="${m.endDate||i.done_date||''}" onchange="setDate('${i.id}','end',this.value)">
-    ${dias!=null?`<b>${dias===0?'no mesmo dia':dias+' dia'+(dias>1?'s':'')}</b>`:''}</div>`;
+  return `<div class="dates">
+    <div class="drow"><span>📖 Início</span><input type="date" value="${m.startDate||''}" onchange="setDate('${i.id}','start',this.value)"></div>
+    <div class="drow"><span>✅ Fim</span><input type="date" value="${m.endDate||i.done_date||''}" onchange="setDate('${i.id}','end',this.value)"></div>
+    ${dias!=null?`<b>⏱️ ${dias===0?'lido no mesmo dia':dias+' dia'+(dias>1?'s':'')}</b>`:''}</div>`;
 }
 async function setDate(id,which,val){
   const i=ITEMS.find(x=>x.id===id); if(!i) return; const m=Object.assign({},i.meta||{});
