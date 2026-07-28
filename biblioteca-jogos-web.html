@@ -278,11 +278,11 @@ async function rawgPick(payload){
   let ach=0, hrs=0;
   try{ const r=await fetch(`https://api.rawg.io/api/games/${x.id}?key=${RAWG_KEY}`); const d=await r.json(); ach=d.achievements_count||0; hrs=d.playtime||0; }catch(e){}
   if(ach) document.getElementById("aTotal").value=ach;
-  if(hrs && !document.getElementById("aHours").value) document.getElementById("aHours").value=hrs;
+  RAWG_PENDING.hltb=hrs||0;
   const nm=x.name.replace(/</g,'&lt;');
-  prev.innerHTML=`✓ <b>${nm}</b> ${x.year||""}${x.genre?" · "+x.genre:""}${ach?` · ${ach} conquistas`:""}${hrs?` · ~${hrs}h (média)`:""}`
+  prev.innerHTML=`✓ <b>${nm}</b> ${x.year||""}${x.genre?" · "+x.genre:""}${ach?` · ${ach} conquistas`:""}${hrs?` · ⏱ campanha ~${hrs}h (HLTB)`:""}`
     +(x.img?`<br><img src="${x.img}" style="width:130px;border-radius:6px;margin-top:4px">`:"")
-    +`<br><span style="color:var(--muted);font-size:12px">Ajuste <b>Horas</b> pras suas horas reais e <b>Conquistas</b> pras que você desbloqueou.</span>`;
+    +`<br><span style="color:var(--muted);font-size:12px">Preencha <b>Horas</b> com as suas horas jogadas e <b>Conquistas</b> com as que você desbloqueou.</span>`;
 }
 function editManual(mid){
   const g=manualList().find(x=>x.mid===mid); if(!g) return;
@@ -308,13 +308,13 @@ function addManual(){
   const plat=document.getElementById("aPlat").value, status=document.getElementById("aStatus").value;
   if(EDITING_MID){
     const g=manualList().find(x=>x.mid===EDITING_MID);
-    if(g){ g.name=name; g.platform=plat; g.playtime=playtime; g.unlocked=unlocked; g.total=total; if(rp.img) g.img=rp.img; if(rp.year) g.year=rp.year; }
+    if(g){ g.name=name; g.platform=plat; g.playtime=playtime; g.unlocked=unlocked; g.total=total; if(rp.img) g.img=rp.img; if(rp.year) g.year=rp.year; if(rp.hltb) g.hltb=rp.hltb; }
     U(EDITING_MID).status=status; if(rp.genre) U(EDITING_MID).genre=rp.genre;
     EDITING_MID=null;
     const b=document.querySelector('#addbar .btn.on'); if(b) b.textContent="Salvar";
   } else {
     const mid="m"+Date.now();
-    manualList().push({ mid, name, platform:plat, playtime, unlocked, total, hltb:0, manual:true, img:rp.img||"", year:rp.year||"" });
+    manualList().push({ mid, name, platform:plat, playtime, unlocked, total, hltb:rp.hltb||0, manual:true, img:rp.img||"", year:rp.year||"" });
     U(mid).status=status; if(rp.genre) U(mid).genre=rp.genre;
   }
   RAWG_PENDING=null;
