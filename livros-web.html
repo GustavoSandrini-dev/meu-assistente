@@ -91,7 +91,10 @@ h1{font-size:22px;margin-bottom:2px}
 .rowb{display:flex;gap:6px;align-items:center}
 select,.note,.cmt{background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:8px;padding:6px;font-size:12px}
 select{flex:1}
-.note{width:52px;text-align:center}
+.note{width:48px;text-align:center}
+.stars{display:inline-block;position:relative;font-size:15px;line-height:1;letter-spacing:1px;vertical-align:middle}
+.stars .bg{color:var(--border)}
+.stars .fg{position:absolute;left:0;top:0;color:#f5b301;overflow:hidden;white-space:nowrap}
 .cmt{width:100%;font-family:inherit;resize:vertical;min-height:34px;outline:none}
 .dates{display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:var(--row);border-radius:8px;padding:6px 8px;font-size:11px;color:var(--muted)}
 .dates input{background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:6px;padding:3px 5px;font-size:11px}
@@ -258,11 +261,27 @@ function renderPills(){
   document.getElementById("pills").innerHTML=h;
 }
 async function selCol(id){ ACTIVE=id; renderPills(); await loadItems(); }
+// converte notas antigas (0-10) para estrelas (0-5), uma vez por livro (flag no meta)
+async function migrateStars(){
+  for(const i of ITEMS){
+    const m=i.meta||{};
+    if(i.rating!=null && !m.starScale){
+      const novo=Math.round((i.rating/2)*10)/10;
+      const nm=Object.assign({},m,{starScale:true});
+      i.rating=novo; i.meta=nm;
+      await sb.from("items").update({rating:novo,meta:nm}).eq("id",i.id);
+    } else if(i.rating==null && !m.starScale){
+      const nm=Object.assign({},m,{starScale:true}); i.meta=nm;
+      await sb.from("items").update({meta:nm}).eq("id",i.id);
+    }
+  }
+}
 
 async function loadItems(){
   if(!ACTIVE){ document.getElementById("items").innerHTML=""; return; }
   const {data}=await sb.from("items").select("*").eq("collection_id",ACTIVE).order("created_at",{ascending:false});
   ITEMS=data||[];
+  await migrateStars();
   document.getElementById("filters").style.display=ITEMS.length?"flex":"none";
   const c=COLS.find(x=>x.id===ACTIVE);
   const lt=document.getElementById("listTitle");
@@ -278,7 +297,7 @@ function renderStats(){
   if(!ITEMS.length){ box.innerHTML=""; Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS={}; return; }
   const lidos=ITEMS.filter(i=>i.status==="lido");
   const paginas=lidos.reduce((s,i)=>s+((i.meta&&i.meta.pages)||0),0);
-  const favs=ITEMS.filter(i=>i.rating!=null && i.rating>=9).length;
+  const favs=ITEMS.filter(i=>i.rating!=null && i.rating>=4.5).length;
   const anos=new Set(lidos.map(i=>(i.done_date||"").slice(0,4)).filter(Boolean)).size;
   const cont=(campo)=>{ const o={}; ITEMS.forEach(i=>{ const v=((i.meta&&i.meta[campo])||"").split(",")[0].trim(); const k=v||(campo==="authors"?"Desconhecido":"Desconhecida"); o[k]=(o[k]||0)+1; }); return o; };
   const topN=(o,n)=>{ const ks=Object.keys(o).sort((a,b)=>o[b]-o[a]); const t=ks.slice(0,n); const rest=ks.slice(n).reduce((s,x)=>s+o[x],0); const labels=t.slice(),data=t.map(x=>o[x]); if(rest){labels.push("Outros");data.push(rest);} return {labels,data}; };
@@ -287,7 +306,7 @@ function renderStats(){
     <div class="stats-grid">
       <div class="stat"><div class="sv">${lidos.length}</div><div class="sl">📚 Livros lidos</div></div>
       <div class="stat"><div class="sv">${paginas.toLocaleString('pt-BR')}</div><div class="sl">📄 Páginas lidas</div></div>
-      <div class="stat"><div class="sv">${favs}</div><div class="sl">⭐ Favoritos (nota ≥9)</div></div>
+      <div class="stat"><div class="sv">${favs}</div><div class="sl">⭐ Favoritos (≥4.5 ★)</div></div>
       <div class="stat"><div class="sv">${anos}</div><div class="sl">🗓️ Anos de leitura</div></div>
     </div>
     <div class="charts-grid">
@@ -450,6 +469,7 @@ function renderItems(){
   box.innerHTML=list.map(i=>bookCard(i)).join("");
 }
 function medal(n){ return n===1?"🥇":n===2?"🥈":n===3?"🥉":"#"+n; }
+function starsHTML(v){ v=Math.max(0,Math.min(5,v||0)); return `<span class="stars" title="${v} de 5"><span class="bg">★★★★★</span><span class="fg" style="width:${v/5*100}%">★★★★★</span></span>`; }
 function bookCard(i,rank){
   const m=i.meta||{};
   const cover=i.poster?`<img src="${i.poster}" loading="lazy" onerror="imgFail(this)">`:`<div class="noimg">📖</div>`;
@@ -466,7 +486,8 @@ function bookCard(i,rank){
           <option value="lendo" ${st==="lendo"?"selected":""}>Lendo</option>
           <option value="lido" ${st==="lido"?"selected":""}>Lido</option>
         </select>
-        <input class="note" type="number" min="0" max="10" step="0.1" placeholder="—" value="${i.rating??""}" onchange="setRating('${i.id}',this.value)" title="Nota 0-10">
+        <input class="note" type="number" min="0" max="5" step="0.1" placeholder="—" value="${i.rating??""}" onchange="setRating('${i.id}',this.value)" title="Estrelas 0 a 5">
+        ${i.rating!=null?starsHTML(i.rating):'<span class="stars"><span class="bg">★★★★★</span></span>'}
       </div>
       ${datesBlock(i)}
       <textarea class="cmt" placeholder="Comentário…" onchange="setNote('${i.id}',this.value)">${esc(i.note||"")}</textarea>
@@ -488,7 +509,7 @@ async function setStatus(id,v){
   if(i){ i.status=v; i.meta=m; if(v==="lido") i.done_date=upd.done_date; }
   renderGoal(); renderStats(); renderItems();
 }
-async function setRating(id,v){ const n=v===""?null:Math.max(0,Math.min(10,parseFloat(v))); await sb.from("items").update({rating:n,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.rating=n; if(FILTER==="ranking") renderItems(); }
+async function setRating(id,v){ const n=v===""?null:Math.max(0,Math.min(5,parseFloat(v))); await sb.from("items").update({rating:n,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.rating=n; renderItems(); }
 async function setNote(id,v){ const t=v.trim()||null; await sb.from("items").update({note:t,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.note=t; }
 async function delItem(id){ if(!confirm("Remover da estante?"))return; await sb.from("items").delete().eq("id",id); ITEMS=ITEMS.filter(i=>i.id!==id); renderGoal(); renderItems(); }
 function showWhere(id){
@@ -591,7 +612,7 @@ async function importGoodreads(ev){
     const mr=parseInt(r["My Rating"]||"0",10);
     base.push({ title, author:(r["Author"]||"").trim(),
       isbn:String(r["ISBN13"]||r["ISBN"]||"").replace(/[^0-9Xx]/g,""),
-      status, rating: mr>0?mr*2:null, pages:parseInt(r["Number of Pages"]||"0",10)||0,
+      status, rating: mr>0?mr:null, pages:parseInt(r["Number of Pages"]||"0",10)||0,
       year:String(r["Year Published"]||"").slice(0,4), publisher:(r["Publisher"]||"").trim(),
       bookId:r["Book Id"]||title, dateRead:(r["Date Read"]||"").trim() });
     existing.add(normTitle(title));
@@ -603,7 +624,7 @@ async function importGoodreads(ev){
     setImportStatus(`Buscando no Google Books… ${Math.min(i,base.length)}/${base.length}`);
     const enr=await Promise.all(base.slice(i,i+CH).map(async b=>{
       const gb=await gbLookup(b.isbn,b.title,b.author);
-      const meta={authors:(gb&&gb.authors)||b.author, pages:(gb&&gb.pages)||b.pages, year:(gb&&gb.yr)||b.year, genre:(gb&&gb.genre)||"", publisher:(gb&&gb.publisher)||b.publisher, hours:0, started_at:null};
+      const meta={authors:(gb&&gb.authors)||b.author, pages:(gb&&gb.pages)||b.pages, year:(gb&&gb.yr)||b.year, genre:(gb&&gb.genre)||"", publisher:(gb&&gb.publisher)||b.publisher, hours:0, started_at:null, starScale:true};
       const row={collection_id:ACTIVE, kind:"livro",
         ext_id: gb? gb.id : "gr:"+b.bookId,
         title: (gb&&gb.title)||b.title,
@@ -638,7 +659,7 @@ function addItem(payload){
     </div>
     <label>Onde colocar?</label>
     <select id="mstatus"><option value="quero">Quero ler</option><option value="lendo">Lendo</option><option value="lido">Já li</option></select>
-    <label>Nota (0–10, opcional)</label><input id="mrating" type="number" min="0" max="10" step="0.1" placeholder="—">
+    <label>Estrelas (0 a 5, opcional)</label><input id="mrating" type="number" min="0" max="5" step="0.1" placeholder="—">
     <button class="btn" style="width:100%;margin-top:4px" onclick="confirmAdd()">Adicionar à estante</button>
     <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Cancelar</button>`;
   document.getElementById("modal").style.display="flex";
@@ -647,7 +668,7 @@ async function confirmAdd(){
   const x=PENDING; if(!x) return;
   const status=document.getElementById("mstatus").value;
   const rv=document.getElementById("mrating").value;
-  const rating=rv===""?null:Math.max(0,Math.min(10,parseFloat(rv)));
+  const rating=rv===""?null:Math.max(0,Math.min(5,parseFloat(rv)));
   const meta={authors:x.authors,pages:x.pages,year:x.yr,genre:x.genre||"",publisher:x.publisher||"",hours:0,started_at:status==="lendo"?new Date().toISOString():null};
   const row={collection_id:ACTIVE,kind:"livro",ext_id:String(x.id),title:x.title,poster:x.poster,status,rating,meta};
   if(status==="lido") row.done_date=new Date().toISOString().slice(0,10);
@@ -670,7 +691,7 @@ function manualModal(){
     <label>Capa — URL da imagem</label><input id="mmCover" placeholder="https://..." oninput="mmShowCover()">
     <label>Onde colocar?</label>
     <select id="mmStatus"><option value="quero">Quero ler</option><option value="lendo">Lendo</option><option value="lido">Já li</option></select>
-    <label>Nota (0–10, opcional)</label><input id="mmRating" type="number" min="0" max="10" step="0.1" placeholder="—">
+    <label>Estrelas (0 a 5, opcional)</label><input id="mmRating" type="number" min="0" max="5" step="0.1" placeholder="—">
     <button class="btn" style="width:100%;margin-top:4px" onclick="confirmManual()">Adicionar à estante</button>
     <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Cancelar</button>`;
   document.getElementById("modal").style.display="flex";
@@ -747,7 +768,7 @@ async function confirmManual(){
   const title=document.getElementById("mmTitle").value.trim(); if(!title){alert("Digite o título.");return;}
   const status=document.getElementById("mmStatus").value;
   const rv=document.getElementById("mmRating").value;
-  const rating=rv===""?null:Math.max(0,Math.min(10,parseFloat(rv)));
+  const rating=rv===""?null:Math.max(0,Math.min(5,parseFloat(rv)));
   const pages=parseInt(document.getElementById("mmPages").value,10)||0;
   const year=document.getElementById("mmYear").value.trim();
   const meta={authors:document.getElementById("mmAuthor").value.trim(),pages,year,genre:"",publisher:"",hours:0,started_at:status==="lendo"?new Date().toISOString():null};
