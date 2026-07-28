@@ -386,7 +386,7 @@ async function showRecs(){
 function recCard(b){
   const poster=b.poster?`<img src="${b.poster}" loading="lazy" onerror="imgFail(this)">`:`<div class="noimg">📖</div>`;
   const already=ITEMS.find(i=>String(i.ext_id)===String(b.id));
-  const payload=encodeURIComponent(JSON.stringify(b));
+  const payload=encodeURIComponent(JSON.stringify(b)).replace(/'/g,"%27");
   return `<div class="card"><div class="cardwrap">${poster}</div>
     <div class="cb"><div class="tt">${esc(b.title)}</div><div class="au">${esc(b.authors||"")}${b.yr?" · "+b.yr:""}</div>
     <button class="dr-add ${already?'in':''}" style="margin-top:auto;padding:8px" onclick="addItem('${payload}')">${already?"✓ Na estante":"+ Adicionar"}</button></div></div>`;
@@ -569,7 +569,7 @@ async function doSearch(){
 function dropRow(b){
   const poster=b.poster?`<img src="${b.poster}" loading="lazy" onerror="imgFail(this,1)">`:`<div class="dr-noimg">📖</div>`;
   const already=ITEMS.find(i=>String(i.ext_id)===String(b.id));
-  const payload=encodeURIComponent(JSON.stringify(b));
+  const payload=encodeURIComponent(JSON.stringify(b)).replace(/'/g,"%27");
   return `<div class="drow">${poster}
     <div class="dr-info"><div class="dr-t">${esc(b.title)}</div>
     <div class="dr-y">${esc(b.authors)}${b.yr?" · "+b.yr:""}</div></div>

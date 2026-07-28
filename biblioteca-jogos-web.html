@@ -266,7 +266,7 @@ async function rawgSearch(){
     drop.style.display="block";
     drop.innerHTML=res.map(g=>{
       const yr=(g.released||"").slice(0,4), gen=(g.genres||[]).map(x=>x.name).slice(0,2).join(", "), img=g.background_image||"";
-      const payload=encodeURIComponent(JSON.stringify({id:g.id,name:g.name,year:yr,genre:mapGenre(gen),img}));
+      const payload=encodeURIComponent(JSON.stringify({id:g.id,name:g.name,year:yr,genre:mapGenre(gen),img})).replace(/'/g,"%27");
       return `<div class="rawg-row" onclick="rawgPick('${payload}')">${img?`<img src="${img}">`:`<div class="ph"></div>`}<div><div style="font-weight:700;font-size:13px">${g.name.replace(/</g,'&lt;')}</div><div style="font-size:11px;color:var(--muted)">${yr}${gen?" · "+gen:""}</div></div></div>`;
     }).join("");
   }catch(e){ prev.textContent="Erro ao buscar na RAWG."; }

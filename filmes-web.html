@@ -388,7 +388,7 @@ function dropRow(x){
   const kind=x.media_type==="tv"?"serie":"filme";
   const poster=x.poster_path?`<img src="${LOGO}${x.poster_path}" loading="lazy">`:`<div class="dr-noimg">🎬</div>`;
   const already=ITEMS.find(i=>String(i.ext_id)===String(x.id));
-  const payload=encodeURIComponent(JSON.stringify({id:x.id,title,yr,kind,poster:x.poster_path?IMG+x.poster_path:"",media:x.media_type,vote:x.vote_average,genre:genreName(x.genre_ids,x.media_type)}));
+  const payload=encodeURIComponent(JSON.stringify({id:x.id,title,yr,kind,poster:x.poster_path?IMG+x.poster_path:"",media:x.media_type,vote:x.vote_average,genre:genreName(x.genre_ids,x.media_type)})).replace(/'/g,"%27");
   return `<div class="drow">${poster}
     <div class="dr-info"><div class="dr-t">${esc(title)}</div>
     <div class="dr-y">${yr} · ${kind==="serie"?"Série":"Filme"}${x.vote_average?" · ⭐"+x.vote_average.toFixed(1):""}</div></div>
@@ -401,7 +401,7 @@ function searchCard(x){
   const poster=x.poster_path?`<img src="${IMG}${x.poster_path}" loading="lazy">`:`<div class="noimg">🎬</div>`;
   const kind=x.media_type==="tv"?"serie":"filme";
   const already=ITEMS.find(i=>String(i.ext_id)===String(x.id));
-  const payload=encodeURIComponent(JSON.stringify({id:x.id,title,yr,kind,poster:x.poster_path?IMG+x.poster_path:"",media:x.media_type,vote:x.vote_average,genre:genreName(x.genre_ids,x.media_type)}));
+  const payload=encodeURIComponent(JSON.stringify({id:x.id,title,yr,kind,poster:x.poster_path?IMG+x.poster_path:"",media:x.media_type,vote:x.vote_average,genre:genreName(x.genre_ids,x.media_type)})).replace(/'/g,"%27");
   return `<div class="card"><div class="cardwrap">${poster}<span class="tag">${kind==="serie"?"Série":"Filme"}</span></div>
     <div class="cb"><div class="tt">${esc(title)}</div><div class="yr">${yr}${x.vote_average?" · ⭐"+x.vote_average.toFixed(1):""}</div>
     <button class="add-btn ${already?'in':''}" onclick="addItem('${payload}')">${already?"✓ Na lista":"+ Adicionar"}</button></div></div>`;
