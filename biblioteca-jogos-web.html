@@ -245,6 +245,15 @@ function allGamesRaw(){ return GAMES.concat(manualList()); }
 function allGames(){ return SHOW_HIDDEN ? allGamesRaw() : allGamesRaw().filter(g=>!isHidden(g)); }
 function hiddenCount(){ return allGamesRaw().filter(isHidden).length; }
 function hideGame(id){ U(id).hidden=true; persist(); render(); }
+async function gameCover(id){
+  const g=allGamesRaw().find(x=>String(gid(x))===String(id)); if(!g) return;
+  try{
+    const r=await fetch(`https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(g.name)}&page_size=1`);
+    const d=await r.json(); const hit=(d.results||[])[0];
+    if(hit && hit.background_image){ U(gid(g)).img=hit.background_image; persist(); render(); }
+    else alert("Não achei capa na RAWG pra: "+g.name);
+  }catch(e){ alert("Erro ao buscar capa na RAWG."); }
+}
 function unhideGame(id){ delete U(id).hidden; persist(); render(); }
 function toggleHidden(){ SHOW_HIDDEN=!SHOW_HIDDEN; render(); }
 
@@ -385,7 +394,7 @@ function rollGame(){
   if(!pool.length){ box.innerHTML=`<div class="rm">Seu backlog está vazio! 🎉</div>`; document.getElementById("rollOverlay").classList.add("show"); return; }
   const g=pool[Math.floor(Math.random()*pool.length)];
   const ap=gid(g), isNum=g.appid!=null;
-  const cover=g.img?g.img:(isNum?`https://cdn.cloudflare.steamstatic.com/steam/apps/${ap}/header.jpg`:"");
+  const cover=U(gid(g)).img||g.img||(isNum?`https://cdn.cloudflare.steamstatic.com/steam/apps/${ap}/header.jpg`:"");
   box.innerHTML=`<div class="rollpick">
     <div class="rc" style="background:hsl(${hue(g.name)},55%,45%)">${cover?`<img src="${cover}" onerror="this.remove()" alt="">`:""}</div>
     <div class="rn">${g.name}</div>
@@ -500,6 +509,7 @@ function gameCard(g,pos){
   if(plat==="Steam") linkItems=`<a href="https://store.steampowered.com/app/${ap}" target="_blank">Steam ↗</a><a href="https://steamhunters.com/apps/${ap}" target="_blank">SteamHunters ↗</a>`;
   else if(plat==="Xbox") linkItems=`<a href="https://www.trueachievements.com/searchresults.aspx?search=${encodeURIComponent(g.name)}" target="_blank">TrueAchievements ↗</a>`;
   linkItems+=`<a href="https://howlongtobeat.com/?q=${encodeURIComponent(g.name)}" target="_blank">HLTB ↗</a>`;
+  linkItems+=`<button class="del-mini" style="color:#7fa8ff" onclick="gameCover(${idArg})" title="Buscar capa na RAWG">🖼️ Capa</button>`;
   if(g.manual) linkItems+=`<button class="del-mini" style="color:#7fa8ff" onclick="editManual('${aps}')">✏️ Editar</button><button class="del-mini" onclick="delManual('${aps}')">Excluir</button>`;
   if(isHidden(g)) linkItems+=`<button class="del-mini" style="color:#7fa8ff" onclick="unhideGame(${idArg})">↩ Restaurar</button>`;
   else linkItems+=`<button class="del-mini" onclick="hideGame(${idArg})" title="Tirar da lista (sem apagar)">🚫 Ocultar</button>`;
@@ -512,7 +522,7 @@ function gameCard(g,pos){
   const meta = g.xbox
     ? `<span class="plat-tag p-${plat}">${plat}</span> ${tbadge} ${g.total>0?`${g.unlocked}/${g.total} conq.`:`${g.unlocked} conquistas`}`
     : `<span class="plat-tag p-${plat}">${plat}</span> ${tbadge} ${g.playtime}h${g.total>0?` · ${g.unlocked}/${g.total} conq.`:""}`;
-  const coverUrl = g.img ? g.img : (isNum ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${ap}/header.jpg` : "");
+  const coverUrl = U(gid(g)).img || g.img || (isNum ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${ap}/header.jpg` : "");
   let coverImg = "";
   if(coverUrl){
     coverImg = g.xbox
