@@ -172,14 +172,25 @@ async function submitAuth(){
     window.__signup={nome,phone:fone};
     amsg("Criando conta…",true);
     try{
-      const {error}=await sb.auth.signUp({email,password:pw});
+      const {data,error}=await sb.auth.signUp({email,password:pw});
       if(error){
         window.__signup=null;
         if(/already|registered|exists/i.test(error.message)) amsg("Esse e-mail já tem conta. Use a aba Entrar.");
         else amsg(error.message);
         return;
       }
-      // onAuthStateChange chama onLogin() → cria o perfil e entra
+      if(!data.session){
+        // "Confirm email" está ligado: usuário criado, mas precisa confirmar o e-mail
+        window.__signup=null;
+        document.getElementById("ovform").innerHTML=
+          '<div style="text-align:center">'
+          +'<div style="font-size:42px;margin-bottom:8px">📧</div>'
+          +'<div style="font-size:18px;font-weight:800;margin-bottom:8px">Conta criada!</div>'
+          +'<div style="font-size:13px;color:var(--muted);margin-bottom:18px">Enviamos um link de confirmação pro seu e-mail. Confirme e depois volte pra entrar. 🙌</div>'
+          +'<button onclick="location.reload()">Voltar ao login</button></div>';
+        return;
+      }
+      // tem sessão (confirmação desligada) → onLogin() entra direto
     }catch(e){ window.__signup=null; console.error(e); amsg("Erro ao cadastrar: "+(e&&e.message?e.message:JSON.stringify(e))); }
     return;
   }
