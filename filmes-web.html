@@ -162,7 +162,7 @@ const provCache={};
 // ---------- login ----------
 async function initAuth(){
   const {data:{session}}=await sb.auth.getSession();
-  if(session) onLogin(); else showForm();
+  if(session) onLogin(); else location.href="index.html";
   sb.auth.onAuthStateChange((_e,s)=>{ if(s && document.getElementById("ov").style.display!=="none") onLogin(); });
 }
 function showForm(){ document.getElementById("ovload").style.display="none"; document.getElementById("ovform").style.display="block"; }
@@ -182,7 +182,7 @@ async function verify(){
   if(error) amsg(error.message);
 }
 function reset2(){ document.getElementById("s2").style.display="none"; document.getElementById("s1").style.display="block"; amsg(""); }
-async function logout(){ await sb.auth.signOut(); location.reload(); }
+async function logout(){ try{ await sb.auth.signOut(); }catch(e){} location.href="index.html"; }
 
 // ---------- boot ----------
 async function onLogin(){

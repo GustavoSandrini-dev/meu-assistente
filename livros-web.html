@@ -209,7 +209,7 @@ let GOAL=parseInt(localStorage.getItem("livrosGoal")||"12",10);
 // ---------- login (e-mail + senha) ----------
 async function initAuth(){
   const {data:{session}}=await sb.auth.getSession();
-  if(session) onLogin(); else showForm();
+  if(session) onLogin(); else location.href="index.html";
   sb.auth.onAuthStateChange((_e,s)=>{ if(s && document.getElementById("ov").style.display!=="none") onLogin(); });
 }
 function showForm(){ document.getElementById("ovload").style.display="none"; document.getElementById("ovform").style.display="block"; }
@@ -221,7 +221,7 @@ async function doLogin(){
   const {error}=await sb.auth.signInWithPassword({email,password:pw});
   if(error) amsg(/invalid|credentials/i.test(error.message)?"E-mail ou senha incorretos.":error.message);
 }
-async function logout(){ await sb.auth.signOut(); location.reload(); }
+async function logout(){ try{ await sb.auth.signOut(); }catch(e){} location.href="index.html"; }
 
 async function onLogin(){
   document.getElementById("ov").style.display="none";

@@ -760,7 +760,12 @@ function authReset(){
   document.getElementById("authCode").value="";
   amsg("");
 }
-async function authLogout(){ await _sb.auth.signOut(); location.reload(); }
+async function authLogout(){
+  try{ await _sb.auth.signOut(); }catch(e){}
+  // limpa o cache local pra não vazar dados entre contas
+  localStorage.removeItem("gamelib"); localStorage.removeItem("gamelib_owner");
+  location.href="index.html";
+}
 async function onLogin(){
   document.getElementById("authOverlay").style.display="none";
   document.getElementById("logoutBtn").style.display="block";
@@ -832,7 +837,7 @@ if(typeof persist === "function"){ const _p = persist; persist = function(){ _p(
 (async function(){
   const {data:{session}} = await _sb.auth.getSession();
   if(session){ onLogin(); }
-  else { showLoginForm(); }
+  else { location.href="index.html"; }  // sem sessão: vai pro login na home
   _sb.auth.onAuthStateChange((_e,s)=>{ if(s && document.getElementById("authOverlay").style.display!=="none") onLogin(); });
 })();
 </script>

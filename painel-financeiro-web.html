@@ -988,7 +988,7 @@ function authReset(){
   document.getElementById("authCode").value="";
   amsg("");
 }
-async function authLogout(){ await _sb.auth.signOut(); location.reload(); }
+async function authLogout(){ try{ await _sb.auth.signOut(); }catch(e){} localStorage.removeItem("fin5030"); localStorage.removeItem("fin5030_owner"); location.href="index.html"; }
 async function onLogin(){
   document.getElementById("authOverlay").style.display="none";
   document.getElementById("logoutBtn").style.display="block";
@@ -1033,7 +1033,7 @@ if(typeof persist === "function"){ const _p = persist; persist = function(){ _p(
 (async function(){
   const {data:{session}} = await _sb.auth.getSession();
   if(session){ onLogin(); }
-  else { showLoginForm(); }
+  else { location.href="index.html"; }
   _sb.auth.onAuthStateChange((_e,s)=>{ if(s && document.getElementById("authOverlay").style.display!=="none") onLogin(); });
 })();
 </script>
