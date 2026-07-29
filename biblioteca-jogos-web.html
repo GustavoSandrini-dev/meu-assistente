@@ -267,6 +267,7 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
 
       <div style="margin-top:14px">
         <input id="steamKeyIn" class="sin" placeholder="Chave de API (32 caracteres)" autocomplete="off">
+        <a id="steamChange" onclick="changeSteamKey()" style="display:none;font-size:12px;color:var(--accent,#6f9bff);cursor:pointer;margin:4px 2px 0;display:none">🔓 Trocar chave</a>
         <input id="steamIdIn" class="sin" placeholder="SteamID64 (17 dígitos)" autocomplete="off" style="margin-top:8px">
       </div>
       <div style="margin-top:14px;padding:12px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px">
@@ -475,28 +476,41 @@ async function openSteam(){
   document.getElementById("steamOverlay").classList.add("show");
   document.getElementById("steamMsg").textContent="";
   // pré-preenche se já vinculou antes (mostra a chave só pro próprio dono)
+  const keyIn=document.getElementById("steamKeyIn"), idIn=document.getElementById("steamIdIn"), chg=document.getElementById("steamChange");
   try{
     const {data:{user}}=await _sb.auth.getUser();
     const {data:k}=await _sb.from("user_keys").select("steam_key,steam_id,sync_hour").eq("user_id",user.id).maybeSingle();
-    if(k){
-      document.getElementById("steamKeyIn").value=k.steam_key||"";
-      document.getElementById("steamIdIn").value=k.steam_id||"";
+    if(k && k.steam_key){
+      // já vinculada: mantém a chave OCULTA (não mostra em texto)
+      keyIn.value="•••••••••••• chave guardada com segurança";
+      keyIn.readOnly=true; keyIn.dataset.masked="1";
+      idIn.value=k.steam_id||"";
       if(k.sync_hour!=null) document.getElementById("steamHour").value=String(k.sync_hour);
+      chg.style.display="inline-block";
+      smsg("✅ Steam já vinculada. Dá pra mudar o horário ou trocar a chave.",true);
+    } else {
+      keyIn.value=""; keyIn.readOnly=false; keyIn.dataset.masked=""; idIn.value="";
+      chg.style.display="none";
     }
   }catch(e){}
 }
+function changeSteamKey(){ const k=document.getElementById("steamKeyIn"); k.value=""; k.readOnly=false; k.dataset.masked=""; k.placeholder="Cole a nova chave (32 caracteres)"; k.focus(); }
 function closeSteam(){ document.getElementById("steamOverlay").classList.remove("show"); }
 function smsg(t,ok){ const e=document.getElementById("steamMsg"); e.textContent=t; e.style.color=ok?"#3ecf9a":"#f07567"; }
 async function saveSteamAndSync(){
-  const key=document.getElementById("steamKeyIn").value.trim();
+  const keyIn=document.getElementById("steamKeyIn");
+  const masked = keyIn.dataset.masked==="1";        // chave já vinculada, não foi trocada
+  const key=keyIn.value.trim();
   const sid=document.getElementById("steamIdIn").value.trim();
-  if(!/^[A-Fa-f0-9]{32}$/.test(key)){ smsg("A chave deve ter 32 caracteres (letras e números). Confira e cole de novo."); return; }
+  if(!masked && !/^[A-Fa-f0-9]{32}$/.test(key)){ smsg("A chave deve ter 32 caracteres (letras e números). Confira e cole de novo."); return; }
   if(!/^7656\d{13}$/.test(sid)){ smsg("O SteamID64 tem 17 dígitos e começa com 7656. Pegue em steamid.io."); return; }
   const btn=document.getElementById("steamGo"); btn.disabled=true; const old=btn.textContent; btn.textContent="⏳ Sincronizando…";
   try{
     const {data:{user}}=await _sb.auth.getUser();
     const hour=parseInt(document.getElementById("steamHour").value,10)||3;
-    const {error:ke}=await _sb.from("user_keys").upsert({user_id:user.id, steam_key:key, steam_id:sid, sync_hour:hour},{onConflict:"user_id"});
+    const payload={user_id:user.id, steam_id:sid, sync_hour:hour};
+    if(!masked) payload.steam_key=key;              // só grava a chave se foi digitada/trocada
+    const {error:ke}=await _sb.from("user_keys").upsert(payload,{onConflict:"user_id"});
     if(ke){ smsg("Não consegui salvar a chave: "+ke.message); btn.disabled=false; btn.textContent=old; return; }
     smsg("Buscando seus jogos na Steam… (pode levar alguns segundos)",true);
     const {data,error}=await _sb.functions.invoke("sync-my-games");
