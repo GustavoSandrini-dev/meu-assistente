@@ -998,21 +998,29 @@ async function onLogin(){
 }
 async function hydrate(){
   try{
-    const {data} = await _sb.from("app_state").select("value").eq("key",STATE_KEY).maybeSingle();
+    const {data:{user}} = await _sb.auth.getUser();
+    if(!user) return;
+    const owner = localStorage.getItem(STORAGE_KEY+"_owner");
+    if(owner && owner!==user.id){ localStorage.removeItem(STORAGE_KEY); }
+    const {data} = await _sb.from("app_state").select("value").eq("key",STATE_KEY).eq("user_id",user.id).maybeSingle();
     if(data && data.value){
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data.value));
     } else {
       const local = localStorage.getItem(STORAGE_KEY);
-      if(local) await _sb.from("app_state").upsert({key:STATE_KEY, value:JSON.parse(local)}, {onConflict:"user_id,key"});
+      if(local && owner===user.id) await _sb.from("app_state").upsert({key:STATE_KEY, user_id:user.id, value:JSON.parse(local)}, {onConflict:"user_id,key"});
     }
+    localStorage.setItem(STORAGE_KEY+"_owner", user.id);
   }catch(e){ console.warn("hydrate falhou", e); }
 }
 let _syncT;
 function queueSync(){ clearTimeout(_syncT); _syncT=setTimeout(pushState, 500); }
 async function pushState(){
   try{
+    const {data:{user}} = await _sb.auth.getUser();
+    if(!user) return;
+    if(localStorage.getItem(STORAGE_KEY+"_owner")!==user.id) return;
     const v = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    await _sb.from("app_state").upsert({key:STATE_KEY, value:v}, {onConflict:"user_id,key"});
+    await _sb.from("app_state").upsert({key:STATE_KEY, user_id:user.id, value:v}, {onConflict:"user_id,key"});
   }catch(e){ console.warn("sync falhou", e); }
 }
 // grava imediatamente (usado após importação/limpeza) e ao sair da página

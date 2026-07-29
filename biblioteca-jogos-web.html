@@ -93,6 +93,16 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
 #rollOverlay { position:fixed; inset:0; z-index:8500; background:rgba(0,0,0,.65); display:none; align-items:center; justify-content:center; padding:20px; }
 #rollOverlay.show { display:flex; }
 .rollbox { background:var(--card); border:1.5px solid var(--border); border-radius:16px; padding:22px; width:340px; max-width:92vw; box-shadow:0 12px 40px rgba(0,0,0,.5); }
+#steamOverlay { position:fixed; inset:0; z-index:8600; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; padding:20px; overflow:auto; }
+#steamOverlay.show { display:flex; }
+.steambox { background:var(--card); border:1.5px solid var(--border); border-radius:16px; padding:24px; width:520px; max-width:94vw; box-shadow:0 12px 44px rgba(0,0,0,.55); max-height:92vh; overflow:auto; }
+.steambox .stp { display:flex; gap:12px; margin-bottom:14px; }
+.steambox .stpn { flex:0 0 26px; height:26px; border-radius:50%; background:var(--accent,#4f7cf7); color:#fff; font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center; }
+.steambox .stx { font-size:13px; color:var(--muted); line-height:1.55; }
+.steambox code { background:var(--border); padding:1px 5px; border-radius:5px; font-size:12px; }
+.steambox a { color:var(--accent,#6f9bff); }
+.steambox .sin { width:100%; box-sizing:border-box; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; padding:12px 14px; color:var(--fg,inherit); font-size:14px; font-family:ui-monospace,monospace; }
+.steambox .sin:focus { outline:none; border-color:var(--accent,#4f7cf7); }
 .rollpick { text-align:center; }
 .rollpick .rc { width:100%; aspect-ratio:460/215; border-radius:12px; overflow:hidden; position:relative; margin-bottom:12px; }
 .rollpick .rc img { width:100%; height:100%; object-fit:cover; }
@@ -193,6 +203,8 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
     </select>
     <button class="btn" onclick="toggleAdd()">➕ Adicionar jogo</button>
     <button class="btn on" onclick="rollGame()">🎲 O que jogar?</button>
+    <button class="btn" id="resyncBtn" onclick="reSyncSteam()" title="Buscar novos jogos e horas na sua Steam">🔄 Sincronizar</button>
+    <button class="btn" onclick="openSteam()" title="Vincular ou trocar sua conta Steam">🎮 Steam</button>
     <button class="btn" id="hiddenToggle" onclick="toggleHidden()" style="display:none"></button>
   </div>
 
@@ -220,6 +232,41 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
       <div style="display:flex;gap:10px;margin-top:16px">
         <button class="btn on" style="flex:1" onclick="rollGame()">🎲 Sortear de novo</button>
         <button class="btn" onclick="closeRoll()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="steamOverlay" onclick="if(event.target===this)closeSteam()">
+    <div class="steambox">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:18px;font-weight:800">🎮 Vincular sua Steam</div>
+        <button class="btn" onclick="closeSteam()" style="padding:4px 10px">✕</button>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Siga os 3 passos abaixo. Sua chave fica <b>guardada com segurança</b> — só você tem acesso, e ela nunca aparece pra outras pessoas.</div>
+
+      <div class="stp"><div class="stpn">1</div><div>
+        <b>Pegue sua chave de API da Steam</b><br>
+        <span class="stx">Abra <a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener">steamcommunity.com/dev/apikey</a> (logado na sua conta Steam). Em <b>“Domain Name”</b> digite qualquer coisa, ex.: <code>meu-assistente</code>. Marque o termo e clique em <b>Register</b>. Vai aparecer uma <b>Key</b> de 32 caracteres — copie ela.</span>
+      </div></div>
+
+      <div class="stp"><div class="stpn">2</div><div>
+        <b>Pegue seu SteamID64</b><br>
+        <span class="stx">Abra <a href="https://steamid.io" target="_blank" rel="noopener">steamid.io</a>, cole o link do seu perfil da Steam e copie o número <b>steamID64</b> (17 dígitos, começa com 7656…).</span>
+      </div></div>
+
+      <div class="stp"><div class="stpn">3</div><div>
+        <b>Deixe seu perfil público</b><br>
+        <span class="stx">Na Steam: <b>Perfil → Editar perfil → Privacidade</b>. Deixe <b>“Detalhes do jogo”</b> como <b>Público</b> (senão a Steam não devolve seus jogos).</span>
+      </div></div>
+
+      <div style="margin-top:14px">
+        <input id="steamKeyIn" class="sin" placeholder="Chave de API (32 caracteres)" autocomplete="off">
+        <input id="steamIdIn" class="sin" placeholder="SteamID64 (17 dígitos)" autocomplete="off" style="margin-top:8px">
+      </div>
+      <div id="steamMsg" style="font-size:13px;margin-top:10px;min-height:18px"></div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button id="steamGo" class="btn on" style="flex:1" onclick="saveSteamAndSync()">🔗 Vincular e sincronizar</button>
+        <button class="btn" onclick="closeSteam()">Cancelar</button>
       </div>
     </div>
   </div>
@@ -403,6 +450,45 @@ function rollGame(){
   document.getElementById("rollOverlay").classList.add("show");
 }
 function closeRoll(){ document.getElementById("rollOverlay").classList.remove("show"); }
+
+async function openSteam(){
+  document.getElementById("steamOverlay").classList.add("show");
+  document.getElementById("steamMsg").textContent="";
+  // pré-preenche se já vinculou antes (mostra a chave só pro próprio dono)
+  try{
+    const {data:{user}}=await _sb.auth.getUser();
+    const {data:k}=await _sb.from("user_keys").select("steam_key,steam_id").eq("user_id",user.id).maybeSingle();
+    if(k){ document.getElementById("steamKeyIn").value=k.steam_key||""; document.getElementById("steamIdIn").value=k.steam_id||""; }
+  }catch(e){}
+}
+function closeSteam(){ document.getElementById("steamOverlay").classList.remove("show"); }
+function smsg(t,ok){ const e=document.getElementById("steamMsg"); e.textContent=t; e.style.color=ok?"#3ecf9a":"#f07567"; }
+async function saveSteamAndSync(){
+  const key=document.getElementById("steamKeyIn").value.trim();
+  const sid=document.getElementById("steamIdIn").value.trim();
+  if(!/^[A-Fa-f0-9]{32}$/.test(key)){ smsg("A chave deve ter 32 caracteres (letras e números). Confira e cole de novo."); return; }
+  if(!/^7656\d{13}$/.test(sid)){ smsg("O SteamID64 tem 17 dígitos e começa com 7656. Pegue em steamid.io."); return; }
+  const btn=document.getElementById("steamGo"); btn.disabled=true; const old=btn.textContent; btn.textContent="⏳ Sincronizando…";
+  try{
+    const {data:{user}}=await _sb.auth.getUser();
+    const {error:ke}=await _sb.from("user_keys").upsert({user_id:user.id, steam_key:key, steam_id:sid},{onConflict:"user_id"});
+    if(ke){ smsg("Não consegui salvar a chave: "+ke.message); btn.disabled=false; btn.textContent=old; return; }
+    smsg("Buscando seus jogos na Steam… (pode levar alguns segundos)",true);
+    const {data,error}=await _sb.functions.invoke("sync-my-games");
+    if(error){ smsg("Erro na sincronização: "+(error.message||error)); btn.disabled=false; btn.textContent=old; return; }
+    if(data && data.error){ smsg(data.error); btn.disabled=false; btn.textContent=old; return; }
+    smsg("✅ "+(data&&data.count||0)+" jogos importados! Recarregando…",true);
+    setTimeout(()=>location.reload(),900);
+  }catch(e){ smsg("Falhou: "+(e.message||e)); btn.disabled=false; btn.textContent=old; }
+}
+async function reSyncSteam(){
+  const btn=document.getElementById("resyncBtn"); if(btn){ btn.disabled=true; btn.textContent="⏳ Sincronizando…"; }
+  try{
+    const {data,error}=await _sb.functions.invoke("sync-my-games");
+    if(error||(data&&data.error)){ alert("Erro: "+((error&&error.message)||(data&&data.error))); if(btn){btn.disabled=false;btn.textContent="🔄 Sincronizar";} return; }
+    location.reload();
+  }catch(e){ alert("Falhou: "+(e.message||e)); if(btn){btn.disabled=false;btn.textContent="🔄 Sincronizar";} }
+}
 function toggleTheme(){ const b=document.body; const d=b.dataset.theme==="dark";
   b.dataset.theme=d?"light":"dark"; document.getElementById("themeBtn").textContent=d?"🌙 Escuro":"☀️ Claro";
   localStorage.setItem("gamelib_theme",b.dataset.theme); }
@@ -610,7 +696,7 @@ function render(){
     ach:(a,b)=>(b.total?b.unlocked/b.total:0)-(a.total?a.unlocked/a.total:0), name:(a,b)=>a.name.localeCompare(b.name)};
   list.sort(sorters[sb]);
   const emptyMsg = window.__notLinked
-    ? `<div class="empty" style="max-width:520px;margin:0 auto;line-height:1.6"><div style="font-size:40px">🎮</div><h3 style="margin:8px 0">Vincule sua Steam pra ver seus jogos</h3><p>Sua biblioteca é <b>só sua</b>. Em breve você vai poder vincular sua conta Steam aqui (com sua própria chave de API) pra trazer todos os seus jogos automaticamente. Por enquanto, dá pra <b>➕ Adicionar jogo</b> manualmente.</p></div>`
+    ? `<div class="empty" style="max-width:520px;margin:0 auto;line-height:1.6"><div style="font-size:40px">🎮</div><h3 style="margin:8px 0">Vincule sua Steam pra ver seus jogos</h3><p>Sua biblioteca é <b>só sua</b>. Vincule sua conta Steam com a <b>sua própria chave de API</b> pra trazer todos os seus jogos automaticamente — a gente guarda essa chave em segurança, só você tem acesso. Prefere manual? Use <b>➕ Adicionar jogo</b>.</p><button class="btn on" style="margin-top:12px;padding:11px 22px" onclick="openSteam()">🔗 Vincular minha Steam</button></div>`
     : `<div class="empty">Nenhum jogo encontrado.</div>`;
   document.getElementById("list").innerHTML=list.length?list.map(g=>gameCard(g)).join(""):emptyMsg;
 }
@@ -663,33 +749,48 @@ async function onLogin(){
 }
 async function hydrateGameData(){
   if(STATE_KEY!=="games") return; // só o app de jogos usa catálogo ao vivo
-  // ISOLAMENTO: os jogos sincronizados são do dono da conta. Outros usuários NÃO os veem.
   GAMES = [];
   try{
     const {data:{user}} = await _sb.auth.getUser();
-    const {data:p} = await _sb.from("profiles").select("is_admin").eq("user_id",user.id).maybeSingle();
-    if(!(p && p.is_admin)){ window.__notLinked = true; return; } // não-admin: biblioteca vazia (vincular Steam em breve)
-    const {data} = await _sb.from("game_data").select("value").eq("id","library").maybeSingle();
-    if(data && Array.isArray(data.value) && data.value.length){ GAMES = data.value; }
+    window.__uid = user.id;
+    // catálogo POR USUÁRIO (id = user_id): cada um só vê os próprios jogos
+    const {data} = await _sb.from("game_data").select("value").eq("id",user.id).maybeSingle();
+    if(data && Array.isArray(data.value) && data.value.length){ GAMES = data.value; window.__notLinked = false; }
+    else {
+      const {data:k} = await _sb.from("user_keys").select("steam_key").eq("user_id",user.id).maybeSingle();
+      window.__notLinked = !(k && k.steam_key);
+    }
   }catch(e){ console.warn("game_data falhou", e); }
 }
 async function hydrate(){
   try{
-    const {data} = await _sb.from("app_state").select("value").eq("key",STATE_KEY).maybeSingle();
+    const {data:{user}} = await _sb.auth.getUser();
+    if(!user) return;
+    // se o localStorage é de OUTRO usuário (ex: conta trocada nesse navegador), descarta
+    const owner = localStorage.getItem(STORAGE_KEY+"_owner");
+    if(owner && owner!==user.id){ localStorage.removeItem(STORAGE_KEY); }
+    // lê SÓ a linha desse usuário
+    const {data} = await _sb.from("app_state").select("value").eq("key",STATE_KEY).eq("user_id",user.id).maybeSingle();
     if(data && data.value){
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data.value));
     } else {
       const local = localStorage.getItem(STORAGE_KEY);
-      if(local) await _sb.from("app_state").upsert({key:STATE_KEY, value:JSON.parse(local)}, {onConflict:"user_id,key"});
+      // só sobe o local se ele pertence a ESTE usuário (nunca dados de outra conta)
+      if(local && owner===user.id) await _sb.from("app_state").upsert({key:STATE_KEY, user_id:user.id, value:JSON.parse(local)}, {onConflict:"user_id,key"});
     }
+    localStorage.setItem(STORAGE_KEY+"_owner", user.id);
   }catch(e){ console.warn("hydrate falhou", e); }
 }
 let _syncT;
 function queueSync(){ clearTimeout(_syncT); _syncT=setTimeout(pushState, 500); }
 async function pushState(){
   try{
+    const {data:{user}} = await _sb.auth.getUser();
+    if(!user) return;
+    // não grava dados que pertencem a outra conta ainda em cache
+    if(localStorage.getItem(STORAGE_KEY+"_owner")!==user.id) return;
     const v = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    await _sb.from("app_state").upsert({key:STATE_KEY, value:v}, {onConflict:"user_id,key"});
+    await _sb.from("app_state").upsert({key:STATE_KEY, user_id:user.id, value:v}, {onConflict:"user_id,key"});
   }catch(e){ console.warn("sync falhou", e); }
 }
 // grava imediatamente (usado após importação/limpeza) e ao sair da página
