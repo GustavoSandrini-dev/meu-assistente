@@ -287,15 +287,17 @@ function render(){
   }
   if(!prontos.length&&!embreve.length){ html+=`<div class="cd" style="margin-top:10px">Todos os módulos já estão na sua tela. 🎉</div>`; }
   html+=`</div>`;
-  // card da agenda
-  const d=new Date().getDay();
-  let blocks = ROT[d] || (d===0||d===6 ? ROT_FDS : ROT_DEF);
-  if(d===2||d===5) blocks=ROT[d];
-  const ag=blocks.map(b=>`<div class="slot"><span class="dot" style="background:${b[2]||'var(--accent)'}"></span><span class="t">${b[0]}</span><span>${b[1]}</span></div>`).join("");
-  html+=`<div class="agenda">
-    <h2>🗓️ Agenda de hoje — ${DIA[d]} <a href="https://calendar.google.com/calendar/r/day" target="_blank">Abrir Google Agenda ↗</a></h2>
-    ${ag||'<div class="cd">Dia livre.</div>'}
-  </div>`;
+  // card da agenda — só o dono (admin) vê a rotina fixa; cada usuário tem a sua (por enquanto só a do admin existe)
+  if(profile.is_admin){
+    const d=new Date().getDay();
+    let blocks = ROT[d] || (d===0||d===6 ? ROT_FDS : ROT_DEF);
+    if(d===2||d===5) blocks=ROT[d];
+    const ag=blocks.map(b=>`<div class="slot"><span class="dot" style="background:${b[2]||'var(--accent)'}"></span><span class="t">${b[0]}</span><span>${b[1]}</span></div>`).join("");
+    html+=`<div class="agenda">
+      <h2>🗓️ Agenda de hoje — ${DIA[d]} <a href="https://calendar.google.com/calendar/r/day" target="_blank">Abrir Google Agenda ↗</a></h2>
+      ${ag||'<div class="cd">Dia livre.</div>'}
+    </div>`;
+  }
   document.getElementById("cards").innerHTML=html;
 }
 
