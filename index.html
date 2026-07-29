@@ -172,7 +172,7 @@ async function submitAuth(){
     window.__signup={nome,phone:fone};
     amsg("Criando conta…",true);
     try{
-      const {data,error}=await sb.auth.signUp({email,password:pw});
+      const {data,error}=await sb.auth.signUp({email,password:pw,options:{emailRedirectTo:new URL("confirmado.html",location.href).href}});
       if(error){
         window.__signup=null;
         if(/already|registered|exists/i.test(error.message)) amsg("Esse e-mail já tem conta. Use a aba Entrar.");
