@@ -525,6 +525,7 @@ async function reSyncSteam(){
   try{
     const {data,error}=await _sb.functions.invoke("sync-my-games");
     if(error||(data&&data.error)){ alert("Erro: "+((error&&error.message)||(data&&data.error))); if(btn){btn.disabled=false;btn.textContent="🔄 Sincronizar";} return; }
+    alert("Sincronizado!\nJogos: "+(data.count||0)+"\nEnriquecidos agora: "+(data.enriched||0)+"\nFaltando: "+(data.pending!=null?data.pending:"?"));
     location.reload();
   }catch(e){ alert("Falhou: "+(e.message||e)); if(btn){btn.disabled=false;btn.textContent="🔄 Sincronizar";} }
 }
