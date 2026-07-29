@@ -79,8 +79,11 @@ input:focus,select:focus { border-color:var(--accent); }
 .rawg-row img{width:46px;height:26px;object-fit:cover;border-radius:4px;flex-shrink:0}
 .rawg-row .ph{width:46px;height:26px;background:var(--row);border-radius:4px;flex-shrink:0}
 textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padding:8px; font-size:13px; background:var(--input); color:var(--text); resize:vertical; min-height:38px; font-family:inherit; }
-.links { font-size:11px; margin-top:8px; display:flex; gap:12px; }
-.links a { color:var(--accent); text-decoration:none; }
+.links { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.links a, .links .del-mini { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; line-height:1; padding:6px 10px; border-radius:999px; border:1px solid var(--border); background:var(--row); color:var(--muted); text-decoration:none; cursor:pointer; font-family:inherit; transition:border-color .12s, color .12s; }
+.links a:hover, .links .del-mini:hover { border-color:var(--accent); color:var(--accent); }
+.links .del-mini.danger { color:#c0392b; }
+.links .del-mini.danger:hover { border-color:#c0392b; color:#c0392b; }
 .hltb { font-size:12px; }
 .hltb b { color:var(--text); }
 .empty { text-align:center; color:var(--muted); padding:30px; }
@@ -614,12 +617,12 @@ function gameCard(g,pos){
   const hl=g.hltb>0?`<div class="hltb">⏱ Campanha (HLTB): <b>~${g.hltb}h</b> · você: <b>${g.playtime}h</b> ${g.playtime>=g.hltb?"✓":`(${Math.round(g.playtime/g.hltb*100)}%)`}</div>`:"";
   const posT=pos!=null?`<span class="rankpos">#${pos}</span>`:"";
   let linkItems="";
-  if(plat==="Steam") linkItems=`<a href="https://store.steampowered.com/app/${ap}" target="_blank">Steam ↗</a><a href="https://steamhunters.com/apps/${ap}" target="_blank">SteamHunters ↗</a>`;
-  else if(plat==="Xbox") linkItems=`<a href="https://www.trueachievements.com/searchresults.aspx?search=${encodeURIComponent(g.name)}" target="_blank">TrueAchievements ↗</a>`;
-  linkItems+=`<a href="https://howlongtobeat.com/?q=${encodeURIComponent(g.name)}" target="_blank">HLTB ↗</a>`;
-  linkItems+=`<button class="del-mini" style="color:#7fa8ff" onclick="gameCover(${idArg})" title="Buscar capa na RAWG">🖼️ Capa</button>`;
-  if(g.manual) linkItems+=`<button class="del-mini" style="color:#7fa8ff" onclick="editManual('${aps}')">✏️ Editar</button><button class="del-mini" onclick="delManual('${aps}')">Excluir</button>`;
-  if(isHidden(g)) linkItems+=`<button class="del-mini" style="color:#7fa8ff" onclick="unhideGame(${idArg})">↩ Restaurar</button>`;
+  if(plat==="Steam") linkItems=`<a href="https://store.steampowered.com/app/${ap}" target="_blank">🎮 Steam</a><a href="https://steamhunters.com/apps/${ap}" target="_blank">🏆 SteamHunters</a>`;
+  else if(plat==="Xbox") linkItems=`<a href="https://www.trueachievements.com/searchresults.aspx?search=${encodeURIComponent(g.name)}" target="_blank">🏆 TrueAchievements</a>`;
+  linkItems+=`<a href="https://howlongtobeat.com/?q=${encodeURIComponent(g.name)}" target="_blank">⏱ HLTB</a>`;
+  linkItems+=`<button class="del-mini" onclick="gameCover(${idArg})" title="Buscar capa na RAWG">🖼️ Capa</button>`;
+  if(g.manual) linkItems+=`<button class="del-mini" onclick="editManual('${aps}')">✏️ Editar</button><button class="del-mini danger" onclick="delManual('${aps}')">🗑️ Excluir</button>`;
+  if(isHidden(g)) linkItems+=`<button class="del-mini" onclick="unhideGame(${idArg})">↩ Restaurar</button>`;
   else linkItems+=`<button class="del-mini" onclick="hideGame(${idArg})" title="Tirar da lista (sem apagar)">🚫 Ocultar</button>`;
   const links=`<div class="links">${linkItems}</div>`;
   const tp=typeOf(g);
