@@ -154,9 +154,12 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
   <div class="top">
     <div>
       <h1>🎮 Biblioteca de Jogos</h1>
-      <p class="sub">Steam de <strong>sandrinigustavo</strong> · <span id="lastsync"></span></p>
+      <p class="sub"><span id="ownerName">Steam</span> · <span id="lastsync"></span></p>
     </div>
-    <button class="btn" onclick="toggleTheme()" id="themeBtn">☀️ Claro</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn on" onclick="openSteam()" id="linkSteamBtn">🔗 Vincular sua Steam</button>
+      <button class="btn" onclick="toggleTheme()" id="themeBtn">☀️ Claro</button>
+    </div>
   </div>
 
   <div class="note">
@@ -262,6 +265,20 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
       <div style="margin-top:14px">
         <input id="steamKeyIn" class="sin" placeholder="Chave de API (32 caracteres)" autocomplete="off">
         <input id="steamIdIn" class="sin" placeholder="SteamID64 (17 dígitos)" autocomplete="off" style="margin-top:8px">
+      </div>
+      <div style="margin-top:14px;padding:12px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px">🕒 Atualização automática</div>
+        <div class="stx" style="margin-bottom:8px">A sincronização acontece <b>1x por dia</b> (não em tempo real). Escolha o horário (horário de Brasília):</div>
+        <select id="steamHour" class="sin" style="font-family:inherit">
+          <option value="3">03:00 (madrugada — recomendado)</option>
+          <option value="6">06:00</option>
+          <option value="9">09:00</option>
+          <option value="12">12:00</option>
+          <option value="15">15:00</option>
+          <option value="18">18:00</option>
+          <option value="21">21:00</option>
+          <option value="0">00:00 (meia-noite)</option>
+        </select>
       </div>
       <div id="steamMsg" style="font-size:13px;margin-top:10px;min-height:18px"></div>
       <div style="display:flex;gap:10px;margin-top:12px">
@@ -457,8 +474,12 @@ async function openSteam(){
   // pré-preenche se já vinculou antes (mostra a chave só pro próprio dono)
   try{
     const {data:{user}}=await _sb.auth.getUser();
-    const {data:k}=await _sb.from("user_keys").select("steam_key,steam_id").eq("user_id",user.id).maybeSingle();
-    if(k){ document.getElementById("steamKeyIn").value=k.steam_key||""; document.getElementById("steamIdIn").value=k.steam_id||""; }
+    const {data:k}=await _sb.from("user_keys").select("steam_key,steam_id,sync_hour").eq("user_id",user.id).maybeSingle();
+    if(k){
+      document.getElementById("steamKeyIn").value=k.steam_key||"";
+      document.getElementById("steamIdIn").value=k.steam_id||"";
+      if(k.sync_hour!=null) document.getElementById("steamHour").value=String(k.sync_hour);
+    }
   }catch(e){}
 }
 function closeSteam(){ document.getElementById("steamOverlay").classList.remove("show"); }
@@ -471,7 +492,8 @@ async function saveSteamAndSync(){
   const btn=document.getElementById("steamGo"); btn.disabled=true; const old=btn.textContent; btn.textContent="⏳ Sincronizando…";
   try{
     const {data:{user}}=await _sb.auth.getUser();
-    const {error:ke}=await _sb.from("user_keys").upsert({user_id:user.id, steam_key:key, steam_id:sid},{onConflict:"user_id"});
+    const hour=parseInt(document.getElementById("steamHour").value,10)||3;
+    const {error:ke}=await _sb.from("user_keys").upsert({user_id:user.id, steam_key:key, steam_id:sid, sync_hour:hour},{onConflict:"user_id"});
     if(ke){ smsg("Não consegui salvar a chave: "+ke.message); btn.disabled=false; btn.textContent=old; return; }
     smsg("Buscando seus jogos na Steam… (pode levar alguns segundos)",true);
     const {data,error}=await _sb.functions.invoke("sync-my-games");
@@ -760,6 +782,13 @@ async function hydrateGameData(){
       const {data:k} = await _sb.from("user_keys").select("steam_key").eq("user_id",user.id).maybeSingle();
       window.__notLinked = !(k && k.steam_key);
     }
+    // nome do dono no cabeçalho + rótulo do botão
+    try{
+      const {data:pf}=await _sb.from("profiles").select("display_name").eq("user_id",user.id).maybeSingle();
+      const nome=(pf&&pf.display_name)||(user.email||"").split("@")[0]||"você";
+      const on=document.getElementById("ownerName"); if(on) on.innerHTML="Steam de <strong>"+nome+"</strong>";
+      const lb=document.getElementById("linkSteamBtn"); if(lb) lb.textContent=window.__notLinked?"🔗 Vincular sua Steam":"⚙️ Minha Steam";
+    }catch(_){}
   }catch(e){ console.warn("game_data falhou", e); }
 }
 async function hydrate(){
