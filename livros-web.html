@@ -74,8 +74,11 @@ h1{font-size:22px;margin-bottom:2px}
 .chip{padding:6px 12px;border-radius:16px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer}
 .chip.act{background:var(--row);color:var(--text)}
 .sec-title{font-size:13px;font-weight:700;color:var(--muted);margin:18px 0 10px;text-transform:uppercase;letter-spacing:.5px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px}
-@media(min-width:1100px){#items.grid{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:14px}
+@media(min-width:1100px){#items.grid{grid-template-columns:repeat(auto-fill,minmax(185px,1fr))}}
+.libtabs{display:flex;gap:8px;margin-bottom:12px}
+.libtab{flex:0 0 auto;padding:9px 16px;border-radius:12px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer}
+.libtab.act{background:var(--accent);color:var(--accent-t);border-color:var(--accent)}
 .where{display:flex;gap:6px;flex-wrap:wrap}
 .where a{font-size:11px;color:var(--accent);text-decoration:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px}
 .where a:hover{border-color:var(--accent)}
@@ -164,9 +167,12 @@ select{flex:1}
     <div class="dropdown" id="dropdown"></div>
   </div>
 
+  <div class="libtabs" id="libtabs" style="display:none">
+    <span class="libtab act" data-t="biblio" onclick="setTab('biblio')">📚 Minha biblioteca</span>
+    <span class="libtab" data-t="wish" onclick="setTab('wish')">⭐ Lista de desejos</span>
+  </div>
   <div class="filters" id="filters" style="display:none">
     <span class="chip act" data-f="todos" onclick="setFilter('todos')">Todos</span>
-    <span class="chip" data-f="quero" onclick="setFilter('quero')">Quero ler</span>
     <span class="chip" data-f="lendo" onclick="setFilter('lendo')">Lendo</span>
     <span class="chip" data-f="lido" onclick="setFilter('lido')">Lido</span>
     <select id="fGenre" class="ffilter" onchange="FGENRE=this.value;renderItems()"><option value="">Todos os gêneros</option></select>
@@ -203,7 +209,14 @@ function setTheme(t){
 }
 applyTheme();
 
-let ME=null, COLS=[], ACTIVE=null, ITEMS=[], FILTER="todos";
+let ME=null, COLS=[], ACTIVE=null, ITEMS=[], FILTER="todos", LIB_TAB="biblio";
+function setTab(t){
+  LIB_TAB=t;
+  document.querySelectorAll("#libtabs .libtab").forEach(x=>x.classList.toggle("act",x.dataset.t===t));
+  document.getElementById("filters").style.display=(ITEMS.length && t==="biblio")?"flex":"none";
+  const lt=document.getElementById("listTitle"); if(lt) lt.style.display= t==="wish" ? "none" : (ITEMS.length?"block":"none");
+  renderItems();
+}
 let GOAL=parseInt(localStorage.getItem("livrosGoal")||"12",10);
 
 // ---------- login (e-mail + senha) ----------
@@ -272,7 +285,8 @@ async function loadItems(){
   const {data}=await sb.from("items").select("*").eq("collection_id",ACTIVE).order("created_at",{ascending:false});
   ITEMS=data||[];
   await migrateStars();
-  document.getElementById("filters").style.display=ITEMS.length?"flex":"none";
+  document.getElementById("libtabs").style.display=ITEMS.length?"flex":"none";
+  document.getElementById("filters").style.display=(ITEMS.length && LIB_TAB==="biblio")?"flex":"none";
   const c=COLS.find(x=>x.id===ACTIVE);
   const lt=document.getElementById("listTitle");
   lt.style.display=ITEMS.length?"block":"none";
@@ -373,14 +387,14 @@ async function porAutor(){
 async function showRecs(){
   const box=document.getElementById("recs"); if(!box) return;
   const temAutor=ITEMS.some(i=>((i.meta&&i.meta.authors)||"").trim());
-  box.innerHTML='<div class="sec-title">'+(temAutor?'✨ Recomendados pra você':'⭐ 50 melhores pra começar')+'</div><div class="empty">Carregando…</div>';
+  box.innerHTML='<div class="sec-title">'+(temAutor?'✨ Recomendados pra você':'⭐ Top 10 pra começar')+'</div><div class="empty">Carregando…</div>';
   let fonte = temAutor ? await porAutor() : [];
   if(!fonte.length) fonte = await melhores();
   const shelf=new Set(ITEMS.map(i=>normTitle(i.title)));
   const seen=new Set(), recs=[];
   fonte.forEach(b=>{ const nt=normTitle(b.title); if(!b.title||shelf.has(nt)||seen.has(nt)) return; seen.add(nt); recs.push(b); });
-  const final=recs.slice(0,50);
-  const titulo=temAutor?"✨ Recomendados — mais dos autores que você lê":"⭐ 50 melhores pra começar";
+  const final=recs.slice(0,10);
+  const titulo=temAutor?"✨ Recomendados — mais dos autores que você lê":"⭐ Top 10 pra começar";
   box.innerHTML=`<div class="sec-title">${titulo}</div>`+(final.length?`<div class="grid">${final.map(recCard).join("")}</div>`:`<div class="empty">Não consegui carregar agora. Recarregue a página. 📚</div>`);
 }
 function recCard(b){
@@ -452,16 +466,26 @@ async function setDate(id,which,val){
 const STLBL={quero:"Quero ler",lendo:"Lendo",lido:"Lido"};
 function renderItems(){
   const box=document.getElementById("items");
-  if(FILTER==="ranking"){
+  if(FILTER==="ranking" && LIB_TAB==="biblio"){
     const ranked=ITEMS.filter(i=>i.rating!=null).sort((a,b)=>b.rating-a.rating);
     if(!ranked.length){ box.innerHTML='<div class="empty">Dê notas aos livros pra montar o ranking. 🏆</div>'; return; }
     box.innerHTML=ranked.map((i,idx)=>bookCard(i,idx+1)).join(""); return;
   }
-  let list=FILTER==="todos"?ITEMS:ITEMS.filter(i=>(i.status||"quero")===FILTER);
+  let list;
+  if(LIB_TAB==="wish"){
+    list=ITEMS.filter(i=>(i.status||"quero")==="quero");
+    if(FGENRE) list=list.filter(i=>genreKey(i)===FGENRE);
+    if(FAUTHOR) list=list.filter(i=>authorKey(i)===FAUTHOR);
+    if(!list.length){ box.innerHTML='<div class="empty">Sua lista de desejos está vazia. Adicione livros que quer ler! ⭐</div>'; return; }
+    box.innerHTML=list.map(i=>bookCard(i)).join(""); return;
+  }
+  // biblioteca: só Lendo/Lido
+  const biblio=ITEMS.filter(i=>["lendo","lido"].includes(i.status||""));
+  list = FILTER==="todos" ? biblio : biblio.filter(i=>i.status===FILTER);
   if(FGENRE) list=list.filter(i=>genreKey(i)===FGENRE);
   if(FAUTHOR) list=list.filter(i=>authorKey(i)===FAUTHOR);
   if(FPUB) list=list.filter(i=>((i.meta&&i.meta.publisher)||"").split(",")[0].trim()===FPUB);
-  if(!list.length){ box.innerHTML='<div class="empty">Nenhum livro com esses filtros. 📚</div>'; return; }
+  if(!list.length){ box.innerHTML='<div class="empty">Nenhum livro aqui ainda. 📚</div>'; return; }
   box.innerHTML=list.map(i=>bookCard(i)).join("");
 }
 function medal(n){ return n===1?"🥇":n===2?"🥈":n===3?"🥉":"#"+n; }
@@ -475,7 +499,7 @@ function bookCard(i,rank){
     ${cover}${rankB}<span class="st ${st}">${STLBL[st]||st}</span></div>
     <div class="cb">
       <div class="tt">${esc(i.title)}</div>
-      <div class="au">${esc(m.authors||"")}${m.pages?" · "+m.pages+" pág":""}</div>
+      <div class="au">${esc(m.authors||"")}${m.pages?" · "+m.pages+" pág":""}${m.format?" · "+esc(m.format):""}</div>
       <div class="rowb">
         <select onchange="setStatus('${i.id}',this.value)">
           <option value="quero" ${st==="quero"?"selected":""}>Quero ler</option>
@@ -654,20 +678,35 @@ function addItem(payload){
       <div style="font-size:12px;color:var(--muted)">${esc(x.authors||"")}${x.yr?" · "+x.yr:""}</div></div>
     </div>
     <label>Onde colocar?</label>
-    <select id="mstatus"><option value="quero">Quero ler</option><option value="lendo">Lendo</option><option value="lido">Já li</option></select>
+    <select id="mstatus" onchange="updateAddFields()"><option value="quero">⭐ Lista de desejos</option><option value="lendo">📖 Lendo</option><option value="lido">✅ Já li</option></select>
+    <div id="mdaterow" style="display:none"><label id="mdatelbl">Data</label><input id="mdate" type="date"></div>
+    <label>Formato</label>
+    <select id="mformat"><option value="">— não informar —</option><option value="Físico">📕 Físico</option><option value="E-book">📱 E-book</option><option value="Kindle Unlimited">🅺 Kindle Unlimited</option><option value="Empréstimo">🤝 Empréstimo</option></select>
     <label>Estrelas (0 a 5, opcional)</label><input id="mrating" type="number" min="0" max="5" step="0.1" placeholder="—">
     <button class="btn" style="width:100%;margin-top:4px" onclick="confirmAdd()">Adicionar à estante</button>
     <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Cancelar</button>`;
   document.getElementById("modal").style.display="flex";
+  updateAddFields();
+}
+function updateAddFields(){
+  const st=document.getElementById("mstatus").value;
+  const row=document.getElementById("mdaterow"), lbl=document.getElementById("mdatelbl"), d=document.getElementById("mdate");
+  if(st==="lendo"){ row.style.display="block"; lbl.textContent="📖 Data que comecei"; if(!d.value) d.value=new Date().toISOString().slice(0,10); }
+  else if(st==="lido"){ row.style.display="block"; lbl.textContent="✅ Data que terminei"; if(!d.value) d.value=new Date().toISOString().slice(0,10); }
+  else { row.style.display="none"; }
 }
 async function confirmAdd(){
   const x=PENDING; if(!x) return;
   const status=document.getElementById("mstatus").value;
   const rv=document.getElementById("mrating").value;
   const rating=rv===""?null:Math.max(0,Math.min(5,parseFloat(rv)));
-  const meta={authors:x.authors,pages:x.pages,year:x.yr,genre:x.genre||"",publisher:x.publisher||"",hours:0,started_at:status==="lendo"?new Date().toISOString():null};
+  const dateVal=document.getElementById("mdate").value||null;
+  const format=document.getElementById("mformat").value||"";
+  const meta={authors:x.authors,pages:x.pages,year:x.yr,genre:x.genre||"",publisher:x.publisher||"",hours:0,format,started_at:status==="lendo"?new Date().toISOString():null};
+  if(status==="lendo") meta.startDate=dateVal;
+  if(status==="lido"){ meta.endDate=dateVal; }
   const row={collection_id:ACTIVE,kind:"livro",ext_id:String(x.id),title:x.title,poster:x.poster,status,rating,meta};
-  if(status==="lido") row.done_date=new Date().toISOString().slice(0,10);
+  if(status==="lido") row.done_date=dateVal||new Date().toISOString().slice(0,10);
   const {error}=await sb.from("items").insert(row);
   if(error){ alert("Erro: "+error.message); return; }
   PENDING=null; closeModal(); document.getElementById("q").value=""; hideDropdown(); await loadItems();
