@@ -171,7 +171,6 @@ select{flex:1}
 
   <div class="libtabs" id="libtabs" style="display:none">
     <span class="libtab act" data-t="biblio" onclick="setTab('biblio')">📚 Minha biblioteca</span>
-    <span class="libtab" data-t="wish" onclick="setTab('wish')">⭐ Lista de desejos</span>
     <span class="libtab" data-t="stats" onclick="setTab('stats')">📊 Estatísticas</span>
   </div>
   <div id="statsView" style="display:none">
@@ -180,8 +179,9 @@ select{flex:1}
   </div>
   <div class="filters" id="filters" style="display:none">
     <span class="chip act" data-f="todos" onclick="setFilter('todos')">Todos</span>
-    <span class="chip" data-f="lendo" onclick="setFilter('lendo')">Lendo</span>
-    <span class="chip" data-f="lido" onclick="setFilter('lido')">Lido</span>
+    <span class="chip" data-f="quero" onclick="setFilter('quero')">⭐ Lista de desejos</span>
+    <span class="chip" data-f="lendo" onclick="setFilter('lendo')">📖 Lendo</span>
+    <span class="chip" data-f="lido" onclick="setFilter('lido')">✅ Lido</span>
     <select id="fGenre" class="ffilter" onchange="FGENRE=this.value;renderItems()"><option value="">Todos os gêneros</option></select>
     <select id="fAuthor" class="ffilter" onchange="FAUTHOR=this.value;renderItems()"><option value="">Todos os autores</option></select>
     <span class="chip" data-f="ranking" onclick="setFilter('ranking')" style="margin-left:auto">🏆 Ranking</span>
@@ -222,10 +222,10 @@ function setTab(t){
   document.querySelectorAll("#libtabs .libtab").forEach(x=>x.classList.toggle("act",x.dataset.t===t));
   const stats = t==="stats";
   document.getElementById("statsView").style.display = stats ? "block" : "none";
-  document.getElementById("filters").style.display=(ITEMS.length && t==="biblio")?"flex":"none";
+  document.getElementById("filters").style.display=(ITEMS.length && !stats)?"flex":"none";
   document.getElementById("items").style.display = stats ? "none" : "grid";
   const rec=document.getElementById("recs"); if(rec) rec.style.display = stats ? "none" : "block";
-  const lt=document.getElementById("listTitle"); if(lt) lt.style.display = (stats||t==="wish") ? "none" : (ITEMS.length?"block":"none");
+  const lt=document.getElementById("listTitle"); if(lt) lt.style.display = stats ? "none" : (ITEMS.length?"block":"none");
   if(!stats) renderItems();
 }
 let GOAL=parseInt(localStorage.getItem("livrosGoal")||"12",10);
@@ -475,7 +475,7 @@ async function setDate(id,which,val){
   if(which==="end"){ upd.done_date=val||null; i.done_date=val||null; }
   i.meta=m;
   await sb.from("items").update(upd).eq("id",id);
-  renderGoal(); renderStats(); renderItems();
+  renderGoal(); renderStats();  // sem renderItems: não fecha o bloco de datas enquanto você digita
 }
 
 const STLBL={quero:"Quero ler",lendo:"Lendo",lido:"Lido"};
@@ -486,17 +486,8 @@ function renderItems(){
     if(!ranked.length){ box.innerHTML='<div class="empty">Dê notas aos livros pra montar o ranking. 🏆</div>'; return; }
     box.innerHTML=ranked.map((i,idx)=>bookCard(i,idx+1)).join(""); return;
   }
-  let list;
-  if(LIB_TAB==="wish"){
-    list=ITEMS.filter(i=>(i.status||"quero")==="quero");
-    if(FGENRE) list=list.filter(i=>genreKey(i)===FGENRE);
-    if(FAUTHOR) list=list.filter(i=>authorKey(i)===FAUTHOR);
-    if(!list.length){ box.innerHTML='<div class="empty">Sua lista de desejos está vazia. Adicione livros que quer ler! ⭐</div>'; return; }
-    box.innerHTML=list.map(i=>bookCard(i)).join(""); return;
-  }
-  // biblioteca: só Lendo/Lido
-  const biblio=ITEMS.filter(i=>["lendo","lido"].includes(i.status||""));
-  list = FILTER==="todos" ? biblio : biblio.filter(i=>i.status===FILTER);
+  // "Todos" mostra tudo (lista de desejos + lendo + lido); os chips filtram por status
+  let list = FILTER==="todos" ? ITEMS.slice() : ITEMS.filter(i=>(i.status||"quero")===FILTER);
   if(FGENRE) list=list.filter(i=>genreKey(i)===FGENRE);
   if(FAUTHOR) list=list.filter(i=>authorKey(i)===FAUTHOR);
   if(FPUB) list=list.filter(i=>((i.meta&&i.meta.publisher)||"").split(",")[0].trim()===FPUB);
