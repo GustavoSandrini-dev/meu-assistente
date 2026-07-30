@@ -216,10 +216,20 @@ td.val { font-weight: 600; white-space: nowrap; }
     <div id="authMsg" style="font-size:12px;margin-top:12px;min-height:16px;color:#f07567"></div>
   </div>
 </div>
-<button id="logoutBtn" onclick="authLogout()" style="display:none;position:fixed;bottom:14px;right:14px;z-index:9000;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:20px;padding:8px 14px;font-size:12px;cursor:pointer">Sair</button>
-
-<div id="appNav" style="max-width:1200px;margin:0 auto 4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 2px">
-  <a href="index.html" style="text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);background:var(--card);color:var(--muted)">🏠 Início</a> <a href="painel-financeiro-web.html" style="text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);background:var(--accent);color:var(--accent-t);border-color:var(--accent)">💰 Financeiro</a> <a href="biblioteca-jogos-web.html" style="text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);background:var(--card);color:var(--muted)">🎮 Jogos</a>
+<div style="max-width:1200px;margin:0 auto 4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 2px">
+  <div id="appNav" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <a href="index.html" style="text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);background:var(--card);color:var(--muted)">🏠 Início</a>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <select id="theme" onchange="setTheme(this.value)" title="Tema" style="font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer">
+      <option value="claro">☀️ Claro</option><option value="escuro">🌙 Escuro</option>
+      <option value="rosa">🌸 Rosa</option><option value="rosa-escuro">🌺 Rosa Escuro</option>
+      <option value="dracula">🧛 Dracula</option><option value="nord">❄️ Nord</option>
+      <option value="solarizado">🌤️ Solarizado</option><option value="oceano">🌊 Oceano</option>
+      <option value="floresta">🌲 Floresta</option><option value="sepia">📜 Sépia</option>
+    </select>
+    <button id="logoutBtn" onclick="authLogout()" style="font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer">Sair</button>
+  </div>
 </div>
 
 <div class="container">
@@ -227,21 +237,6 @@ td.val { font-weight: 600; white-space: nowrap; }
     <div>
       <h1 id="pageTitle">💰 Painel Financeiro</h1>
       <p class="subtitle" id="pageSub">Orçamento por grupos — defina um limite por card</p>
-    </div>
-    <div class="theme-pick">
-      <label for="theme" style="margin:0">Tema</label>
-      <select id="theme" onchange="setTheme(this.value)">
-        <option value="claro">☀️ Claro</option>
-        <option value="escuro">🌙 Escuro</option>
-        <option value="rosa">🌸 Rosa</option>
-        <option value="rosa-escuro">🌺 Rosa Escuro</option>
-        <option value="dracula">🧛 Dracula</option>
-        <option value="nord">❄️ Nord</option>
-        <option value="solarizado">🌤️ Solarizado</option>
-        <option value="oceano">🌊 Oceano</option>
-        <option value="floresta">🌲 Floresta</option>
-        <option value="sepia">📜 Sépia</option>
-      </select>
     </div>
   </div>
 
@@ -991,7 +986,6 @@ function authReset(){
 async function authLogout(){ try{ await _sb.auth.signOut(); }catch(e){} localStorage.removeItem("fin5030"); localStorage.removeItem("fin5030_owner"); location.href="index.html"; }
 async function onLogin(){
   document.getElementById("authOverlay").style.display="none";
-  document.getElementById("logoutBtn").style.display="block";
   buildNav(_sb,"financeiro");
   await hydrate();
   if(window.__boot) window.__boot();

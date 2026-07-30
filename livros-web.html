@@ -144,6 +144,7 @@ select{flex:1}
 <div class="wrap" id="app" style="display:none">
   <div class="nav">
     <span id="navLinks" style="display:contents"><a href="index.html">🏠 Início</a></span>
+    <button onclick="pickGoodreads()" style="margin-left:auto">📥 Goodreads</button>
     <select id="themeSel" onchange="setTheme(this.value)" title="Tema">
       <option value="claro">☀️ Claro</option><option value="escuro">🌙 Escuro</option>
       <option value="rosa">🌸 Rosa</option><option value="rosa-escuro">🌷 Rosa escuro</option>
@@ -151,7 +152,6 @@ select{flex:1}
       <option value="solarizado">🌅 Solarizado</option><option value="oceano">🌊 Oceano</option>
       <option value="floresta">🌲 Floresta</option><option value="sepia">📜 Sépia</option>
     </select>
-    <button onclick="pickGoodreads()" style="margin-left:auto">📥 Goodreads</button>
     <button onclick="logout()">Sair</button>
   </div>
   <input type="file" id="grFile" accept=".csv" style="display:none" onchange="importGoodreads(event)">
