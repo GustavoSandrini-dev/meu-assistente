@@ -95,8 +95,10 @@ h1{font-size:22px;margin-bottom:2px}
 .rowb{display:flex;gap:6px;align-items:center}
 select,.note,.cmt{background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:8px;padding:6px;font-size:12px}
 select{flex:1}
-.note{width:48px;text-align:center}
-.stars{display:inline-block;position:relative;font-size:15px;line-height:1;letter-spacing:1px;vertical-align:middle}
+.note{width:48px;flex:0 0 48px;text-align:center}
+.raterow{display:flex;align-items:center;gap:8px}
+.raterow .ratelbl{font-size:11px;color:var(--muted);font-weight:600}
+.stars{display:inline-block;position:relative;font-size:16px;line-height:1;letter-spacing:2px;vertical-align:middle;white-space:nowrap;flex:0 0 auto}
 .stars .bg{color:var(--border)}
 .stars .fg{position:absolute;left:0;top:0;color:#f5b301;overflow:hidden;white-space:nowrap}
 .cmt{width:100%;font-family:inherit;resize:vertical;min-height:34px;outline:none}
@@ -511,15 +513,18 @@ function bookCard(i,rank){
       <div class="tt">${esc(i.title)}</div>
       <div class="au">${esc(m.authors||"")}${m.pages?" · "+m.pages+" pág":""}${m.format?" · "+esc(m.format):""}</div>
       <div class="rowb">
-        <select onchange="setStatus('${i.id}',this.value)">
+        <select style="flex:1" onchange="setStatus('${i.id}',this.value)">
           <option value="quero" ${st==="quero"?"selected":""}>Quero ler</option>
           <option value="lendo" ${st==="lendo"?"selected":""}>Lendo</option>
           <option value="lido" ${st==="lido"?"selected":""}>Lido</option>
         </select>
+      </div>
+      <div id="dw-${i.id}" style="display:none">${datesBlock(i)}</div>
+      <div class="raterow">
+        <span class="ratelbl">Nota</span>
         <input class="note" type="number" min="0" max="5" step="0.1" placeholder="—" value="${i.rating??""}" onchange="setRating('${i.id}',this.value)" title="Estrelas 0 a 5">
         ${i.rating!=null?starsHTML(i.rating):'<span class="stars"><span class="bg">★★★★★</span></span>'}
       </div>
-      <div id="dw-${i.id}" style="display:none">${datesBlock(i)}</div>
       <textarea class="cmt" placeholder="Comentário…" onchange="setNote('${i.id}',this.value)">${esc(i.note||"")}</textarea>
       <div class="where" id="wh-${i.id}"></div>
       <div class="rowb" style="justify-content:space-between;flex-wrap:wrap">
