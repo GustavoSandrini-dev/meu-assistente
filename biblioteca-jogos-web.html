@@ -66,7 +66,7 @@ input:focus,select:focus { border-color:var(--accent); }
 .st-back{background:#e3e8f0;color:#57617a}.st-play{background:#dbeafe;color:#1d4ed8}
 .st-zer{background:#dcfce7;color:#15803d}.st-plat{background:#fef3c7;color:#b45309}.st-aband{background:#fee2e2;color:#b91c1c}
 .plat-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;color:#fff}
-.p-Steam{background:#1b2838}.p-Epic{background:#2a2a2a}.p-GOG{background:#7b2ff7}.p-Nintendo{background:#e60012}.p-Xbox{background:#107c10}.p-Outro{background:#555}
+.p-Steam{background:#1b2838}.p-Epic{background:#2a2a2a}.p-GOG{background:#7b2ff7}.p-Nintendo{background:#e60012}.p-Xbox{background:#107c10}.p-PlayStation{background:#0070d1}.p-Outro{background:#555}
 .addbar{background:var(--card);border-radius:12px;padding:14px;box-shadow:var(--shadow);margin-bottom:16px;display:none}
 .addbar.open{display:block}
 .addgrid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:end}
@@ -96,8 +96,8 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
 #rollOverlay { position:fixed; inset:0; z-index:8500; background:rgba(0,0,0,.65); display:none; align-items:center; justify-content:center; padding:20px; }
 #rollOverlay.show { display:flex; }
 .rollbox { background:var(--card); border:1.5px solid var(--border); border-radius:16px; padding:22px; width:340px; max-width:92vw; box-shadow:0 12px 40px rgba(0,0,0,.5); }
-#steamOverlay { position:fixed; inset:0; z-index:8600; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; padding:20px; overflow:auto; }
-#steamOverlay.show { display:flex; }
+#steamOverlay, #xboxOverlay, #psnOverlay { position:fixed; inset:0; z-index:8600; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; padding:20px; overflow:auto; }
+#steamOverlay.show, #xboxOverlay.show, #psnOverlay.show { display:flex; }
 .steambox { background:var(--card); border:1.5px solid var(--border); border-radius:16px; padding:24px; width:520px; max-width:94vw; box-shadow:0 12px 44px rgba(0,0,0,.55); max-height:92vh; overflow:auto; }
 .steambox .stp { display:flex; gap:12px; margin-bottom:14px; }
 .steambox .stpn { flex:0 0 26px; height:26px; border-radius:50%; background:var(--accent,#4f7cf7); color:#fff; font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center; }
@@ -159,8 +159,10 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
       <h1>🎮 Biblioteca de Jogos</h1>
       <p class="sub"><span id="ownerName">Steam</span> · <span id="lastsync"></span></p>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn on" onclick="openSteam()" id="linkSteamBtn">🔗 Vincular sua Steam</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+      <button class="btn on" onclick="openSteam()" id="linkSteamBtn">🔗 Steam</button>
+      <button class="btn" onclick="openXbox()" id="linkXboxBtn">🟢 Xbox</button>
+      <button class="btn" onclick="openPsn()" id="linkPsnBtn">🔵 PlayStation</button>
       <button class="btn" onclick="toggleTheme()" id="themeBtn">☀️ Claro</button>
     </div>
   </div>
@@ -193,7 +195,7 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
     </select>
     <select id="fPlat" onchange="render()">
       <option value="">Todas plataformas</option>
-      <option>Steam</option><option>Epic</option><option>GOG</option><option>Nintendo</option><option>Xbox</option><option>Outro</option>
+      <option>Steam</option><option>Epic</option><option>GOG</option><option>Nintendo</option><option>Xbox</option><option>PlayStation</option><option>Outro</option>
     </select>
     <select id="fType" onchange="render()">
       <option value="">Todos os tipos</option>
@@ -217,7 +219,7 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
   <div class="addbar" id="addbar">
     <div class="addgrid">
       <div style="position:relative"><label>Nome do jogo</label><input id="aName" placeholder="Ex: Hades" oninput="RAWG_PENDING=null" autocomplete="off"><div id="rawgDrop"></div></div>
-      <div><label>Plataforma</label><select id="aPlat"><option>Epic</option><option>GOG</option><option>Nintendo</option><option>Xbox</option><option>Steam</option><option>Outro</option></select></div>
+      <div><label>Plataforma</label><select id="aPlat"><option>Epic</option><option>GOG</option><option>Nintendo</option><option>Xbox</option><option>PlayStation</option><option>Steam</option><option>Outro</option></select></div>
       <div><label>Horas (opcional)</label><input id="aHours" type="number" min="0" step="0.1" placeholder="0"></div>
       <div><label>Conquistas</label><input id="aUnlocked" type="number" min="0" placeholder="0"></div>
       <div><label>Total conquistas</label><input id="aTotal" type="number" min="0" placeholder="0"></div>
@@ -288,6 +290,64 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
       <div style="display:flex;gap:10px;margin-top:12px">
         <button id="steamGo" class="btn on" style="flex:1" onclick="saveSteamAndSync()">🔗 Vincular e sincronizar</button>
         <button class="btn" onclick="closeSteam()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="xboxOverlay" onclick="if(event.target===this)closeXbox()">
+    <div class="steambox">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:18px;font-weight:800">🟢 Vincular seu Xbox</div>
+        <button class="btn" onclick="closeXbox()" style="padding:4px 10px">✕</button>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Traz seus jogos e conquistas do Xbox via OpenXBL. Sua chave fica <b>guardada com segurança</b> — só você tem acesso.</div>
+      <div class="stp"><div class="stpn">1</div><div>
+        <b>Gere sua API key no OpenXBL</b><br>
+        <span class="stx">Abra <a href="https://xbl.io/" target="_blank" rel="noopener">xbl.io</a> e faça login com sua conta Microsoft. Em <b>API Keys</b>, crie/copiar sua chave.</span>
+      </div></div>
+      <div class="stp"><div class="stpn">2</div><div>
+        <b>Pegue seu XUID</b><br>
+        <span class="stx">No próprio xbl.io (ou em <a href="https://xboxgamertag.com/" target="_blank" rel="noopener">xboxgamertag.com</a>) procure seu <b>XUID</b> pelo seu gamertag e copie o número.</span>
+      </div></div>
+      <div class="stp"><div class="stpn">3</div><div>
+        <b>Deixe seu histórico público</b><br>
+        <span class="stx">No Xbox: <b>Privacidade e segurança online → histórico de jogos</b> como <b>Todos</b> (senão as conquistas não aparecem).</span>
+      </div></div>
+      <div style="margin-top:14px">
+        <input id="xblKeyIn" class="sin" placeholder="API key do OpenXBL" autocomplete="off">
+        <a id="xboxChange" onclick="changeXboxKey()" style="display:none;font-size:12px;color:var(--accent,#6f9bff);cursor:pointer;margin:4px 2px 0">🔓 Trocar chave</a>
+        <input id="xuidIn" class="sin" placeholder="XUID (só números)" autocomplete="off" style="margin-top:8px">
+      </div>
+      <div id="xboxMsg" style="font-size:13px;margin-top:10px;min-height:18px"></div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button id="xboxGo" class="btn on" style="flex:1" onclick="saveXboxAndSync()">🟢 Vincular e sincronizar</button>
+        <button class="btn" onclick="closeXbox()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="psnOverlay" onclick="if(event.target===this)closePsn()">
+    <div class="steambox">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:18px;font-weight:800">🔵 Vincular seu PlayStation</div>
+        <button class="btn" onclick="closePsn()" style="padding:4px 10px">✕</button>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Traz seus jogos com troféus do seu perfil PSN. Você só informa seu <b>ID</b> — nenhuma senha ou token seu é necessário.</div>
+      <div class="stp"><div class="stpn">1</div><div>
+        <b>Deixe seus troféus públicos</b><br>
+        <span class="stx">No PlayStation: <b>Ajustes → Privacidade → Compartilhar sua experiência → Troféus</b> = <b>Qualquer pessoa</b>. Sem isso, não conseguimos importar.</span>
+      </div></div>
+      <div class="stp"><div class="stpn">2</div><div>
+        <b>Informe seu PSN Online ID</b><br>
+        <span class="stx">É o seu nome de usuário da PlayStation (aparece no seu perfil). Importamos os jogos que têm troféus.</span>
+      </div></div>
+      <div style="margin-top:14px">
+        <input id="psnNameIn" class="sin" placeholder="Seu PSN Online ID (ex: sandrinigustavo)" autocomplete="off">
+      </div>
+      <div id="psnMsg" style="font-size:13px;margin-top:10px;min-height:18px"></div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button id="psnGo" class="btn on" style="flex:1" onclick="savePsnAndSync()">🔵 Vincular e sincronizar</button>
+        <button class="btn" onclick="closePsn()">Cancelar</button>
       </div>
     </div>
   </div>
@@ -495,6 +555,70 @@ async function openSteam(){
   }catch(e){}
 }
 function changeSteamKey(){ const k=document.getElementById("steamKeyIn"); k.value=""; k.readOnly=false; k.dataset.masked=""; k.placeholder="Cole a nova chave (32 caracteres)"; k.focus(); }
+
+// ---------- Xbox ----------
+async function openXbox(){
+  document.getElementById("xboxOverlay").classList.add("show");
+  document.getElementById("xboxMsg").textContent="";
+  const keyIn=document.getElementById("xblKeyIn"), chg=document.getElementById("xboxChange");
+  try{
+    const {data:{user}}=await _sb.auth.getUser();
+    const {data:k}=await _sb.from("user_keys").select("xbl_key,xuid").eq("user_id",user.id).maybeSingle();
+    if(k && k.xbl_key){ keyIn.value="•••••••••••• chave guardada"; keyIn.readOnly=true; keyIn.dataset.masked="1"; document.getElementById("xuidIn").value=k.xuid||""; chg.style.display="inline-block"; }
+    else { keyIn.value=""; keyIn.readOnly=false; keyIn.dataset.masked=""; document.getElementById("xuidIn").value=""; chg.style.display="none"; }
+  }catch(e){}
+}
+function changeXboxKey(){ const k=document.getElementById("xblKeyIn"); k.value=""; k.readOnly=false; k.dataset.masked=""; k.placeholder="Cole a nova API key"; k.focus(); }
+function closeXbox(){ document.getElementById("xboxOverlay").classList.remove("show"); }
+function xmsg(t,ok){ const e=document.getElementById("xboxMsg"); e.textContent=t; e.style.color=ok?"#3ecf9a":"#f07567"; }
+async function saveXboxAndSync(){
+  const keyIn=document.getElementById("xblKeyIn"); const masked=keyIn.dataset.masked==="1"; const key=keyIn.value.trim();
+  const xuid=document.getElementById("xuidIn").value.trim();
+  if(!masked && key.length<8){ xmsg("Cole sua API key do OpenXBL."); return; }
+  if(!/^\d{15,20}$/.test(xuid)){ xmsg("O XUID é só números (15-20 dígitos)."); return; }
+  const btn=document.getElementById("xboxGo"); btn.disabled=true; const old=btn.textContent; btn.textContent="⏳ Sincronizando…";
+  try{
+    const {data:{user}}=await _sb.auth.getUser();
+    const payload={user_id:user.id, xuid}; if(!masked) payload.xbl_key=key;
+    const {error:ke}=await _sb.from("user_keys").upsert(payload,{onConflict:"user_id"});
+    if(ke){ xmsg("Não consegui salvar: "+ke.message); btn.disabled=false; btn.textContent=old; return; }
+    xmsg("Buscando seus jogos do Xbox…",true);
+    const {data,error}=await _sb.functions.invoke("sync-my-games");
+    if(error){ xmsg("Erro: "+(error.message||error)); btn.disabled=false; btn.textContent=old; return; }
+    if(data && data.xbErr){ xmsg(data.xbErr); btn.disabled=false; btn.textContent=old; return; }
+    xmsg("✅ "+(data&&data.xbox||0)+" jogos do Xbox! Recarregando…",true);
+    setTimeout(()=>location.reload(),900);
+  }catch(e){ xmsg("Falhou: "+(e.message||e)); btn.disabled=false; btn.textContent=old; }
+}
+
+// ---------- PlayStation ----------
+async function openPsn(){
+  document.getElementById("psnOverlay").classList.add("show");
+  document.getElementById("psnMsg").textContent="";
+  try{
+    const {data:{user}}=await _sb.auth.getUser();
+    const {data:k}=await _sb.from("user_keys").select("psn_name").eq("user_id",user.id).maybeSingle();
+    document.getElementById("psnNameIn").value=(k&&k.psn_name)||"";
+  }catch(e){}
+}
+function closePsn(){ document.getElementById("psnOverlay").classList.remove("show"); }
+function pmsg(t,ok){ const e=document.getElementById("psnMsg"); e.textContent=t; e.style.color=ok?"#3ecf9a":"#f07567"; }
+async function savePsnAndSync(){
+  const name=document.getElementById("psnNameIn").value.trim();
+  if(name.length<3){ pmsg("Informe seu PSN Online ID."); return; }
+  const btn=document.getElementById("psnGo"); btn.disabled=true; const old=btn.textContent; btn.textContent="⏳ Sincronizando…";
+  try{
+    const {data:{user}}=await _sb.auth.getUser();
+    const {error:ke}=await _sb.from("user_keys").upsert({user_id:user.id, psn_name:name},{onConflict:"user_id"});
+    if(ke){ pmsg("Não consegui salvar: "+ke.message); btn.disabled=false; btn.textContent=old; return; }
+    pmsg("Buscando seus troféus na PSN…",true);
+    const {data,error}=await _sb.functions.invoke("sync-my-games");
+    if(error){ pmsg("Erro: "+(error.message||error)); btn.disabled=false; btn.textContent=old; return; }
+    if(data && data.psnErr){ pmsg(data.psnErr); btn.disabled=false; btn.textContent=old; return; }
+    pmsg("✅ "+(data&&data.psn||0)+" jogos da PSN! Recarregando…",true);
+    setTimeout(()=>location.reload(),900);
+  }catch(e){ pmsg("Falhou: "+(e.message||e)); btn.disabled=false; btn.textContent=old; }
+}
 function closeSteam(){ document.getElementById("steamOverlay").classList.remove("show"); }
 function smsg(t,ok){ const e=document.getElementById("steamMsg"); e.textContent=t; e.style.color=ok?"#3ecf9a":"#f07567"; }
 async function saveSteamAndSync(){
@@ -645,8 +769,8 @@ function gameCard(g,pos){
   const gn=genreOf(g), gn2=genre2Of(g);
   const gbadge=`<span class="plat-tag" style="background:var(--row);color:var(--text)">${GENRE_EMOJI[gn]||"🎲"} ${gn}</span>`
     + (gn2?` <span class="plat-tag" style="background:var(--row);color:var(--muted)">${GENRE_EMOJI[gn2]||"🎲"} ${gn2}</span>`:"");
-  const meta = g.xbox
-    ? `<span class="plat-tag p-${plat}">${plat}</span> ${tbadge} ${g.total>0?`${g.unlocked}/${g.total} conq.`:`${g.unlocked} conquistas`}`
+  const meta = (g.xbox || g.psn)
+    ? `<span class="plat-tag p-${plat}">${plat}</span> ${tbadge} ${g.total>0?`${g.unlocked}/${g.total} ${g.psn?"troféus":"conq."}`:`${g.unlocked} ${g.psn?"troféus":"conquistas"}`}${g.psn&&g.platinado?" · 🏆 platina":""}`
     : `<span class="plat-tag p-${plat}">${plat}</span> ${tbadge} ${g.playtime}h${g.total>0?` · ${g.unlocked}/${g.total} conq.`:""}`;
   const coverUrl = U(gid(g)).img || g.img || (isNum ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${ap}/header.jpg` : "");
   let coverImg = "";
