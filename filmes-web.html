@@ -25,6 +25,9 @@ body[data-theme="oceano"]{color-scheme:dark;--bg:#0f1c2e;--card:#16283e;--text:#
 body[data-theme="floresta"]{color-scheme:dark;--bg:#14211a;--card:#1d2f25;--text:#e2f2e7;--muted:#84a390;--label:#aecbb8;--border:#33503f;--row:#243c2f;--head:#33503f;--input:#182a20;--accent:#4ade80;--accent-h:#6ee79a;--accent-t:#0c2415;--pos:#4ade80;--neg:#f87171;--shadow:0 1px 6px rgba(0,0,0,.4)}
 body[data-theme="sepia"]{--bg:#f4ecd8;--card:#fbf5e6;--text:#43362a;--muted:#96866f;--label:#6e5c46;--border:#dfd0b4;--row:#efe5cd;--head:#dfd0b4;--input:#fffaf0;--accent:#8b5e34;--accent-h:#75492a;--accent-t:#fff8ec;--pos:#3f7d3a;--neg:#b3382c;--shadow:0 1px 4px rgba(110,80,40,.12)}
 #themeSel{background:var(--card);border:1.5px solid var(--border);color:var(--text);border-radius:9px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;flex:0 0 auto;width:auto;max-width:160px}
+.mtabs{display:flex;gap:8px;margin-bottom:14px}
+.mtab{padding:9px 16px;border-radius:12px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer}
+.mtab.act{background:var(--accent);color:var(--accent-t);border-color:var(--accent)}
 
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 32px}
@@ -140,8 +143,14 @@ select{flex:1}
 
   <div class="pills" id="pills"></div>
   <div id="shareRow" style="margin-bottom:14px;display:none"></div>
-  <div id="statsBox"></div>
 
+  <div class="mtabs" id="mtabs">
+    <span class="mtab act" data-v="lista" onclick="setView('lista')">📋 Minha lista</span>
+    <span class="mtab" data-v="stats" onclick="setView('stats')">📊 Estatísticas</span>
+  </div>
+  <div id="statsView" style="display:none"><div id="statsBox"></div></div>
+
+  <div id="listView">
   <div class="bar" style="position:relative">
     <input id="q" placeholder="Buscar filme ou série… (ex: Interestelar)" oninput="debSearch()" autocomplete="off">
     <button class="btn ghost" onclick="clearSearch()">Limpar</button>
@@ -160,6 +169,7 @@ select{flex:1}
   <div class="grid" id="items"></div>
 
   <div id="results"></div>
+  </div>
 </div>
 
 <div id="modal"><div id="modalbox"></div></div>
@@ -346,6 +356,12 @@ function itemCard(i,rank){
     </div></div>`;
 }
 
+function setView(v){
+  document.querySelectorAll("#mtabs .mtab").forEach(x=>x.classList.toggle("act",x.dataset.v===v));
+  const stats=v==="stats";
+  document.getElementById("statsView").style.display=stats?"block":"none";
+  document.getElementById("listView").style.display=stats?"none":"block";
+}
 // ---------- busca TMDB ----------
 let _t;
 function debSearch(){ clearTimeout(_t); _t=setTimeout(doSearch,300); }
