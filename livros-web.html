@@ -26,7 +26,7 @@ body[data-theme="floresta"]{color-scheme:dark;--bg:#14211a;--card:#1d2f25;--text
 body[data-theme="sepia"]{--bg:#f4ecd8;--card:#fbf5e6;--text:#43362a;--muted:#96866f;--label:#6e5c46;--border:#dfd0b4;--row:#efe5cd;--head:#dfd0b4;--input:#fffaf0;--accent:#8b5e34;--accent-h:#75492a;--accent-t:#fff8ec;--pos:#3f7d3a;--neg:#b3382c;--shadow:0 1px 4px rgba(110,80,40,.12)}
 /* ============ BASE ============ */
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 32px}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);background-image:radial-gradient(rgba(128,128,128,.13) 1.1px, transparent 1.1px);background-size:22px 22px;color:var(--text);min-height:100vh;padding:24px 32px}
 .wrap{max-width:1400px;margin:0 auto}
 .nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .nav a,.nav button,.nav select{text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer}
@@ -89,8 +89,8 @@ h1{font-size:22px;margin-bottom:2px}
 .rankbadge{position:absolute;top:8px;right:8px;background:var(--accent);color:var(--accent-t);font-size:16px;font-weight:800;padding:3px 10px;border-radius:9px}
 .st{position:absolute;bottom:8px;left:8px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px}
 .st.quero{background:#3a4152;color:#c9d0de}.st.lendo{background:#1e5b7a;color:#8fd4ff}.st.lido{background:#1e7a4d;color:#8affc0}
-.cb{padding:10px;display:flex;flex-direction:column;gap:7px;flex:1}
-.tt{font-size:15px;font-weight:700;line-height:1.25}
+.cb{padding:9px 10px;display:flex;flex-direction:column;gap:5px;flex:1}
+.tt{font-size:14px;font-weight:700;line-height:1.2}
 .au{font-size:12px;color:var(--muted)}
 .rowb{display:flex;gap:6px;align-items:center}
 select,.note,.cmt{background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:8px;padding:6px;font-size:12px}
@@ -153,9 +153,6 @@ select{flex:1}
   <h1>📚 Biblioteca de Livros</h1>
   <div class="sub">Leituras, avaliações e metas. Busca no Google Books (por título, autor ou ISBN).</div>
 
-  <div class="goal" id="goalBox"></div>
-  <div id="statsBox"></div>
-
   <div class="pills" id="pills"></div>
   <div id="shareRow" style="margin-bottom:14px;display:none"></div>
 
@@ -170,6 +167,11 @@ select{flex:1}
   <div class="libtabs" id="libtabs" style="display:none">
     <span class="libtab act" data-t="biblio" onclick="setTab('biblio')">📚 Minha biblioteca</span>
     <span class="libtab" data-t="wish" onclick="setTab('wish')">⭐ Lista de desejos</span>
+    <span class="libtab" data-t="stats" onclick="setTab('stats')">📊 Estatísticas</span>
+  </div>
+  <div id="statsView" style="display:none">
+    <div class="goal" id="goalBox"></div>
+    <div id="statsBox"></div>
   </div>
   <div class="filters" id="filters" style="display:none">
     <span class="chip act" data-f="todos" onclick="setFilter('todos')">Todos</span>
@@ -213,9 +215,13 @@ let ME=null, COLS=[], ACTIVE=null, ITEMS=[], FILTER="todos", LIB_TAB="biblio";
 function setTab(t){
   LIB_TAB=t;
   document.querySelectorAll("#libtabs .libtab").forEach(x=>x.classList.toggle("act",x.dataset.t===t));
+  const stats = t==="stats";
+  document.getElementById("statsView").style.display = stats ? "block" : "none";
   document.getElementById("filters").style.display=(ITEMS.length && t==="biblio")?"flex":"none";
-  const lt=document.getElementById("listTitle"); if(lt) lt.style.display= t==="wish" ? "none" : (ITEMS.length?"block":"none");
-  renderItems();
+  document.getElementById("items").style.display = stats ? "none" : "grid";
+  const rec=document.getElementById("recs"); if(rec) rec.style.display = stats ? "none" : "block";
+  const lt=document.getElementById("listTitle"); if(lt) lt.style.display = (stats||t==="wish") ? "none" : (ITEMS.length?"block":"none");
+  if(!stats) renderItems();
 }
 let GOAL=parseInt(localStorage.getItem("livrosGoal")||"12",10);
 
@@ -453,6 +459,7 @@ function datesBlock(i){
     <div class="drow"><span>✅ Fim</span><input type="date" value="${m.endDate||i.done_date||''}" onchange="setDate('${i.id}','end',this.value)"></div>
     ${dias!=null?`<b>⏱️ ${dias===0?'lido no mesmo dia':dias+' dia'+(dias>1?'s':'')}</b>`:''}</div>`;
 }
+function toggleDates(id){ const d=document.getElementById("dw-"+id); if(d) d.style.display=d.style.display==="none"?"block":"none"; }
 async function setDate(id,which,val){
   const i=ITEMS.find(x=>x.id===id); if(!i) return; const m=Object.assign({},i.meta||{});
   if(which==="start") m.startDate=val||null; else m.endDate=val||null;
@@ -509,10 +516,11 @@ function bookCard(i,rank){
         <input class="note" type="number" min="0" max="5" step="0.1" placeholder="—" value="${i.rating??""}" onchange="setRating('${i.id}',this.value)" title="Estrelas 0 a 5">
         ${i.rating!=null?starsHTML(i.rating):'<span class="stars"><span class="bg">★★★★★</span></span>'}
       </div>
-      ${datesBlock(i)}
+      <div id="dw-${i.id}" style="display:none">${datesBlock(i)}</div>
       <textarea class="cmt" placeholder="Comentário…" onchange="setNote('${i.id}',this.value)">${esc(i.note||"")}</textarea>
       <div class="where" id="wh-${i.id}"></div>
-      <div class="rowb" style="justify-content:space-between">
+      <div class="rowb" style="justify-content:space-between;flex-wrap:wrap">
+        ${st!=="quero"?`<button class="mini" onclick="toggleDates('${i.id}')">📅 Datas</button>`:""}
         <button class="mini" onclick="showWhere('${i.id}')">📖 Onde ler</button>
         <button class="mini" onclick="delItem('${i.id}')">remover</button>
       </div>
