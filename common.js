@@ -9,6 +9,7 @@ const NAVMODS = {
   jogos:      { name: "Jogos",      emoji: "🎮", url: "biblioteca-jogos-web.html" },
   filmes:     { name: "Filmes",     emoji: "🎬", url: "filmes-web.html" },
   livros:     { name: "Livros",     emoji: "📚", url: "livros-web.html" },
+  tarefas:    { name: "Tarefas",    emoji: "✅", url: "tarefas-web.html" },
 };
 
 // Monta o menu no container que existir na página:

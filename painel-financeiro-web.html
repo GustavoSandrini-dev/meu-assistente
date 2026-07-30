@@ -243,7 +243,6 @@ td.val { font-weight: 600; white-space: nowrap; }
   <div class="tabs">
     <button class="tab active" id="tabBtnFin" onclick="showTab('fin')">💰 Financeiro</button>
     <button class="tab" id="tabBtnGas" onclick="showTab('gastos')">💸 Gastos</button>
-    <button class="tab" id="tabBtnRot" onclick="showTab('rot')">🗓️ Rotina</button>
   </div>
 
   <div id="tab-fin">
@@ -307,15 +306,6 @@ td.val { font-weight: 600; white-space: nowrap; }
     <div id="expList"></div>
   </div>
   </div><!-- /tab-fin -->
-
-  <div id="tab-rot" style="display:none">
-    <div class="card" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between">
-      <div style="font-size:13px;color:var(--muted)">Rotina sincronizada com seu Google Agenda. Prioridade: <strong style="color:var(--text)">estudo do concurso</strong>. Dormir até 00h nos dias úteis.</div>
-      <a class="btn-sec" href="https://calendar.google.com/calendar/r/week" target="_blank" style="text-decoration:none">Abrir Google Agenda ↗</a>
-    </div>
-    <div class="legend" id="legend"></div>
-    <div class="day-grid" id="grade"></div>
-  </div>
 
   <div id="tab-gastos" style="display:none">
     <div class="card">
@@ -698,16 +688,12 @@ function confirmImport() {
 function showTab(t) {
   document.getElementById("tab-fin").style.display = t==="fin" ? "" : "none";
   document.getElementById("tab-gastos").style.display = t==="gastos" ? "" : "none";
-  document.getElementById("tab-rot").style.display = t==="rot" ? "" : "none";
   document.getElementById("tabBtnFin").classList.toggle("active", t==="fin");
   document.getElementById("tabBtnGas").classList.toggle("active", t==="gastos");
-  document.getElementById("tabBtnRot").classList.toggle("active", t==="rot");
   const titles={fin:["💰 Painel Financeiro","Orçamento por grupos — defina um limite por card"],
-    gastos:["💸 Gastos por categoria","Importe o extrato e veja onde seu dinheiro vai"],
-    rot:["🗓️ Minha Rotina","Semana organizada — trabalho, treino, estudo, projeto e lazer"]};
+    gastos:["💸 Gastos por categoria","Importe o extrato e veja onde seu dinheiro vai"]};
   document.getElementById("pageTitle").textContent = titles[t][0];
   document.getElementById("pageSub").textContent = titles[t][1];
-  if (t==="rot") renderRoutine();
   if (t==="gastos") renderGastos();
 }
 
