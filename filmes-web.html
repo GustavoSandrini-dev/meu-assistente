@@ -364,35 +364,34 @@ function refreshResults(){ const q=document.getElementById("q").value.trim(); if
 
 async function showReleases(){
   const R=document.getElementById("results");
-  // recomenda pelo gênero mais comum da sua lista (igual livros); se lista vazia, mostra os melhores de todos os tempos
+  // gênero mais comum da sua lista → recomenda FILMES e SÉRIES desse gênero; senão, populares de tudo
   const gc={}; ITEMS.forEach(i=>{ const g=(i.meta&&i.meta.genre)||""; if(g) gc[g]=(gc[g]||0)+1; });
   const topGenre=Object.keys(gc).sort((a,b)=>gc[b]-gc[a])[0];
-  const REV={}; Object.entries(GEN_MOVIE).forEach(([id,nm])=>{ REV[nm]=id; });
-  const gid=topGenre?REV[topGenre]:null;
-  const perso=!!gid;
-  const titulo=perso?`✨ Recomendados — ${esc(topGenre)}`:"⭐ Top 10 de todos os tempos";
+  const REVm={}; Object.entries(GEN_MOVIE).forEach(([id,nm])=>{ REVm[nm]=id; });
+  const REVt={}; Object.entries(GEN_TV).forEach(([id,nm])=>{ REVt[nm]=id; });
+  const mGid=topGenre?REVm[topGenre]:null, tGid=topGenre?REVt[topGenre]:null;
+  const perso=!!topGenre;
+  const titulo=perso?`✨ Recomendados — ${esc(topGenre)} (filmes e séries)`:"⭐ Populares — filmes e séries";
   R.innerHTML=`<div class="sec-title">${titulo}</div><div class="empty">Carregando…</div>`;
-  let all=[];
-  for(let p=1;p<=1;p++){
-    const path=perso ? `/discover/movie?with_genres=${gid}&sort_by=popularity.desc&vote_count.gte=200&language=pt-BR&page=${p}`
-                     : `/movie/top_rated?language=pt-BR&region=BR&page=${p}`;
-    const d=await tmdb(path);
-    (d.results||[]).forEach(x=>{ x.media_type="movie"; });
-    all=all.concat(d.results||[]);
-  }
-  const shelf=new Set(ITEMS.map(i=>String(i.ext_id)));
-  const seen=new Set();
-  all=all.filter(x=>{ if(seen.has(x.id)||shelf.has(String(x.id)))return false; seen.add(x.id); return true; });
-  if(!perso) all.sort((a,b)=>(b.vote_average||0)-(a.vote_average||0));
-  all=all.slice(0,10);
+  // página aleatória (1-4) pra trazer opções diferentes toda vez que você adiciona algo
+  const p=1+Math.floor(Math.random()*4);
+  const moviePath = perso&&mGid ? `/discover/movie?with_genres=${mGid}&sort_by=popularity.desc&vote_count.gte=150&language=pt-BR&page=${p}` : `/movie/popular?language=pt-BR&region=BR&page=${p}`;
+  const tvPath    = perso&&tGid ? `/discover/tv?with_genres=${tGid}&sort_by=popularity.desc&vote_count.gte=100&language=pt-BR&page=${p}`   : `/tv/popular?language=pt-BR&page=${p}`;
+  const [dm,dt]=await Promise.all([tmdb(moviePath),tmdb(tvPath)]);
+  (dm.results||[]).forEach(x=>x.media_type="movie");
+  (dt.results||[]).forEach(x=>x.media_type="tv");
+  const shelf=new Set(ITEMS.map(i=>String(i.ext_id))); const seen=new Set();
+  let all=[...(dm.results||[]),...(dt.results||[])].filter(x=>{ if(!x.poster_path||seen.has(x.id)||shelf.has(String(x.id)))return false; seen.add(x.id); return true; });
+  // embaralha pra misturar filmes e séries e variar a ordem
+  for(let i=all.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [all[i],all[j]]=[all[j],all[i]]; }
+  all=all.slice(0,14);
   if(!all.length){ R.innerHTML=""; return; }
   R.innerHTML=`<div class="sec-title">${titulo}</div><div class="grid">`+all.map(searchCard).join("")+'</div>';
 }
 
 async function doSearch(){
   const q=document.getElementById("q").value.trim();
-  if(q.length<2){ restoreHome(); return; }
-  setSearchMode(true);
+  if(q.length<2){ hideDropdown(); return; }   // não zera o campo nem mexe no layout (o dropdown é sobreposto)
   dd().style.display="block";
   dd().innerHTML='<div class="dr-msg">Buscando…</div>';
   const d=await tmdb(`/search/multi?query=${encodeURIComponent(q)}&language=pt-BR&page=1`);
