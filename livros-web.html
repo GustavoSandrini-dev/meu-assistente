@@ -100,8 +100,11 @@ select{flex:1}
 .stars .bg{color:var(--border)}
 .stars .fg{position:absolute;left:0;top:0;color:#f5b301;overflow:hidden;white-space:nowrap}
 .cmt{width:100%;font-family:inherit;resize:vertical;min-height:34px;outline:none}
-.dates{display:flex;flex-direction:column;gap:6px;background:var(--row);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--muted)}
-.dates .drow{display:flex;align-items:center;gap:8px}
+.dates{display:flex;flex-direction:column;gap:8px;background:var(--row);border-radius:8px;padding:9px;font-size:11px;color:var(--muted);margin-top:2px}
+.dates .drow{display:flex;flex-direction:column;align-items:stretch;gap:3px;padding:0;border-bottom:none}
+.dates .drow span{font-size:11px;font-weight:600}
+.dates input[type=date]{width:100%;min-width:0;box-sizing:border-box;background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:6px;padding:5px 7px;font-size:11px}
+.dates b{font-size:11px;color:var(--text)}
 .dates .drow span{min-width:64px}
 .dates input{flex:1;background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:7px;padding:7px 9px;font-size:13px}
 .dates b{color:var(--pos);text-align:center}
