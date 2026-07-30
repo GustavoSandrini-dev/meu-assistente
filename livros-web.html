@@ -714,7 +714,7 @@ async function confirmAdd(){
   const rating=rv===""?null:Math.max(0,Math.min(5,parseFloat(rv)));
   const dateVal=document.getElementById("mdate").value||null;
   const format=document.getElementById("mformat").value||"";
-  const meta={authors:x.authors,pages:x.pages,year:x.yr,genre:x.genre||"",publisher:x.publisher||"",hours:0,format,started_at:status==="lendo"?new Date().toISOString():null};
+  const meta={authors:x.authors,pages:x.pages,year:x.yr,genre:x.genre||"",publisher:x.publisher||"",hours:0,format,starScale:true,started_at:status==="lendo"?new Date().toISOString():null};
   if(status==="lendo") meta.startDate=dateVal;
   if(status==="lido"){ meta.endDate=dateVal; }
   const row={collection_id:ACTIVE,kind:"livro",ext_id:String(x.id),title:x.title,poster:x.poster,status,rating,meta};
@@ -769,7 +769,7 @@ async function confirmBulk(){
     const p=l.split("|").map(x=>x.trim());
     const row={collection_id:ACTIVE,kind:"livro",ext_id:"manual:"+Date.now()+"_"+idx,
       title:p[0], poster:p[3]||"", status:status, rating:null,
-      meta:{authors:p[1]||"", pages:0, year:p[2]||"", genre:"", publisher:"", hours:0, started_at:status==="lendo"?new Date().toISOString():null}};
+      meta:{authors:p[1]||"", pages:0, year:p[2]||"", genre:"", publisher:"", hours:0, starScale:true, started_at:status==="lendo"?new Date().toISOString():null}};
     if(status==="lido") row.done_date=new Date().toISOString().slice(0,10);
     return row;
   }).filter(r=>r.title);
@@ -842,7 +842,7 @@ async function confirmManual(editId){
     if(error){ alert("Erro: "+error.message); return; }
     closeModal(); await loadItems(); return;
   }
-  const meta={authors:author,pages,year,genre:"",publisher:"",hours:0,format,started_at:status==="lendo"?new Date().toISOString():null};
+  const meta={authors:author,pages,year,genre:"",publisher:"",hours:0,format,starScale:true,started_at:status==="lendo"?new Date().toISOString():null};
   const row={collection_id:ACTIVE,kind:"livro",ext_id:"manual:"+Date.now(),title,poster:cover,status,rating,meta};
   if(status==="lido") row.done_date=new Date().toISOString().slice(0,10);
   const {error}=await sb.from("items").insert(row);
