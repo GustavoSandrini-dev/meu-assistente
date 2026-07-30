@@ -341,7 +341,7 @@ function renderStats(){
   // por ano
   const anosMap={}; lidos.forEach(i=>{ const y=(i.done_date||"").slice(0,4); if(y) anosMap[y]=(anosMap[y]||0)+1; });
   const years=Object.keys(anosMap).sort();
-  CHARTS.year=new Chart(document.getElementById('chYear'),{type:'bar',data:{labels:years,datasets:[{data:years.map(y=>anosMap[y]),backgroundColor:'#4f7cf7'}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:txt,font:{size:11}}},y:{beginAtZero:true,ticks:{color:txt,precision:0}}}}});
+  CHARTS.year=new Chart(document.getElementById('chYear'),{type:'bar',data:{labels:years,datasets:[{data:years.map(y=>anosMap[y]),backgroundColor:'#4f7cf7'}]},options:{onClick:(e,el)=>{ if(!el.length)return; const y=years[el[0].index]; FYEAR=(FYEAR===y)?"":y; FGENRE=""; FAUTHOR=""; FPUB=""; setFilter('lido'); },plugins:{legend:{display:false}},scales:{x:{ticks:{color:txt,font:{size:11}}},y:{beginAtZero:true,ticks:{color:txt,precision:0}}}}});
 }
 
 // ---------- recomendações / 50 melhores (em português) ----------
@@ -443,8 +443,8 @@ function editGoal(){
   GOAL=n; localStorage.setItem("livrosGoal",n); renderGoal();
 }
 
-function setFilter(f){ FILTER=f; document.querySelectorAll("#filters .chip").forEach(c=>c.classList.toggle("act",c.dataset.f===f)); renderItems(); }
-let FGENRE="", FAUTHOR="", FPUB="";
+function setFilter(f){ FILTER=f; document.querySelectorAll("#filters .chip").forEach(c=>c.classList.toggle("act",c.dataset.f===f)); if(LIB_TAB!=="biblio"){ setTab("biblio"); } else { renderItems(); } }
+let FGENRE="", FAUTHOR="", FPUB="", FYEAR="";
 function genreKey(i){ return (((i.meta&&i.meta.genre)||"").split("/")[0].trim())||""; }
 function authorKey(i){ return (((i.meta&&i.meta.authors)||"").split(",")[0].trim())||""; }
 function fillFilters(){
@@ -491,6 +491,7 @@ function renderItems(){
   if(FGENRE) list=list.filter(i=>genreKey(i)===FGENRE);
   if(FAUTHOR) list=list.filter(i=>authorKey(i)===FAUTHOR);
   if(FPUB) list=list.filter(i=>((i.meta&&i.meta.publisher)||"").split(",")[0].trim()===FPUB);
+  if(FYEAR) list=list.filter(i=>(i.done_date||"").slice(0,4)===FYEAR);
   if(!list.length){ box.innerHTML='<div class="empty">Nenhum livro aqui ainda. 📚</div>'; return; }
   box.innerHTML=list.map(i=>bookCard(i)).join("");
 }

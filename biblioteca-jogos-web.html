@@ -520,16 +520,19 @@ function setTab(t){ tab=t;
   document.getElementById("tabCat").classList.toggle("on",t==="cat");
   document.getElementById("tabRank").classList.toggle("on",t==="rank");
   render(); }
-function pickGenre(gname){ genreFilter=gname; setTab("lib"); }
+function pickGenre(gname){ genreFilter=gname; YEARFILTER=""; setView('lista'); setTab("lib"); }
 function clearGenre(){ genreFilter=""; render(); }
 let specialFilter="";
+let YEARFILTER="";
+function pickYear(y){ YEARFILTER=(YEARFILTER===String(y))?"":String(y); genreFilter=""; specialFilter=""; document.getElementById("fStatus").value="zer"; setView('lista'); setTab("lib"); }
 function filterStatus(v){
-  genreFilter=""; specialFilter="";
+  genreFilter=""; specialFilter=""; YEARFILTER="";
   const fs=document.getElementById("fStatus");
   const fp=document.getElementById("fPlat"), ft=document.getElementById("fType");
   if(v==="__all__"){ fs.value=""; fp.value=""; ft.value=""; document.getElementById("search").value=""; }
   else if(v==="almost"){ specialFilter="almost"; fs.value=""; }
   else fs.value=v;
+  setView('lista');
   setTab("lib");
   document.getElementById("list").scrollIntoView({behavior:"smooth",block:"start"});
 }
@@ -776,7 +779,7 @@ function renderCharts(){
   GCHARTS.hrs=new Chart(document.getElementById('cgHrs'),{type:'bar',data:{labels:Hc.labels,datasets:[{data:Hc.data,backgroundColor:'#6d4bf6'}]},options:{onClick:(e,el)=>{ if(el.length){ const l=Hc.labels[el[0].index]; if(l!=='Outros') pickGenre(l); } },plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a93a8',font:{size:9},maxRotation:60,minRotation:45}},y:{ticks:{color:'#8a93a8'},grid:{color:'#2a3140'}}}}});
   const yr={}; g.forEach(x=>{ if(["zer","plat"].includes(statusOf(x))){ const y=U(gid(x)).doneYear; if(y) yr[y]=(yr[y]||0)+1; } });
   const ys=Object.keys(yr).sort();
-  GCHARTS.year=new Chart(document.getElementById('cgYear'),{type:'bar',data:{labels:ys,datasets:[{data:ys.map(y=>yr[y]),backgroundColor:'#22c55e'}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a93a8'}},y:{beginAtZero:true,ticks:{color:'#8a93a8',precision:0},grid:{color:'#2a3140'}}}}});
+  GCHARTS.year=new Chart(document.getElementById('cgYear'),{type:'bar',data:{labels:ys,datasets:[{data:ys.map(y=>yr[y]),backgroundColor:'#22c55e'}]},options:{onClick:(e,el)=>{ if(el.length) pickYear(ys[el[0].index]); },plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a93a8'}},y:{beginAtZero:true,ticks:{color:'#8a93a8',precision:0},grid:{color:'#2a3140'}}}}});
 }
 
 function gameCard(g,pos){
@@ -877,7 +880,7 @@ function render(){
     return;
   }
 
-  let list=allGames().filter(g=>g.name.toLowerCase().includes(q)&&(!fs||statusOf(g)===fs)&&(!fp||(g.platform||"Outro")===fp)&&(!ft||typeOf(g)===ft)&&(!genreFilter||hasGenre(g,genreFilter))&&(specialFilter!=="almost"||isAlmost(g)));
+  let list=allGames().filter(g=>g.name.toLowerCase().includes(q)&&(!fs||statusOf(g)===fs)&&(!fp||(g.platform||"Outro")===fp)&&(!ft||typeOf(g)===ft)&&(!genreFilter||hasGenre(g,genreFilter))&&(specialFilter!=="almost"||isAlmost(g))&&(!YEARFILTER||String(U(gid(g)).doneYear||"")===YEARFILTER));
   const showBar = genreFilter || specialFilter;
   document.getElementById("catbar").style.display = (tab==="lib" && showBar) ? "flex" : "none";
   if(genreFilter) document.getElementById("catbar").innerHTML=`<span style="font-size:13px;color:var(--muted)">Categoria:</span> <span class="plat-tag" style="background:var(--accent);color:var(--accent-t)">${GENRE_EMOJI[genreFilter]||""} ${genreFilter}</span> <button class="btn-sec" style="padding:4px 10px" onclick="clearGenre()">× limpar</button>`;

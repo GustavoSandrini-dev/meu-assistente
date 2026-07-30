@@ -69,6 +69,8 @@ h1{font-size:22px;margin-bottom:2px}
 .tt{font-size:15px;font-weight:700;line-height:1.25}
 .yr{font-size:12px;color:var(--muted)}
 .cmt{width:100%;background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:8px;padding:7px;font-size:12px;font-family:inherit;resize:vertical;min-height:34px;outline:none}
+.wdate{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.wdate input{flex:1;min-width:0;background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:8px;padding:5px 7px;font-size:12px}
 .cmt:focus{border-color:var(--accent)}
 .tag{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.7);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px}
 .rankbadge{position:absolute;top:8px;right:8px;background:var(--accent);color:#fff;font-size:16px;font-weight:800;padding:3px 10px;border-radius:9px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
@@ -293,11 +295,11 @@ function renderStats(){
   if(typeof Chart==="undefined") return;
   const pal=['#6d4bf6','#3ecf9a','#f59e0b','#f472b6','#38bdf8','#a855f7','#f07567','#94a0b8'];
   const dough=(id,labels,data,colors,onClick)=>new Chart(document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0}]},options:{responsive:true,onClick:onClick,plugins:{legend:{position:'bottom',labels:{color:'#aab3c5',font:{size:11},boxWidth:12,padding:8}}},cutout:'55%'}});
-  CHARTS.gen=dough('chGen',G.labels,G.data,pal,(e,el)=>{ if(!el.length)return; const l=G.labels[el[0].index]; FGEN=(FGEN===l)?"":l; FKIND=""; FILTER="todos"; document.querySelectorAll("#filters .chip").forEach(c=>c.classList.toggle("act",c.dataset.f==="todos")); renderItems(); });
-  CHARTS.status=dough('chStatus',['Assistidos','A ver','Filmes','Séries'],[vistos.length,ITEMS.length-vistos.length,filmes,series],['#3ecf9a','#4d5566','#6d4bf6','#38bdf8'],(e,el)=>{ if(!el.length)return; const idx=el[0].index; if(idx===0){setFilter('assistido');} else if(idx===1){setFilter('todos');} else { FGEN=""; FKIND=(idx===3)?((FKIND==="serie")?"":"serie"):((FKIND==="filme")?"":"filme"); FILTER="todos"; renderItems(); } });
+  CHARTS.gen=dough('chGen',G.labels,G.data,pal,(e,el)=>{ if(!el.length)return; const l=G.labels[el[0].index]; FGEN=(FGEN===l)?"":l; FKIND=""; FYEAR=""; FILTER="todos"; document.querySelectorAll("#filters .chip").forEach(c=>c.classList.toggle("act",c.dataset.f==="todos")); renderItems(); setView('lista'); });
+  CHARTS.status=dough('chStatus',['Assistidos','A ver','Filmes','Séries'],[vistos.length,ITEMS.length-vistos.length,filmes,series],['#3ecf9a','#4d5566','#6d4bf6','#38bdf8'],(e,el)=>{ if(!el.length)return; const idx=el[0].index; if(idx===0){setFilter('assistido');} else if(idx===1){setFilter('todos');} else { FGEN=""; FYEAR=""; FKIND=(idx===3)?((FKIND==="serie")?"":"serie"):((FKIND==="filme")?"":"filme"); FILTER="todos"; renderItems(); } setView('lista'); });
   const anosMap={}; vistos.forEach(i=>{ const y=(i.done_date||"").slice(0,4); if(y) anosMap[y]=(anosMap[y]||0)+1; });
   const years=Object.keys(anosMap).sort();
-  CHARTS.year=new Chart(document.getElementById('chYear'),{type:'bar',data:{labels:years,datasets:[{data:years.map(y=>anosMap[y]),backgroundColor:'#6d4bf6'}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#aab3c5',font:{size:11}}},y:{beginAtZero:true,ticks:{color:'#aab3c5',precision:0}}}}});
+  CHARTS.year=new Chart(document.getElementById('chYear'),{type:'bar',data:{labels:years,datasets:[{data:years.map(y=>anosMap[y]),backgroundColor:'#6d4bf6'}]},options:{onClick:(e,el)=>{ if(!el.length)return; const y=years[el[0].index]; FYEAR=(FYEAR===y)?"":y; FGEN=""; FKIND=""; FILTER="todos"; renderItems(); setView('lista'); },plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#aab3c5',font:{size:11}}},y:{beginAtZero:true,ticks:{color:'#aab3c5',precision:0}}}}});
 }
 
 function renderShareRow(){
@@ -307,8 +309,8 @@ function renderShareRow(){
   row.innerHTML=`<button class="btn ghost" onclick="shareModal()">👥 Compartilhar "${esc(c.name)}"</button>`;
 }
 
-let FGEN="", FKIND="";
-function setFilter(f){ FILTER=f; FGEN=""; FKIND=""; document.querySelectorAll("#filters .chip").forEach(c=>c.classList.toggle("act",c.dataset.f===f)); renderItems(); }
+let FGEN="", FKIND="", FYEAR="";
+function setFilter(f){ FILTER=f; FGEN=""; FKIND=""; FYEAR=""; document.querySelectorAll("#filters .chip").forEach(c=>c.classList.toggle("act",c.dataset.f===f)); renderItems(); setView('lista'); }
 
 const STLBL={quero:"Quero ver",backlog:"Backlog",assistindo:"Assistindo",assistido:"Assistido"};
 function renderItems(){
@@ -322,6 +324,7 @@ function renderItems(){
   let list = FILTER==="todos"?ITEMS:ITEMS.filter(i=>(i.status||"quero")===FILTER);
   if(FGEN) list=list.filter(i=>(((i.meta&&i.meta.genre)||"").trim()||"Outros")===FGEN);
   if(FKIND) list=list.filter(i=>(FKIND==="serie"?i.kind==="serie":i.kind!=="serie"));
+  if(FYEAR) list=list.filter(i=>(i.done_date||"").slice(0,4)===FYEAR);
   if(!list.length){ box.innerHTML='<div class="empty">Nenhum título com esses filtros. 🎬</div>'; return; }
   box.innerHTML=list.map(i=>itemCard(i)).join("");
 }
@@ -347,6 +350,7 @@ function itemCard(i,rank){
         </select>
         <input class="note" type="number" min="0" max="10" step="0.1" placeholder="—" value="${i.rating??""}" onchange="setRating('${i.id}',this.value)" title="Nota 0-10">
       </div>
+      ${st==="assistido"?`<div class="wdate">📅 <span>Assisti em</span> <input type="date" value="${i.done_date||''}" onchange="setWatchDate('${i.id}',this.value)"></div>`:""}
       <textarea class="cmt" placeholder="Comentário…" onchange="setNote('${i.id}',this.value)">${esc(i.note||"")}</textarea>
       <div class="prov" id="prov-${i.id}"></div>
       <div class="rowb" style="justify-content:space-between">
@@ -454,12 +458,13 @@ function addItem(payload){
       <div style="font-size:12px;color:#8a93a8">${x.yr||''} · ${x.kind==='serie'?'Série':'Filme'}</div></div>
     </div>
     <label>Onde colocar?</label>
-    <select id="mstatus">
+    <select id="mstatus" onchange="updateWatchDate()">
       <option value="quero">Quero ver</option>
       <option value="backlog">Backlog</option>
       <option value="assistindo">Assistindo</option>
       <option value="assistido">Já assisti</option>
     </select>
+    <div id="mdaterow" style="display:none"><label>📅 Data que assisti</label><input id="mdate" type="date"></div>
     <label>Nota (0–10, opcional)</label>
     <input id="mrating" type="number" min="0" max="10" step="0.1" placeholder="—">
     <label>Comentário (opcional)</label>
@@ -467,6 +472,12 @@ function addItem(payload){
     <button class="btn" style="width:100%;margin-top:4px" onclick="confirmAdd()">Adicionar à lista</button>
     <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Cancelar</button>`;
   document.getElementById("modal").style.display="flex";
+  updateWatchDate();
+}
+function updateWatchDate(){
+  const st=document.getElementById("mstatus").value, row=document.getElementById("mdaterow"), d=document.getElementById("mdate");
+  if(st==="assistido"){ row.style.display="block"; if(!d.value) d.value=new Date().toISOString().slice(0,10); }
+  else row.style.display="none";
 }
 async function confirmAdd(){
   const x=PENDING; if(!x) return;
@@ -474,15 +485,28 @@ async function confirmAdd(){
   const rv=document.getElementById("mrating").value;
   const rating=rv===""?null:Math.max(0,Math.min(10,parseFloat(rv)));
   const note=document.getElementById("mnote").value.trim()||null;
+  const dateVal=document.getElementById("mdate").value||null;
   const row={collection_id:ACTIVE,kind:x.kind,ext_id:String(x.id),title:x.title,poster:x.poster,status,rating,note,
     meta:{year:x.yr,media:x.media,vote:x.vote,genre:x.genre||""}};
+  if(status==="assistido") row.done_date=dateVal||new Date().toISOString().slice(0,10);
   const {error}=await sb.from("items").insert(row);
   if(error){ alert("Erro ao adicionar: "+error.message); return; }
   PENDING=null; closeModal();
   document.getElementById("q").value=""; hideDropdown();
   await loadItems(); setSearchMode(false);
 }
-async function setStatus(id,v){ await sb.from("items").update({status:v,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.status=v; renderItems(); }
+async function setStatus(id,v){
+  const it=ITEMS.find(i=>i.id===id);
+  const upd={status:v,updated_at:new Date().toISOString()};
+  if(v==="assistido" && !(it&&it.done_date)) upd.done_date=new Date().toISOString().slice(0,10);
+  await sb.from("items").update(upd).eq("id",id);
+  if(it){ it.status=v; if(upd.done_date) it.done_date=upd.done_date; }
+  renderStats(); renderItems();
+}
+async function setWatchDate(id,val){
+  await sb.from("items").update({done_date:val||null,updated_at:new Date().toISOString()}).eq("id",id);
+  const it=ITEMS.find(i=>i.id===id); if(it) it.done_date=val||null; renderStats();
+}
 async function setRating(id,v){ const n=v===""?null:Math.max(0,Math.min(10,parseFloat(v))); await sb.from("items").update({rating:n,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.rating=n; if(FILTER==="ranking") renderItems(); }
 async function setNote(id,v){ const t=v.trim()||null; await sb.from("items").update({note:t,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.note=t; }
 async function delItem(id){ if(!confirm("Remover da lista?"))return; await sb.from("items").delete().eq("id",id); ITEMS=ITEMS.filter(i=>i.id!==id); renderItems(); }
