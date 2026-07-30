@@ -69,6 +69,9 @@ h1{font-size:22px;margin-bottom:2px}
 .tt{font-size:15px;font-weight:700;line-height:1.25}
 .yr{font-size:12px;color:var(--muted)}
 .cmt{width:100%;background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:8px;padding:7px;font-size:12px;font-family:inherit;resize:vertical;min-height:34px;outline:none}
+.mini.fl{border:1.5px solid var(--border);border-radius:8px;padding:5px 8px;background:var(--row);flex:1;font-size:11px}
+.mini.fl.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+.flbadge{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border-radius:8px;padding:3px 7px;font-size:13px;z-index:2}
 .wdate{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .wdate input{flex:1;min-width:0;background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:8px;padding:5px 7px;font-size:12px}
 .cmt:focus{border-color:var(--accent)}
@@ -165,6 +168,8 @@ select{flex:1}
     <span class="chip" data-f="backlog" onclick="setFilter('backlog')">Backlog</span>
     <span class="chip" data-f="assistindo" onclick="setFilter('assistindo')">Assistindo</span>
     <span class="chip" data-f="assistido" onclick="setFilter('assistido')">Assistido</span>
+    <span class="chip" data-f="fav" onclick="setFilter('fav')">⭐ Favoritos</span>
+    <span class="chip" data-f="life" onclick="setFilter('life')">🏆 Da minha vida</span>
     <span class="chip" data-f="ranking" onclick="setFilter('ranking')" style="margin-left:auto">🏆 Ranking</span>
   </div>
   <div class="sec-title" id="listTitle" style="display:none">📁 Minha lista</div>
@@ -272,7 +277,8 @@ function renderStats(){
   const box=document.getElementById("statsBox"); if(!box) return;
   if(!ITEMS.length){ box.innerHTML=""; Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS={}; return; }
   const vistos=ITEMS.filter(i=>i.status==="assistido");
-  const favs=ITEMS.filter(i=>i.rating!=null && i.rating>=9).length;
+  const favs=ITEMS.filter(i=>i.meta&&i.meta.fav).length;
+  const life=ITEMS.filter(i=>i.meta&&i.meta.life).length;
   const ano=new Date().getFullYear();
   const esteAno=vistos.filter(i=>(i.done_date||"").slice(0,4)==String(ano)).length;
   const gen={}; ITEMS.forEach(i=>{ const g=((i.meta&&i.meta.genre)||"").trim()||"Outros"; gen[g]=(gen[g]||0)+1; });
@@ -283,12 +289,13 @@ function renderStats(){
     <div class="stats-grid">
       <div class="stat"><div class="sv">${vistos.length}</div><div class="sl">🎬 Assistidos</div></div>
       <div class="stat"><div class="sv">${ITEMS.length}</div><div class="sl">📺 Na lista</div></div>
-      <div class="stat"><div class="sv">${favs}</div><div class="sl">⭐ Favoritos (nota ≥9)</div></div>
-      <div class="stat"><div class="sv">${esteAno}</div><div class="sl">🗓️ Assistidos em ${ano}</div></div>
+      <div class="stat"><div class="sv">${favs}</div><div class="sl">⭐ Favoritos</div></div>
+      <div class="stat"><div class="sv">${life}</div><div class="sl">🏆 Da minha vida</div></div>
     </div>
     <div class="charts-grid">
       <div class="chartcard"><div class="ch-t">Gêneros</div><canvas id="chGen"></canvas></div>
       <div class="chartcard"><div class="ch-t">Assistido vs. a ver · Filmes vs. séries</div><canvas id="chStatus"></canvas></div>
+      <div class="chartcard"><div class="ch-t">⭐ Favoritos & 🏆 Da minha vida</div><canvas id="chFav"></canvas></div>
     </div>
     <div class="chartcard" style="margin-bottom:16px"><div class="ch-t">📅 Assistidos por ano</div><canvas id="chYear" style="max-height:170px"></canvas></div>`;
   Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS={};
@@ -297,6 +304,7 @@ function renderStats(){
   const dough=(id,labels,data,colors,onClick)=>new Chart(document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0}]},options:{responsive:true,onClick:onClick,plugins:{legend:{position:'bottom',labels:{color:'#aab3c5',font:{size:11},boxWidth:12,padding:8}}},cutout:'55%'}});
   CHARTS.gen=dough('chGen',G.labels,G.data,pal,(e,el)=>{ if(!el.length)return; const l=G.labels[el[0].index]; FGEN=(FGEN===l)?"":l; FKIND=""; FYEAR=""; FILTER="todos"; document.querySelectorAll("#filters .chip").forEach(c=>c.classList.toggle("act",c.dataset.f==="todos")); renderItems(); setView('lista'); });
   CHARTS.status=dough('chStatus',['Assistidos','A ver','Filmes','Séries'],[vistos.length,ITEMS.length-vistos.length,filmes,series],['#3ecf9a','#4d5566','#6d4bf6','#38bdf8'],(e,el)=>{ if(!el.length)return; const idx=el[0].index; if(idx===0){setFilter('assistido');} else if(idx===1){setFilter('todos');} else { FGEN=""; FYEAR=""; FKIND=(idx===3)?((FKIND==="serie")?"":"serie"):((FKIND==="filme")?"":"filme"); FILTER="todos"; renderItems(); } setView('lista'); });
+  CHARTS.fav=dough('chFav',['⭐ Favoritos','🏆 Da minha vida','Demais'],[favs,life,Math.max(0,ITEMS.length-favs-life)],['#f5b301','#e0559a','#4d5566'],(e,el)=>{ if(!el.length)return; const idx=el[0].index; setFilter(idx===0?'fav':idx===1?'life':'todos'); });
   const anosMap={}; vistos.forEach(i=>{ const y=(i.done_date||"").slice(0,4); if(y) anosMap[y]=(anosMap[y]||0)+1; });
   const years=Object.keys(anosMap).sort();
   CHARTS.year=new Chart(document.getElementById('chYear'),{type:'bar',data:{labels:years,datasets:[{data:years.map(y=>anosMap[y]),backgroundColor:'#6d4bf6'}]},options:{onClick:(e,el)=>{ if(!el.length)return; const y=years[el[0].index]; FYEAR=(FYEAR===y)?"":y; FGEN=""; FKIND=""; FILTER="todos"; renderItems(); setView('lista'); },plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#aab3c5',font:{size:11}}},y:{beginAtZero:true,ticks:{color:'#aab3c5',precision:0}}}}});
@@ -321,7 +329,10 @@ function renderItems(){
     box.innerHTML=ranked.map((i,idx)=>itemCard(i,idx+1)).join("");
     return;
   }
-  let list = FILTER==="todos"?ITEMS:ITEMS.filter(i=>(i.status||"quero")===FILTER);
+  let list;
+  if(FILTER==="fav") list=ITEMS.filter(i=>i.meta&&i.meta.fav);
+  else if(FILTER==="life") list=ITEMS.filter(i=>i.meta&&i.meta.life);
+  else list = FILTER==="todos"?ITEMS:ITEMS.filter(i=>(i.status||"quero")===FILTER);
   if(FGEN) list=list.filter(i=>(((i.meta&&i.meta.genre)||"").trim()||"Outros")===FGEN);
   if(FKIND) list=list.filter(i=>(FKIND==="serie"?i.kind==="serie":i.kind!=="serie"));
   if(FYEAR) list=list.filter(i=>(i.done_date||"").slice(0,4)===FYEAR);
@@ -336,11 +347,17 @@ function itemCard(i,rank){
   const kindTag=i.kind==="serie"?"Série":"Filme";
   const st=i.status||"quero";
   const rankB=rank?`<span class="rankbadge">${medal(rank)}${i.rating!=null?' · '+i.rating:''}</span>`:"";
+  const m=i.meta||{}, fav=!!m.fav, life=!!m.life;
+  const flBadge=(fav||life)?`<span class="flbadge">${life?'🏆':''}${fav?'⭐':''}</span>`:"";
   return `<div class="card"><div class="cardwrap">
-    ${poster}<span class="tag">${kindTag}</span>${rankB}<span class="st ${st}">${STLBL[st]||st}</span></div>
+    ${poster}<span class="tag">${kindTag}</span>${rankB}${flBadge}<span class="st ${st}">${STLBL[st]||st}</span></div>
     <div class="cb">
       <div class="tt">${esc(i.title)}</div>
       <div class="yr">${yr}</div>
+      <div class="rowb" style="gap:8px">
+        <button class="mini fl ${fav?'on':''}" onclick="setFav('${i.id}')" title="Favorito">${fav?'⭐ Favorito':'☆ Favoritar'}</button>
+        <button class="mini fl ${life?'on':''}" onclick="setLife('${i.id}')" title="Da minha vida">${life?'🏆 Da minha vida':'🏆 Marcar'}</button>
+      </div>
       <div class="rowb">
         <select onchange="setStatus('${i.id}',this.value)">
           <option value="quero" ${st==="quero"?"selected":""}>Quero ver</option>
@@ -503,6 +520,14 @@ async function setStatus(id,v){
   if(it){ it.status=v; if(upd.done_date) it.done_date=upd.done_date; }
   renderStats(); renderItems();
 }
+async function setFlag(id,campo){
+  const it=ITEMS.find(i=>i.id===id); if(!it) return; const m=Object.assign({},it.meta||{});
+  m[campo]=!m[campo]; it.meta=m;
+  await sb.from("items").update({meta:m,updated_at:new Date().toISOString()}).eq("id",id);
+  renderStats(); renderItems();
+}
+function setFav(id){ setFlag(id,"fav"); }
+function setLife(id){ setFlag(id,"life"); }
 async function setWatchDate(id,val){
   await sb.from("items").update({done_date:val||null,updated_at:new Date().toISOString()}).eq("id",id);
   const it=ITEMS.find(i=>i.id===id); if(it) it.done_date=val||null; renderStats();

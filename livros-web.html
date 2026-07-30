@@ -98,6 +98,9 @@ select{flex:1}
 .note{width:48px;flex:0 0 48px;text-align:center}
 .raterow{display:flex;align-items:center;gap:8px}
 .raterow .ratelbl{font-size:11px;color:var(--muted);font-weight:600}
+.mini.fl{border:1.5px solid var(--border);border-radius:8px;padding:5px 8px;background:var(--row);flex:1}
+.mini.fl.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+.flbadge{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border-radius:8px;padding:3px 7px;font-size:13px}
 .stars{display:inline-block;position:relative;font-size:16px;line-height:1;letter-spacing:2px;vertical-align:middle;white-space:nowrap;flex:0 0 auto}
 .stars .bg{color:var(--border)}
 .stars .fg{position:absolute;left:0;top:0;color:#f5b301;overflow:hidden;white-space:nowrap}
@@ -182,6 +185,8 @@ select{flex:1}
     <span class="chip" data-f="quero" onclick="setFilter('quero')">⭐ Lista de desejos</span>
     <span class="chip" data-f="lendo" onclick="setFilter('lendo')">📖 Lendo</span>
     <span class="chip" data-f="lido" onclick="setFilter('lido')">✅ Lido</span>
+    <span class="chip" data-f="fav" onclick="setFilter('fav')">⭐ Favoritos</span>
+    <span class="chip" data-f="life" onclick="setFilter('life')">🏆 Da minha vida</span>
     <select id="fGenre" class="ffilter" onchange="FGENRE=this.value;renderItems()"><option value="">Todos os gêneros</option></select>
     <select id="fAuthor" class="ffilter" onchange="FAUTHOR=this.value;renderItems()"><option value="">Todos os autores</option></select>
     <span class="chip" data-f="ranking" onclick="setFilter('ranking')" style="margin-left:auto">🏆 Ranking</span>
@@ -312,8 +317,8 @@ function renderStats(){
   if(!ITEMS.length){ box.innerHTML=""; Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS={}; return; }
   const lidos=ITEMS.filter(i=>i.status==="lido");
   const paginas=lidos.reduce((s,i)=>s+((i.meta&&i.meta.pages)||0),0);
-  const favs=ITEMS.filter(i=>i.rating!=null && i.rating>=4.5).length;
-  const anos=new Set(lidos.map(i=>(i.done_date||"").slice(0,4)).filter(Boolean)).size;
+  const favs=ITEMS.filter(i=>i.meta&&i.meta.fav).length;
+  const life=ITEMS.filter(i=>i.meta&&i.meta.life).length;
   const cont=(campo)=>{ const o={}; ITEMS.forEach(i=>{ const v=((i.meta&&i.meta[campo])||"").split(",")[0].trim(); const k=v||(campo==="authors"?"Desconhecido":"Desconhecida"); o[k]=(o[k]||0)+1; }); return o; };
   const topN=(o,n)=>{ const ks=Object.keys(o).sort((a,b)=>o[b]-o[a]); const t=ks.slice(0,n); const rest=ks.slice(n).reduce((s,x)=>s+o[x],0); const labels=t.slice(),data=t.map(x=>o[x]); if(rest){labels.push("Outros");data.push(rest);} return {labels,data}; };
   const A=topN(cont("authors"),6), E=topN(cont("publisher"),6);
@@ -321,13 +326,13 @@ function renderStats(){
     <div class="stats-grid">
       <div class="stat"><div class="sv">${lidos.length}</div><div class="sl">📚 Livros lidos</div></div>
       <div class="stat"><div class="sv">${paginas.toLocaleString('pt-BR')}</div><div class="sl">📄 Páginas lidas</div></div>
-      <div class="stat"><div class="sv">${favs}</div><div class="sl">⭐ Favoritos (≥4.5 ★)</div></div>
-      <div class="stat"><div class="sv">${anos}</div><div class="sl">🗓️ Anos de leitura</div></div>
+      <div class="stat"><div class="sv">${favs}</div><div class="sl">⭐ Favoritos</div></div>
+      <div class="stat"><div class="sv">${life}</div><div class="sl">🏆 Da minha vida</div></div>
     </div>
     <div class="charts-grid">
       <div class="chartcard"><div class="ch-t">Lidos vs. não lidos</div><canvas id="chRead"></canvas></div>
+      <div class="chartcard"><div class="ch-t">⭐ Favoritos & 🏆 Da minha vida</div><canvas id="chFav"></canvas></div>
       <div class="chartcard"><div class="ch-t">Autores</div><canvas id="chAut"></canvas></div>
-      <div class="chartcard"><div class="ch-t">Editoras</div><canvas id="chEdt"></canvas></div>
     </div>
     <div class="chartcard" style="margin-bottom:16px"><div class="ch-t">📅 Livros lidos por ano</div><canvas id="chYear" style="max-height:170px"></canvas></div>`;
   Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS={};
@@ -336,8 +341,8 @@ function renderStats(){
   const pal=['#4f7cf7','#3ecf9a','#f59e0b','#f472b6','#a855f7','#38bdf8','#94a0b8'];
   const dough=(id,labels,data,colors,onClick)=>new Chart(document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0}]},options:{responsive:true,onClick:onClick,plugins:{legend:{position:'bottom',labels:{color:txt,font:{size:11},boxWidth:12,padding:8}}},cutout:'55%'}});
   CHARTS.read=dough('chRead',['Lidos','Não lidos'],[lidos.length,ITEMS.length-lidos.length],['#3ecf9a','#4d5566'],(e,el)=>{ if(el.length) setFilter(el[0].index===0?'lido':'todos'); });
+  CHARTS.fav=dough('chFav',['⭐ Favoritos','🏆 Da minha vida','Demais'],[favs,life,Math.max(0,ITEMS.length-favs-life)],['#f5b301','#e0559a','#4d5566'],(e,el)=>{ if(!el.length)return; const idx=el[0].index; setFilter(idx===0?'fav':idx===1?'life':'todos'); });
   CHARTS.aut=dough('chAut',A.labels,A.data,pal,(e,el)=>{ if(!el.length)return; const l=A.labels[el[0].index]; if(l==='Outros')return; FAUTHOR=(FAUTHOR===l)?'':l; FGENRE=''; const s=document.getElementById('fAuthor'); if(s)s.value=FAUTHOR; setFilter('todos'); });
-  CHARTS.edt=dough('chEdt',E.labels,E.data,pal,(e,el)=>{ if(!el.length)return; const l=E.labels[el[0].index]; if(l==='Outros'||l==='Desconhecida')return; FPUB=(FPUB===l)?'':l; setFilter('todos'); });
   // por ano
   const anosMap={}; lidos.forEach(i=>{ const y=(i.done_date||"").slice(0,4); if(y) anosMap[y]=(anosMap[y]||0)+1; });
   const years=Object.keys(anosMap).sort();
@@ -486,8 +491,11 @@ function renderItems(){
     if(!ranked.length){ box.innerHTML='<div class="empty">Dê notas aos livros pra montar o ranking. 🏆</div>'; return; }
     box.innerHTML=ranked.map((i,idx)=>bookCard(i,idx+1)).join(""); return;
   }
-  // "Todos" mostra tudo (lista de desejos + lendo + lido); os chips filtram por status
-  let list = FILTER==="todos" ? ITEMS.slice() : ITEMS.filter(i=>(i.status||"quero")===FILTER);
+  // "Todos" mostra tudo; chips filtram por status/favorito/da minha vida
+  let list;
+  if(FILTER==="fav") list=ITEMS.filter(i=>i.meta&&i.meta.fav);
+  else if(FILTER==="life") list=ITEMS.filter(i=>i.meta&&i.meta.life);
+  else list = FILTER==="todos" ? ITEMS.slice() : ITEMS.filter(i=>(i.status||"quero")===FILTER);
   if(FGENRE) list=list.filter(i=>genreKey(i)===FGENRE);
   if(FAUTHOR) list=list.filter(i=>authorKey(i)===FAUTHOR);
   if(FPUB) list=list.filter(i=>((i.meta&&i.meta.publisher)||"").split(",")[0].trim()===FPUB);
@@ -502,11 +510,17 @@ function bookCard(i,rank){
   const cover=i.poster?`<img src="${hiResUrl(i.poster)}" loading="lazy" onerror="imgFail(this)">`:`<div class="noimg">📖</div>`;
   const st=i.status||"quero";
   const rankB=rank?`<span class="rankbadge">${medal(rank)}${i.rating!=null?' · '+i.rating:''}</span>`:"";
+  const fav=!!m.fav, life=!!m.life;
+  const flBadge=(fav||life)?`<span class="flbadge">${life?'🏆':''}${fav?'⭐':''}</span>`:"";
   return `<div class="card"><div class="cardwrap">
-    ${cover}${rankB}<span class="st ${st}">${STLBL[st]||st}</span></div>
+    ${cover}${rankB}${flBadge}<span class="st ${st}">${STLBL[st]||st}</span></div>
     <div class="cb">
       <div class="tt">${esc(i.title)}</div>
       <div class="au">${esc(m.authors||"")}${m.pages?" · "+m.pages+" pág":""}${m.format?" · "+esc(m.format):""}</div>
+      <div class="rowb" style="gap:8px">
+        <button class="mini fl ${fav?'on':''}" onclick="setFav('${i.id}')" title="Favorito">${fav?'⭐ Favorito':'☆ Favoritar'}</button>
+        <button class="mini fl ${life?'on':''}" onclick="setLife('${i.id}')" title="Da minha vida">${life?'🏆 Da minha vida':'🏆 Marcar'}</button>
+      </div>
       <div class="rowb">
         <select style="flex:1" onchange="setStatus('${i.id}',this.value)">
           <option value="quero" ${st==="quero"?"selected":""}>Quero ler</option>
@@ -530,6 +544,14 @@ function bookCard(i,rank){
       </div>
     </div></div>`;
 }
+async function setFlag(id,campo){
+  const i=ITEMS.find(x=>x.id===id); if(!i) return; const m=Object.assign({},i.meta||{});
+  m[campo]=!m[campo]; i.meta=m;
+  await sb.from("items").update({meta:m,updated_at:new Date().toISOString()}).eq("id",id);
+  renderStats(); renderItems();
+}
+function setFav(id){ setFlag(id,"fav"); }
+function setLife(id){ setFlag(id,"life"); }
 async function setStatus(id,v){
   const i=ITEMS.find(x=>x.id===id); const upd={status:v,updated_at:new Date().toISOString()};
   const m=Object.assign({},i.meta||{});

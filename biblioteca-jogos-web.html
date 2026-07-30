@@ -87,6 +87,8 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
 .links a, .links .del-mini { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; line-height:1; padding:6px 10px; border-radius:999px; border:1px solid var(--border); background:var(--row); color:var(--muted); text-decoration:none; cursor:pointer; font-family:inherit; transition:border-color .12s, color .12s; }
 .links a:hover, .links .del-mini:hover { border-color:var(--accent); color:var(--accent); }
 .links .del-mini.danger { color:#c0392b; }
+.links .del-mini.flon { border-color:var(--accent); color:var(--accent); font-weight:700; }
+.banner .flbadge { position:absolute; top:8px; right:8px; background:rgba(0,0,0,.6); border-radius:8px; padding:3px 7px; font-size:14px; z-index:3; }
 .links .del-mini.danger:hover { border-color:#c0392b; color:#c0392b; }
 .hltb { font-size:12px; }
 .hltb b { color:var(--text); }
@@ -231,6 +233,8 @@ textarea { width:100%; border:1.5px solid var(--border); border-radius:9px; padd
     </select>
     <button class="btn" onclick="toggleAdd()">➕ Adicionar jogo</button>
     <button class="btn on" onclick="rollGame()">🎲 O que jogar?</button>
+    <button class="btn" onclick="filterSpecial('fav')" title="Ver favoritos">⭐ Favoritos</button>
+    <button class="btn" onclick="filterSpecial('life')" title="Da minha vida">🏆 Da minha vida</button>
     <button class="btn" id="resyncBtn" onclick="reSyncSteam()" title="Buscar novos jogos e horas na sua Steam">🔄 Sincronizar</button>
     <button class="btn" onclick="openSteam()" title="Vincular ou trocar sua conta Steam">🎮 Steam</button>
     <button class="btn" id="hiddenToggle" onclick="toggleHidden()" style="display:none"></button>
@@ -696,6 +700,9 @@ function setTheme(t){
 function setStatus(ap,v){ U(ap).status=v; if((v==="zer"||v==="plat") && !U(ap).doneYear) U(ap).doneYear=new Date().getFullYear(); persist(); render(); }
 function setRating(ap,v){ v=parseFloat(String(v).replace(",",".")); if(isNaN(v)){U(ap).rating=null;} else {U(ap).rating=Math.max(0,Math.min(10,v));} persist(); render(); }
 function setComment(ap,v){ U(ap).comment=v; persist(); }
+function setFav(ap){ const u=U(ap); u.fav=!u.fav; persist(); render(); }
+function setLife(ap){ const u=U(ap); u.life=!u.life; persist(); render(); }
+function filterSpecial(v){ specialFilter=(specialFilter===v)?"":v; genreFilter=""; YEARFILTER=""; const fs=document.getElementById("fStatus"); if(fs)fs.value=""; setView('lista'); setTab("lib"); }
 
 function noteHTML(ap,val){
   const shown = (val!=null && val!=="") ? String(val).replace(".",",") : "";
@@ -744,10 +751,12 @@ function renderStats(){
   const cnt={back:0,play:0,zer:0,plat:0,aband:0};
   g.forEach(x=>cnt[statusOf(x)]++);
   const almost=g.filter(isAlmost).length;
+  const favN=g.filter(x=>U(gid(x)).fav).length, lifeN=g.filter(x=>U(gid(x)).life).length;
   const el=[["Jogos",g.length,"__all__"],["Horas totais",Math.round(horas)+"h",null],["✅ Zerados",cnt.zer,"zer"],
-    ["🏆 Platinados",cnt.plat,"plat"],["🔥 Quase lá",almost,"almost"],["📥 Backlog",cnt.back,"back"],["🚫 Largados",cnt.aband,"aband"]];
+    ["🏆 Platinados",cnt.plat,"plat"],["⭐ Favoritos",favN,"fav"],["🏅 Da minha vida",lifeN,"life"],["🔥 Quase lá",almost,"almost"],["📥 Backlog",cnt.back,"back"],["🚫 Largados",cnt.aband,"aband"]];
   document.getElementById("stats").innerHTML=el.map(([l,n,fv])=>{
-    const clk = fv===null ? "" : `class="stat clickable" onclick="filterStatus('${fv}')"`;
+    const fn = (fv==="fav"||fv==="life") ? `filterSpecial('${fv}')` : (fv!==null?`filterStatus('${fv}')`:"");
+    const clk = fn ? `class="stat clickable" onclick="${fn}"` : "";
     return `<div ${clk||'class="stat"'}><div class="n">${n}</div><div class="l">${l}</div></div>`;
   }).join("");
   renderCharts();
@@ -759,6 +768,7 @@ function renderCharts(){
   const g=allGames();
   if(!g.length){ box.innerHTML=""; Object.values(GCHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); GCHARTS={}; return; }
   const fin=g.filter(x=>["zer","plat"].includes(statusOf(x))).length;
+  const favN=g.filter(x=>U(gid(x)).fav).length, lifeN=g.filter(x=>U(gid(x)).life).length;
   const gen={}, hrs={};
   g.forEach(x=>{ const k=genreOf(x)||"Outros"; gen[k]=(gen[k]||0)+1; hrs[k]=(hrs[k]||0)+(x.playtime||0); });
   const topN=(o,n,round)=>{ const ks=Object.keys(o).sort((a,b)=>o[b]-o[a]); const t=ks.slice(0,n); const rest=ks.slice(n).reduce((s,x)=>s+o[x],0); const labels=t.slice(),data=t.map(x=>round?Math.round(o[x]):o[x]); if(rest>0){labels.push("Outros");data.push(round?Math.round(rest):rest);} return {labels,data}; };
@@ -770,12 +780,14 @@ function renderCharts(){
     <div style="${cc}"><div style="${ct}">Zerados vs. não zerados</div><canvas id="cgFin" style="max-height:200px"></canvas></div>
     <div style="${cc}"><div style="${ct}">Jogos por gênero</div><canvas id="cgGen" style="max-height:200px"></canvas></div>
     <div style="${cc}"><div style="${ct}">Horas por gênero</div><canvas id="cgHrs" style="max-height:200px"></canvas></div>
-    <div style="${cc}"><div style="${ct}">Zerados por ano</div><canvas id="cgYear" style="max-height:200px"></canvas></div>`;
+    <div style="${cc}"><div style="${ct}">Zerados por ano</div><canvas id="cgYear" style="max-height:200px"></canvas></div>
+    <div style="${cc}"><div style="${ct}">⭐ Favoritos & 🏅 Da minha vida</div><canvas id="cgFav" style="max-height:200px"></canvas></div>`;
   Object.values(GCHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); GCHARTS={};
   if(typeof Chart==="undefined") return;
   const leg=(sz)=>({position:'bottom',labels:{color:'#c9d0de',font:{size:sz},boxWidth:11,padding:6}});
   GCHARTS.fin=new Chart(document.getElementById('cgFin'),{type:'doughnut',data:{labels:['Zerados','Não zerados'],datasets:[{data:[fin,g.length-fin],backgroundColor:['#22c55e','#475569'],borderWidth:0}]},options:{onClick:(e,el)=>{ if(el.length) filterStatus(el[0].index===0?'zer':'__all__'); },plugins:{legend:leg(11)},cutout:'55%'}});
   GCHARTS.gen=new Chart(document.getElementById('cgGen'),{type:'doughnut',data:{labels:Gc.labels,datasets:[{data:Gc.data,backgroundColor:genColors,borderWidth:0}]},options:{onClick:(e,el)=>{ if(el.length){ const l=Gc.labels[el[0].index]; if(l!=='Outros') pickGenre(l); } },plugins:{legend:leg(10)},cutout:'55%'}});
+  GCHARTS.fav=new Chart(document.getElementById('cgFav'),{type:'doughnut',data:{labels:['⭐ Favoritos','🏅 Da minha vida','Demais'],datasets:[{data:[favN,lifeN,Math.max(0,g.length-favN-lifeN)],backgroundColor:['#f5b301','#e0559a','#475569'],borderWidth:0}]},options:{onClick:(e,el)=>{ if(el.length) filterSpecial(el[0].index===0?'fav':el[0].index===1?'life':''); },plugins:{legend:leg(10)},cutout:'55%'}});
   GCHARTS.hrs=new Chart(document.getElementById('cgHrs'),{type:'bar',data:{labels:Hc.labels,datasets:[{data:Hc.data,backgroundColor:'#6d4bf6'}]},options:{onClick:(e,el)=>{ if(el.length){ const l=Hc.labels[el[0].index]; if(l!=='Outros') pickGenre(l); } },plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a93a8',font:{size:9},maxRotation:60,minRotation:45}},y:{ticks:{color:'#8a93a8'},grid:{color:'#2a3140'}}}}});
   const yr={}; g.forEach(x=>{ if(["zer","plat"].includes(statusOf(x))){ const y=U(gid(x)).doneYear; if(y) yr[y]=(yr[y]||0)+1; } });
   const ys=Object.keys(yr).sort();
@@ -799,6 +811,8 @@ function gameCard(g,pos){
   if(g.manual) linkItems+=`<button class="del-mini" onclick="editManual('${aps}')">✏️ Editar</button><button class="del-mini danger" onclick="delManual('${aps}')">🗑️ Excluir</button>`;
   if(isHidden(g)) linkItems+=`<button class="del-mini" onclick="unhideGame(${idArg})">↩ Restaurar</button>`;
   else linkItems+=`<button class="del-mini" onclick="hideGame(${idArg})" title="Tirar da lista (sem apagar)">🚫 Ocultar</button>`;
+  const gfav=!!U(gid(g)).fav, glife=!!U(gid(g)).life;
+  linkItems=`<button class="del-mini ${gfav?'flon':''}" onclick="setFav(${idArg})" title="Favorito">${gfav?'⭐ Favorito':'☆ Favoritar'}</button><button class="del-mini ${glife?'flon':''}" onclick="setLife(${idArg})" title="Da minha vida">${glife?'🏆 Da minha vida':'🏆 Marcar'}</button>`+linkItems;
   const links=`<div class="links">${linkItems}</div>`;
   const tp=typeOf(g);
   const tbadge=`<span class="plat-tag" style="background:${TYPE_TAG[tp]};color:#fff">${TYPES[tp].split(" ")[0]}</span>`;
@@ -817,7 +831,7 @@ function gameCard(g,pos){
   }
   const auto100 = g.total>0 && g.unlocked===g.total; // 100% => platinado travado
   return `<div class="game ${pos!=null&&pos<=3?'rank-hl':''}">
-    <div class="banner" style="background:hsl(${hue(g.name)},55%,45%)"><span class="ini">${initials(g.name)}</span>${coverImg}</div>
+    <div class="banner" style="background:hsl(${hue(g.name)},55%,45%)"><span class="ini">${initials(g.name)}</span>${coverImg}${(gfav||glife)?`<span class="flbadge">${glife?'🏆':''}${gfav?'⭐':''}</span>`:""}</div>
     <div class="gbody">
     <div class="gname">${posT}${g.name}</div>
     <div class="gmeta">${meta}</div>
@@ -880,7 +894,7 @@ function render(){
     return;
   }
 
-  let list=allGames().filter(g=>g.name.toLowerCase().includes(q)&&(!fs||statusOf(g)===fs)&&(!fp||(g.platform||"Outro")===fp)&&(!ft||typeOf(g)===ft)&&(!genreFilter||hasGenre(g,genreFilter))&&(specialFilter!=="almost"||isAlmost(g))&&(!YEARFILTER||String(U(gid(g)).doneYear||"")===YEARFILTER));
+  let list=allGames().filter(g=>g.name.toLowerCase().includes(q)&&(!fs||statusOf(g)===fs)&&(!fp||(g.platform||"Outro")===fp)&&(!ft||typeOf(g)===ft)&&(!genreFilter||hasGenre(g,genreFilter))&&(specialFilter!=="almost"||isAlmost(g))&&(specialFilter!=="fav"||U(gid(g)).fav)&&(specialFilter!=="life"||U(gid(g)).life)&&(!YEARFILTER||String(U(gid(g)).doneYear||"")===YEARFILTER));
   const showBar = genreFilter || specialFilter;
   document.getElementById("catbar").style.display = (tab==="lib" && showBar) ? "flex" : "none";
   if(genreFilter) document.getElementById("catbar").innerHTML=`<span style="font-size:13px;color:var(--muted)">Categoria:</span> <span class="plat-tag" style="background:var(--accent);color:var(--accent-t)">${GENRE_EMOJI[genreFilter]||""} ${genreFilter}</span> <button class="btn-sec" style="padding:4px 10px" onclick="clearGenre()">× limpar</button>`;
