@@ -345,7 +345,10 @@ function renderStats(){
 }
 
 // ---------- recomendações / 50 melhores (em português) ----------
-function gbMap(v){ const vi=v.volumeInfo||{}; return {id:v.id,title:vi.title||"",authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"",pages:vi.pageCount||0,genre:(vi.categories||[])[0]||"",publisher:vi.publisher||"",lang:vi.language||""}; }
+// capa em alta resolução do Google Books (zoom=0 traz a versão grande; tira o efeito de página dobrada)
+function hiResUrl(u){ return u?u.replace("http://","https://").replace(/&edge=curl/,"").replace(/zoom=\d+/,"zoom=0"):""; }
+function hiRes(il){ return hiResUrl((il&&(il.thumbnail||il.smallThumbnail))||""); }
+function gbMap(v){ const vi=v.volumeInfo||{}; return {id:v.id,title:vi.title||"",authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:hiRes(vi.imageLinks),pages:vi.pageCount||0,genre:(vi.categories||[])[0]||"",publisher:vi.publisher||"",lang:vi.language||""}; }
 async function fetchOne(t,a){
   try{
     const q=`intitle:"${t}" inauthor:"${a}"`;
@@ -504,7 +507,7 @@ function medal(n){ return n===1?"🥇":n===2?"🥈":n===3?"🥉":"#"+n; }
 function starsHTML(v){ v=Math.max(0,Math.min(5,v||0)); return `<span class="stars" title="${v} de 5"><span class="bg">★★★★★</span><span class="fg" style="width:${v/5*100}%">★★★★★</span></span>`; }
 function bookCard(i,rank){
   const m=i.meta||{};
-  const cover=i.poster?`<img src="${i.poster}" loading="lazy" onerror="imgFail(this)">`:`<div class="noimg">📖</div>`;
+  const cover=i.poster?`<img src="${hiResUrl(i.poster)}" loading="lazy" onerror="imgFail(this)">`:`<div class="noimg">📖</div>`;
   const st=i.status||"quero";
   const rankB=rank?`<span class="rankbadge">${medal(rank)}${i.rating!=null?' · '+i.rating:''}</span>`:"";
   return `<div class="card"><div class="cardwrap">
@@ -575,7 +578,7 @@ async function searchGoogle(q,isbn){
     const query=isbn?("isbn:"+isbn):q;
     const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20&langRestrict=pt&country=BR${GBK}`);
     const d=await r.json();
-    return (d.items||[]).map(v=>{const vi=v.volumeInfo||{}; return {id:v.id,title:vi.title||"—",authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:(vi.imageLinks&&vi.imageLinks.thumbnail)?vi.imageLinks.thumbnail.replace("http://","https://"):"",pages:vi.pageCount||0,genre:(vi.categories||[])[0]||"",publisher:vi.publisher||""};});
+    return (d.items||[]).map(v=>{const vi=v.volumeInfo||{}; return {id:v.id,title:vi.title||"—",authors:(vi.authors||[]).join(", "),yr:(vi.publishedDate||"").slice(0,4),poster:hiRes(vi.imageLinks),pages:vi.pageCount||0,genre:(vi.categories||[])[0]||"",publisher:vi.publisher||""};});
   }catch(e){ return []; }
 }
 function normTitle(t){ return String(t||"").toLowerCase().split(/[:\(\-–]/)[0].replace(/[^a-z0-9à-ú ]/gi,"").replace(/\s+/g," ").trim(); }
