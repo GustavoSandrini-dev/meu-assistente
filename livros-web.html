@@ -523,6 +523,7 @@ function bookCard(i,rank){
       <div class="where" id="wh-${i.id}"></div>
       <div class="rowb" style="justify-content:space-between;flex-wrap:wrap">
         ${st!=="quero"?`<button class="mini" onclick="toggleDates('${i.id}')">📅 Datas</button>`:""}
+        ${String(i.ext_id||"").startsWith("manual:")?`<button class="mini" onclick="editManual('${i.id}')">✏️ Editar</button>`:""}
         <button class="mini" onclick="showWhere('${i.id}')">📖 Onde ler</button>
         <button class="mini" onclick="delItem('${i.id}')">remover</button>
       </div>
@@ -722,22 +723,28 @@ async function confirmAdd(){
   PENDING=null; closeModal(); document.getElementById("q").value=""; hideDropdown(); await loadItems();
 }
 
-function manualModal(){
+function editManual(id){ manualModal(id); }
+function manualModal(editId){
   hideDropdown();
-  const q=document.getElementById("q").value.trim();
-  document.getElementById("modalbox").innerHTML=`<h3>Adicionar livro manualmente</h3>
+  const it = editId ? ITEMS.find(x=>x.id===editId) : null;
+  const m = (it && it.meta) || {};
+  const q = it ? it.title : document.getElementById("q").value.trim();
+  const opt=(v,lbl)=>`<option value="${v}" ${(it&&it.status===v)?"selected":""}>${lbl}</option>`;
+  document.getElementById("modalbox").innerHTML=`<h3>${it?"✏️ Editar livro":"Adicionar livro manualmente"}</h3>
     <label>Título <span style="color:var(--neg)">*</span></label><input id="mmTitle" value="${esc(q)}" placeholder="Nome do livro">
-    <label>Autor(a) <span style="color:var(--neg)">*</span></label><input id="mmAuthor" placeholder="Nome do autor(a)">
+    <label>Autor(a) <span style="color:var(--neg)">*</span></label><input id="mmAuthor" value="${esc(m.authors||"")}" placeholder="Nome do autor(a)">
     <button class="btn" style="width:100%;margin-bottom:12px" onclick="mmFetch()">🔎 Buscar dados na internet (título + autor)</button>
     <div id="mmMsg" style="font-size:12px;color:var(--muted);min-height:14px;margin-bottom:6px"></div>
-    <div id="mmPreview" style="text-align:center;margin-bottom:8px"></div>
-    <label>Ano de lançamento</label><input id="mmYear" type="number" placeholder="—">
-    <label>Páginas</label><input id="mmPages" type="number" placeholder="—">
-    <label>Capa — URL da imagem</label><input id="mmCover" placeholder="https://..." oninput="mmShowCover()">
+    <div id="mmPreview" style="text-align:center;margin-bottom:8px">${it&&it.poster?`<img src="${esc(it.poster)}" style="width:70px;border-radius:6px">`:""}</div>
+    <label>Ano de lançamento</label><input id="mmYear" type="number" value="${esc(m.year||"")}" placeholder="—">
+    <label>Páginas</label><input id="mmPages" type="number" value="${m.pages||""}" placeholder="—">
+    <label>Capa — URL da imagem</label><input id="mmCover" value="${esc(it?it.poster||"":"")}" placeholder="https://..." oninput="mmShowCover()">
     <label>Onde colocar?</label>
-    <select id="mmStatus"><option value="quero">Quero ler</option><option value="lendo">Lendo</option><option value="lido">Já li</option></select>
-    <label>Estrelas (0 a 5, opcional)</label><input id="mmRating" type="number" min="0" max="5" step="0.1" placeholder="—">
-    <button class="btn" style="width:100%;margin-top:4px" onclick="confirmManual()">Adicionar à estante</button>
+    <select id="mmStatus">${opt("quero","⭐ Lista de desejos")}${opt("lendo","📖 Lendo")}${opt("lido","✅ Já li")}</select>
+    <label>Formato</label>
+    <select id="mmFormat"><option value="">— não informar —</option>${["Físico","E-book","Kindle Unlimited","Empréstimo"].map(f=>`<option value="${f}" ${m.format===f?"selected":""}>${f}</option>`).join("")}</select>
+    <label>Estrelas (0 a 5, opcional)</label><input id="mmRating" type="number" min="0" max="5" step="0.1" value="${it&&it.rating!=null?it.rating:""}" placeholder="—">
+    <button class="btn" style="width:100%;margin-top:4px" onclick="confirmManual(${editId?`'${editId}'`:''})">${it?"💾 Salvar alterações":"Adicionar à estante"}</button>
     <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Cancelar</button>`;
   document.getElementById("modal").style.display="flex";
 }
@@ -814,15 +821,28 @@ async function mmFetch(){
   else if(temCapa){ msg.style.color="var(--pos)"; msg.textContent="Achei uma capa na web ✓ — confira se é a certa (senão, cole outra URL)."; }
   else { msg.style.color="var(--neg)"; msg.textContent="Não achei. Preencha os campos e cole a URL da capa."; }
 }
-async function confirmManual(){
+async function confirmManual(editId){
   const title=document.getElementById("mmTitle").value.trim(); if(!title){alert("Digite o título.");return;}
   const status=document.getElementById("mmStatus").value;
   const rv=document.getElementById("mmRating").value;
   const rating=rv===""?null:Math.max(0,Math.min(5,parseFloat(rv)));
   const pages=parseInt(document.getElementById("mmPages").value,10)||0;
   const year=document.getElementById("mmYear").value.trim();
-  const meta={authors:document.getElementById("mmAuthor").value.trim(),pages,year,genre:"",publisher:"",hours:0,started_at:status==="lendo"?new Date().toISOString():null};
-  const row={collection_id:ACTIVE,kind:"livro",ext_id:"manual:"+Date.now(),title,poster:document.getElementById("mmCover").value.trim(),status,rating,meta};
+  const author=document.getElementById("mmAuthor").value.trim();
+  const format=document.getElementById("mmFormat").value||"";
+  const cover=document.getElementById("mmCover").value.trim();
+  if(editId){
+    // EDIÇÃO: preserva os campos que já existiam (datas, gênero, etc)
+    const it=ITEMS.find(x=>x.id===editId); const meta=Object.assign({},(it&&it.meta)||{});
+    meta.authors=author; meta.pages=pages; meta.year=year; meta.format=format;
+    const upd={title,poster:cover,status,rating,meta,updated_at:new Date().toISOString()};
+    if(status==="lido" && !meta.endDate && !(it&&it.done_date)) upd.done_date=new Date().toISOString().slice(0,10);
+    const {error}=await sb.from("items").update(upd).eq("id",editId);
+    if(error){ alert("Erro: "+error.message); return; }
+    closeModal(); await loadItems(); return;
+  }
+  const meta={authors:author,pages,year,genre:"",publisher:"",hours:0,format,started_at:status==="lendo"?new Date().toISOString():null};
+  const row={collection_id:ACTIVE,kind:"livro",ext_id:"manual:"+Date.now(),title,poster:cover,status,rating,meta};
   if(status==="lido") row.done_date=new Date().toISOString().slice(0,10);
   const {error}=await sb.from("items").insert(row);
   if(error){ alert("Erro: "+error.message); return; }
