@@ -351,7 +351,17 @@ function renderStats(){
       <div class="chartcard"><div class="ch-t">⭐ Favoritos & 🏆 Da minha vida</div><canvas id="chFav"></canvas></div>
       <div class="chartcard"><div class="ch-t">Autores</div><canvas id="chAut"></canvas></div>
     </div>
-    <div class="chartcard" style="margin-bottom:16px"><div class="ch-t">📅 Livros lidos por ano</div><canvas id="chYear" style="max-height:170px"></canvas></div>`;
+    <div class="chartcard" style="margin-bottom:16px"><div class="ch-t">📅 Livros lidos por ano</div><canvas id="chYear" style="max-height:170px"></canvas></div>
+    <div class="sec-title" style="margin-top:4px">📊 Mais análises</div>
+    <div class="charts-grid">
+      <div class="chartcard"><div class="ch-t">📄 Páginas lidas por ano</div><canvas id="chPag"></canvas></div>
+      <div class="chartcard"><div class="ch-t">📕📱 Físico vs Digital por ano</div><canvas id="chFmtYear"></canvas></div>
+      <div class="chartcard"><div class="ch-t">⭐ Distribuição de notas</div><canvas id="chNotas"></canvas></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chartcard"><div class="ch-t">📆 Lidos por mês (${new Date().getFullYear()})</div><canvas id="chMes"></canvas></div>
+      <div class="chartcard"><div class="ch-t">📚 Gêneros mais lidos</div><canvas id="chGenero"></canvas></div>
+    </div>`;
   Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS={};
   if(typeof Chart==="undefined") return;
   const txt=(getComputedStyle(document.body).getPropertyValue('--text')||'#e6eaf2').trim();
@@ -366,6 +376,26 @@ function renderStats(){
   const anosMap={}; lidos.forEach(i=>{ const y=(i.done_date||"").slice(0,4); if(y) anosMap[y]=(anosMap[y]||0)+1; });
   const years=Object.keys(anosMap).sort();
   CHARTS.year=new Chart(document.getElementById('chYear'),{type:'bar',data:{labels:years,datasets:[{data:years.map(y=>anosMap[y]),backgroundColor:'#4f7cf7'}]},options:{onClick:(e,el)=>{ if(!el.length)return; const y=years[el[0].index]; FYEAR=(FYEAR===y)?"":y; FGENRE=""; FAUTHOR=""; FPUB=""; setFilter('lido'); },plugins:{legend:{display:false}},scales:{x:{ticks:{color:txt,font:{size:11}}},y:{beginAtZero:true,ticks:{color:txt,precision:0}}}}});
+
+  // ---- gráficos novos ----
+  const barC=(id,labels,data,color)=>new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets:[{data,backgroundColor:color}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:txt,font:{size:10}}},y:{beginAtZero:true,ticks:{color:txt,precision:0,font:{size:10}}}}}});
+  // 6) páginas lidas por ano (progresso)
+  const pagAno={}; lidos.forEach(i=>{ const y=(i.done_date||"").slice(0,4); if(y) pagAno[y]=(pagAno[y]||0)+((i.meta&&i.meta.pages)||0); });
+  CHARTS.pag=barC('chPag',years,years.map(y=>pagAno[y]||0),'#a855f7');
+  // 7) físico vs digital por ano (comparação, empilhado)
+  const fAno={}, dAno={}; lidos.forEach(i=>{ const y=(i.done_date||"").slice(0,4); if(!y)return; if(isDigital(i)) dAno[y]=(dAno[y]||0)+1; else fAno[y]=(fAno[y]||0)+1; });
+  CHARTS.fmtYear=new Chart(document.getElementById('chFmtYear'),{type:'bar',data:{labels:years,datasets:[{label:'📕 Físico',data:years.map(y=>fAno[y]||0),backgroundColor:'#f59e0b'},{label:'📱 Digital',data:years.map(y=>dAno[y]||0),backgroundColor:'#38bdf8'}]},options:{plugins:{legend:{position:'bottom',labels:{color:txt,font:{size:11},boxWidth:12}}},scales:{x:{stacked:true,ticks:{color:txt,font:{size:10}}},y:{stacked:true,beginAtZero:true,ticks:{color:txt,precision:0}}}}});
+  // 8) distribuição de notas (0-5)
+  const notas=Array(6).fill(0); ITEMS.forEach(i=>{ if(i.rating!=null){ const b=Math.max(0,Math.min(5,Math.round(i.rating))); notas[b]++; } });
+  CHARTS.notas=barC('chNotas',notas.map((_,n)=>n+'★'),notas,'#f5b301');
+  // 9) lidos por mês (ano atual)
+  const MES=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"], anoAtual=String(new Date().getFullYear());
+  const mes=Array(12).fill(0); lidos.forEach(i=>{ const d=i.done_date||""; if(d.slice(0,4)===anoAtual){ const mi=parseInt(d.slice(5,7),10)-1; if(mi>=0&&mi<12) mes[mi]++; } });
+  CHARTS.mes=barC('chMes',MES,mes,'#3ecf9a');
+  // 10) gêneros mais lidos
+  const gcnt={}; lidos.forEach(i=>{ const g=genreKey(i)||"Outros"; gcnt[g]=(gcnt[g]||0)+1; });
+  const Gt=topN(gcnt,7);
+  if(Gt.labels.length) CHARTS.genero=dough('chGenero',Gt.labels,Gt.data,pal,(e,el)=>{ if(!el.length)return; const l=Gt.labels[el[0].index]; if(l==='Outros')return; FGENRE=(FGENRE===l)?'':l; const s=document.getElementById('fGenre'); if(s)s.value=FGENRE; setFilter('lido'); });
 }
 
 // ---------- recomendações / 50 melhores (em português) ----------

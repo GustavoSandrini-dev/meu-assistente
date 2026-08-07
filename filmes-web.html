@@ -297,7 +297,17 @@ function renderStats(){
       <div class="chartcard"><div class="ch-t">Assistido vs. a ver · Filmes vs. séries</div><canvas id="chStatus"></canvas></div>
       <div class="chartcard"><div class="ch-t">⭐ Favoritos & 🏆 Da minha vida</div><canvas id="chFav"></canvas></div>
     </div>
-    <div class="chartcard" style="margin-bottom:16px"><div class="ch-t">📅 Assistidos por ano</div><canvas id="chYear" style="max-height:170px"></canvas></div>`;
+    <div class="chartcard" style="margin-bottom:16px"><div class="ch-t">📅 Assistidos por ano</div><canvas id="chYear" style="max-height:170px"></canvas></div>
+    <div class="sec-title" style="margin-top:4px">📊 Mais análises</div>
+    <div class="charts-grid">
+      <div class="chartcard"><div class="ch-t">📍 Onde assisti</div><canvas id="chSource"></canvas></div>
+      <div class="chartcard"><div class="ch-t">📺 Por streaming</div><canvas id="chStream"></canvas></div>
+      <div class="chartcard"><div class="ch-t">⭐ Distribuição de notas</div><canvas id="chNotas"></canvas></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chartcard"><div class="ch-t">📆 Assistidos por mês (${ano})</div><canvas id="chMes"></canvas></div>
+      <div class="chartcard"><div class="ch-t">🎬 Filmes vs Séries por ano</div><canvas id="chFvS"></canvas></div>
+    </div>`;
   Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}}); CHARTS={};
   if(typeof Chart==="undefined") return;
   const pal=['#6d4bf6','#3ecf9a','#f59e0b','#f472b6','#38bdf8','#a855f7','#f07567','#94a0b8'];
@@ -308,6 +318,29 @@ function renderStats(){
   const anosMap={}; vistos.forEach(i=>{ const y=(i.done_date||"").slice(0,4); if(y) anosMap[y]=(anosMap[y]||0)+1; });
   const years=Object.keys(anosMap).sort();
   CHARTS.year=new Chart(document.getElementById('chYear'),{type:'bar',data:{labels:years,datasets:[{data:years.map(y=>anosMap[y]),backgroundColor:'#6d4bf6'}]},options:{onClick:(e,el)=>{ if(!el.length)return; const y=years[el[0].index]; FYEAR=(FYEAR===y)?"":y; FGEN=""; FKIND=""; FILTER="todos"; renderItems(); setView('lista'); },plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#aab3c5',font:{size:11}}},y:{beginAtZero:true,ticks:{color:'#aab3c5',precision:0}}}}});
+
+  // ---- gráficos novos ----
+  const AX='#aab3c5';
+  const barC=(id,labels,data,color,horizontal)=>new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets:[{data,backgroundColor:color}]},options:{indexAxis:horizontal?'y':'x',plugins:{legend:{display:false}},scales:{x:{ticks:{color:AX,font:{size:10}}},y:{beginAtZero:true,ticks:{color:AX,precision:0,font:{size:10}}}}}});
+  // 1) onde assisti (categorias)
+  const srcCat={}; vistos.forEach(i=>{ let s=(i.meta&&i.meta.source)||""; if(!s) return; if(STREAMS.includes(s)) s="Streaming"; srcCat[s]=(srcCat[s]||0)+1; });
+  const scK=Object.keys(srcCat);
+  if(scK.length) CHARTS.src=dough('chSource',scK,scK.map(k=>srcCat[k]),pal,null); else document.getElementById('chSource').parentElement.innerHTML='<div class="ch-t">📍 Onde assisti</div><div class="empty" style="font-size:12px">Marque "onde assisti" nos filmes.</div>';
+  // 2) por streaming
+  const strC={}; vistos.forEach(i=>{ const s=(i.meta&&i.meta.source)||""; if(STREAMS.includes(s)) strC[s]=(strC[s]||0)+1; });
+  const stK=Object.keys(strC).sort((a,b)=>strC[b]-strC[a]);
+  if(stK.length) CHARTS.stream=barC('chStream',stK,stK.map(k=>strC[k]),'#e50914',true); else document.getElementById('chStream').parentElement.innerHTML='<div class="ch-t">📺 Por streaming</div><div class="empty" style="font-size:12px">Sem streamings registrados ainda.</div>';
+  // 3) distribuição de notas (0-10)
+  const notas=Array(11).fill(0); ITEMS.forEach(i=>{ if(i.rating!=null){ const b=Math.max(0,Math.min(10,Math.round(i.rating))); notas[b]++; } });
+  CHARTS.notas=barC('chNotas',notas.map((_,n)=>n),notas,'#f59e0b',false);
+  // 4) assistidos por mês (ano atual)
+  const MES=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  const mes=Array(12).fill(0); vistos.forEach(i=>{ const d=i.done_date||""; if(d.slice(0,4)==String(ano)){ const mi=parseInt(d.slice(5,7),10)-1; if(mi>=0&&mi<12) mes[mi]++; } });
+  CHARTS.mes=barC('chMes',MES,mes,'#3ecf9a',false);
+  // 5) filmes vs séries por ano (comparação)
+  const fy={}, sy={}; vistos.forEach(i=>{ const y=(i.done_date||"").slice(0,4); if(!y)return; if(i.kind==="serie") sy[y]=(sy[y]||0)+1; else fy[y]=(fy[y]||0)+1; });
+  const yrs2=[...new Set([...Object.keys(fy),...Object.keys(sy)])].sort();
+  CHARTS.fvs=new Chart(document.getElementById('chFvS'),{type:'bar',data:{labels:yrs2,datasets:[{label:'Filmes',data:yrs2.map(y=>fy[y]||0),backgroundColor:'#6d4bf6'},{label:'Séries',data:yrs2.map(y=>sy[y]||0),backgroundColor:'#38bdf8'}]},options:{plugins:{legend:{position:'bottom',labels:{color:AX,font:{size:11},boxWidth:12}}},scales:{x:{stacked:true,ticks:{color:AX,font:{size:10}}},y:{stacked:true,beginAtZero:true,ticks:{color:AX,precision:0}}}}});
 }
 
 function renderShareRow(){
@@ -367,7 +400,8 @@ function itemCard(i,rank){
         </select>
         <input class="note" type="number" min="0" max="10" step="0.1" placeholder="—" value="${i.rating??""}" onchange="setRating('${i.id}',this.value)" title="Nota 0-10">
       </div>
-      ${st==="assistido"?`<div class="wdate">📅 <span>Assisti em</span> <input type="date" value="${i.done_date||''}" onchange="setWatchDate('${i.id}',this.value)"></div>`:""}
+      ${st==="assistido"?`<div class="wdate">📅 <span>Assisti em</span> <input type="date" value="${i.done_date||''}" onchange="setWatchDate('${i.id}',this.value)"></div>
+      <div class="wdate">📍 <span>Onde</span> <select onchange="setSource('${i.id}',this.value)" style="flex:1;min-width:0;background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:8px;padding:5px 7px;font-size:12px">${sourceOpts((i.meta&&i.meta.source)||"")}</select></div>`:""}
       <textarea class="cmt" placeholder="Comentário…" onchange="setNote('${i.id}',this.value)">${esc(i.note||"")}</textarea>
       <div class="prov" id="prov-${i.id}"></div>
       <div class="rowb" style="justify-content:space-between">
@@ -482,6 +516,7 @@ function addItem(payload){
       <option value="assistido">Já assisti</option>
     </select>
     <div id="mdaterow" style="display:none"><label>📅 Data que assisti</label><input id="mdate" type="date"></div>
+    <div id="msourcerow" style="display:none"><label>📍 Onde assisti?</label><select id="msource">${sourceOpts()}</select></div>
     <label>Nota (0–10, opcional)</label>
     <input id="mrating" type="number" min="0" max="10" step="0.1" placeholder="—">
     <label>Comentário (opcional)</label>
@@ -491,10 +526,19 @@ function addItem(payload){
   document.getElementById("modal").style.display="flex";
   updateWatchDate();
 }
+// onde assisti (fonte)
+const SOURCES=["Netflix","Prime Video","Disney+","Max","Globoplay","Apple TV+","Paramount+","YouTube","Cinema","DVD/Blu-ray","TV","Download/Pirata","Outro"];
+const STREAMS=["Netflix","Prime Video","Disney+","Max","Globoplay","Apple TV+","Paramount+","YouTube"];
+function sourceOpts(sel){ return `<option value="">— não informar —</option>`+
+  `<optgroup label="Streaming">`+STREAMS.map(s=>`<option ${sel===s?"selected":""}>${s}</option>`).join("")+`</optgroup>`+
+  ["Cinema","DVD/Blu-ray","TV","Download/Pirata","Outro"].map(s=>`<option ${sel===s?"selected":""}>${s}</option>`).join(""); }
 function updateWatchDate(){
   const st=document.getElementById("mstatus").value, row=document.getElementById("mdaterow"), d=document.getElementById("mdate");
-  if(st==="assistido"){ row.style.display="block"; if(!d.value) d.value=new Date().toISOString().slice(0,10); }
-  else row.style.display="none";
+  const sr=document.getElementById("msourcerow");
+  const on = st==="assistido";
+  row.style.display=on?"block":"none";
+  if(sr) sr.style.display=on?"block":"none";
+  if(on && !d.value) d.value=new Date().toISOString().slice(0,10);
 }
 async function confirmAdd(){
   const x=PENDING; if(!x) return;
@@ -503,8 +547,9 @@ async function confirmAdd(){
   const rating=rv===""?null:Math.max(0,Math.min(10,parseFloat(rv)));
   const note=document.getElementById("mnote").value.trim()||null;
   const dateVal=document.getElementById("mdate").value||null;
+  const source=(document.getElementById("msource")||{}).value||"";
   const row={collection_id:ACTIVE,kind:x.kind,ext_id:String(x.id),title:x.title,poster:x.poster,status,rating,note,
-    meta:{year:x.yr,media:x.media,vote:x.vote,genre:x.genre||""}};
+    meta:{year:x.yr,media:x.media,vote:x.vote,genre:x.genre||"",source:status==="assistido"?source:""}};
   if(status==="assistido") row.done_date=dateVal||new Date().toISOString().slice(0,10);
   const {error}=await sb.from("items").insert(row);
   if(error){ alert("Erro ao adicionar: "+error.message); return; }
@@ -531,6 +576,10 @@ function setLife(id){ setFlag(id,"life"); }
 async function setWatchDate(id,val){
   await sb.from("items").update({done_date:val||null,updated_at:new Date().toISOString()}).eq("id",id);
   const it=ITEMS.find(i=>i.id===id); if(it) it.done_date=val||null; renderStats();
+}
+async function setSource(id,val){
+  const it=ITEMS.find(i=>i.id===id); if(!it) return; const m=Object.assign({},it.meta||{}); m.source=val||""; it.meta=m;
+  await sb.from("items").update({meta:m,updated_at:new Date().toISOString()}).eq("id",id); renderStats();
 }
 async function setRating(id,v){ const n=v===""?null:Math.max(0,Math.min(10,parseFloat(v))); await sb.from("items").update({rating:n,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.rating=n; if(FILTER==="ranking") renderItems(); }
 async function setNote(id,v){ const t=v.trim()||null; await sb.from("items").update({note:t,updated_at:new Date().toISOString()}).eq("id",id); const it=ITEMS.find(i=>i.id===id); if(it)it.note=t; }
