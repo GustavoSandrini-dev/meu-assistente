@@ -98,6 +98,8 @@ select{flex:1}
 .note{width:48px;flex:0 0 48px;text-align:center}
 .raterow{display:flex;align-items:center;gap:8px}
 .raterow .ratelbl{font-size:11px;color:var(--muted);font-weight:600}
+.selrow{gap:6px}
+.selrow select{flex:1 1 0;min-width:0;text-overflow:ellipsis}
 .mini.fl{border:1.5px solid var(--border);border-radius:8px;padding:5px 8px;background:var(--row);flex:1}
 .mini.fl.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 .flbadge{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border-radius:8px;padding:3px 7px;font-size:13px}
@@ -581,16 +583,17 @@ function bookCard(i,rank){
         <button class="mini fl ${fav?'on':''}" onclick="setFav('${i.id}')" title="Favorito">${fav?'⭐ Favorito':'☆ Favoritar'}</button>
         <button class="mini fl ${life?'on':''}" onclick="setLife('${i.id}')" title="Da minha vida">${life?'🏆 Da minha vida':'🏆 Marcar'}</button>
       </div>
-      <div class="rowb">
-        <select style="flex:1" onchange="setStatus('${i.id}',this.value)">
+      <div class="rowb selrow">
+        <select onchange="setStatus('${i.id}',this.value)" title="Status">
           <option value="quero" ${st==="quero"?"selected":""}>⭐ Lista de desejos</option>
           <option value="para_ler" ${st==="para_ler"?"selected":""}>📥 Para ler</option>
           <option value="lendo" ${st==="lendo"?"selected":""}>📖 Lendo</option>
           <option value="lido" ${st==="lido"?"selected":""}>✅ Lido</option>
           <option value="abandonado" ${st==="abandonado"?"selected":""}>🚫 Abandonado</option>
         </select>
-        <select style="flex:0 0 auto" onchange="setFormat('${i.id}',this.value)" title="Formato">
-          ${["","Físico","E-book","Kindle Unlimited","Empréstimo"].map(f=>`<option value="${f}" ${((m.format||"")===f)?"selected":""}>${f||"—"}</option>`).join("")}
+        <select onchange="setFormat('${i.id}',this.value)" title="Formato">
+          <option value="" ${!m.format?"selected":""}>📦 Formato</option>
+          ${["Físico","E-book","Kindle Unlimited","Empréstimo"].map(f=>`<option value="${f}" ${((m.format||"")===f)?"selected":""}>${f}</option>`).join("")}
         </select>
       </div>
       <div id="dw-${i.id}" style="display:none">${datesBlock(i)}</div>
