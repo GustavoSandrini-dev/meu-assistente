@@ -169,6 +169,7 @@ select{flex:1}
     <button class="btn ghost" onclick="clearSearch()">Limpar</button>
     <button class="btn ghost" onclick="manualModal()">➕ Manual</button>
     <button class="btn ghost" onclick="bulkModal()">📋 Lista</button>
+    <button class="btn ghost" onclick="bulkFormatModal()">🔀 Formatos</button>
     <div class="dropdown" id="dropdown"></div>
   </div>
 
@@ -812,6 +813,45 @@ function manualModal(editId){
   document.getElementById("modal").style.display="flex";
 }
 function mmShowCover(){ const u=document.getElementById("mmCover").value.trim(); document.getElementById("mmPreview").innerHTML=u?`<img src="${u}" style="width:70px;border-radius:6px">`:""; }
+
+// ----- mover vários livros de formato de uma vez -----
+function bulkFormatModal(){
+  hideDropdown();
+  const owned=ITEMS.filter(i=>!isWish(i));
+  if(!owned.length){ alert("Você ainda não tem livros nas estantes."); return; }
+  const rows=owned.map(i=>{
+    const f=(i.meta&&i.meta.format)||"";
+    return `<label style="display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer">
+      <input type="checkbox" class="bfck" value="${i.id}" style="width:18px;height:18px;accent-color:var(--accent)">
+      <span style="flex:1;min-width:0">${esc(i.title)}</span>
+      <span style="color:var(--muted);font-size:11px">${f||"— sem formato —"}</span>
+    </label>`;
+  }).join("");
+  document.getElementById("modalbox").innerHTML=`<h3>🔀 Mudar formato de vários</h3>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Marque os livros e escolha o formato. Digital (E-book/Kindle) vai pra Estante Digital; o resto fica na Física.</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button class="btn ghost" style="flex:1;padding:7px" onclick="bfAll(true)">Marcar todos</button>
+      <button class="btn ghost" style="flex:1;padding:7px" onclick="bfAll(false)">Desmarcar</button>
+    </div>
+    <div style="max-height:44vh;overflow:auto;border:1.5px solid var(--border);border-radius:9px;padding:4px 8px;margin-bottom:12px">${rows}</div>
+    <label>Novo formato pros marcados</label>
+    <select id="bfFormat"><option value="E-book">📱 E-book</option><option value="Kindle Unlimited">🅺 Kindle Unlimited</option><option value="Físico">📕 Físico</option><option value="Empréstimo">🤝 Empréstimo</option></select>
+    <button class="btn" style="width:100%;margin-top:8px" onclick="applyBulkFormat()">Aplicar</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Cancelar</button>`;
+  document.getElementById("modal").style.display="flex";
+}
+function bfAll(on){ document.querySelectorAll(".bfck").forEach(c=>c.checked=on); }
+async function applyBulkFormat(){
+  const ids=[...document.querySelectorAll(".bfck:checked")].map(c=>c.value);
+  if(!ids.length){ alert("Marque ao menos um livro."); return; }
+  const fmt=document.getElementById("bfFormat").value;
+  for(const id of ids){
+    const i=ITEMS.find(x=>x.id===id); if(!i) continue;
+    const m=Object.assign({},i.meta||{}); m.format=fmt; i.meta=m;
+    await sb.from("items").update({meta:m,updated_at:new Date().toISOString()}).eq("id",id);
+  }
+  closeModal(); renderStats(); renderItems();
+}
 function bulkModal(){
   hideDropdown();
   document.getElementById("modalbox").innerHTML=`<h3>Adicionar vários livros</h3>
