@@ -150,25 +150,60 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
   <!-- ========================== CARDÁPIO ========================== -->
   <div id="view-cardapio" style="display:none">
     <div class="card">
-      <h2>🍽️ Cardápio da semana</h2>
-      <div class="row" style="margin-bottom:10px">
-        <button class="btn sm" onclick="gerarCardapio()">✨ Sugerir distribuição por refeição</button>
-        <button class="btn sec sm" onclick="salvarCardapio()">💾 Salvar cardápio</button>
-        <button class="btn sec sm" onclick="copiarDiaParaDiario()">📥 Jogar o dia de hoje no diário</button>
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div style="flex:1;min-width:220px">
+          <h2 style="margin:0 0 4px">🍽️ Cardápio</h2>
+          <div class="hint" id="planoResumo">Nenhum cardápio montado ainda.</div>
+        </div>
+        <button class="btn" onclick="abrirWizard()">✨ Montar cardápio</button>
       </div>
-      <div class="hint">Monte cada refeição da semana. Cada item usa a tabela nutricional da TACO, então o total de kcal do dia sai calculado. O botão de sugerir distribui a sua meta de kcal entre as refeições (café 25% · almoço 35% · lanche 10% · jantar 25% · ceia 5%).</div>
+      <div class="tabs" style="margin:14px 0 0">
+        <span class="tab act" data-s="plano"    onclick="setSub('plano')">📅 Plano</span>
+        <span class="tab"     data-s="compras"  onclick="setSub('compras')">🛒 Lista de compras</span>
+        <span class="tab"     data-s="precos"   onclick="setSub('precos')">💲 Preços</span>
+        <span class="tab"     data-s="receitas" onclick="setSub('receitas')">📖 Receitas</span>
+      </div>
     </div>
-    <div class="days" id="planoDays"></div>
 
-    <div class="card" style="margin-top:16px">
-      <h2>📖 Minhas receitas</h2>
-      <div class="row" style="margin-bottom:10px">
-        <button class="btn sm" onclick="novaReceita()">➕ Nova receita</button>
-        <input id="recBusca" placeholder="Buscar receita na web…" style="flex:1;min-width:180px" onkeydown="if(event.key==='Enter')buscarReceitaWeb()">
-        <button class="btn sec sm" onclick="buscarReceitaWeb()">🌐 Buscar na web</button>
+    <div id="sub-plano">
+      <div id="planoDias"><div class="empty">Clique em <b>Montar cardápio</b> e responda as perguntas — eu monto o período inteiro respeitando suas metas, restrições e orçamento.</div></div>
+    </div>
+
+    <div id="sub-compras" style="display:none">
+      <div class="card">
+        <h2>🛒 Lista de compras</h2>
+        <div class="row" style="margin-bottom:10px">
+          <label class="lb" style="margin:0">Período</label>
+          <select id="cpSemana" onchange="renderCompras()"></select>
+          <button class="btn sec sm" onclick="copiarCompras()">📋 Copiar lista</button>
+        </div>
+        <div id="comprasBox"><div class="empty">Monte um cardápio primeiro.</div></div>
       </div>
-      <div class="hint">A busca na web abre uma nova aba com receitas em português (TudoGostoso, Panelinha, Receitas Nestlé…). Traga os ingredientes de volta pra cá e o app calcula a tabela nutricional de cada porção pela TACO.</div>
-      <div id="recList" style="margin-top:12px"></div>
+    </div>
+
+    <div id="sub-precos" style="display:none">
+      <div class="card">
+        <h2>💲 Preços do seu mercado</h2>
+        <div class="hint" id="precoRef">Os valores vêm com uma estimativa de referência. Corrija os que você compra e o cálculo de custo do cardápio passa a usar os seus.</div>
+        <div class="row" style="margin:10px 0">
+          <input id="pcBusca" placeholder="Filtrar ingrediente…" style="flex:1;min-width:180px" oninput="renderPrecos()">
+          <button class="btn sec sm" onclick="resetPrecos()">↺ Voltar aos valores de referência</button>
+        </div>
+        <div id="precosBox"></div>
+      </div>
+    </div>
+
+    <div id="sub-receitas" style="display:none">
+      <div class="card">
+        <h2>📖 Minhas receitas</h2>
+        <div class="row" style="margin-bottom:10px">
+          <button class="btn sm" onclick="novaReceita()">➕ Nova receita</button>
+          <input id="recBusca" placeholder="Buscar receita na web…" style="flex:1;min-width:180px" onkeydown="if(event.key==='Enter')buscarReceitaWeb()">
+          <button class="btn sec sm" onclick="buscarReceitaWeb()">🌐 Buscar na web</button>
+        </div>
+        <div class="hint">Receitas que você salvar aqui entram no sorteio do gerador de cardápio, junto com as preparações que já vêm no app.</div>
+        <div id="recList" style="margin-top:12px"></div>
+      </div>
     </div>
   </div>
 
@@ -245,6 +280,7 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 
   <!-- =========================== CORPO ============================ -->
   <div id="view-corpo" style="display:none">
+    <div id="pesoAviso"></div>
     <div class="grid2">
       <div class="card">
         <h2>⚖️ Seus dados</h2>
@@ -264,6 +300,16 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
         <div class="fld"><label class="lb">Objetivo</label>
           <select id="pObj" onchange="recalcula()">
             <option value="perder">Emagrecer (−20%)</option><option value="manter">Manter o peso</option><option value="ganhar">Ganhar massa (+15%)</option>
+          </select></div>
+        <div class="fld"><label class="lb">Me lembrar de pesar</label>
+          <select id="pLembPeso" onchange="salvarPerfil(true)">
+            <option value="0">Não lembrar</option>
+            <option value="1">Todo dia</option>
+            <option value="7">Toda semana</option>
+            <option value="15">A cada 15 dias</option>
+            <option value="30">A cada 30 dias</option>
+            <option value="60">A cada 60 dias</option>
+            <option value="90">A cada 90 dias</option>
           </select></div>
         <button class="btn" onclick="salvarPerfil(true)">💾 Salvar</button>
         <div class="msg" id="pMsg"></div>
@@ -290,10 +336,35 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
           25% das kcal em gordura e o restante em carboidrato. São estimativas — não substituem
           orientação de nutricionista ou médico.
         </div>
-        <button class="btn sec sm" style="margin-top:12px" onclick="registrarPeso()">📌 Registrar o peso de hoje</button>
+        <div class="row" style="margin-top:12px">
+          <input id="pesoNovo" type="number" step="0.1" placeholder="kg" style="width:100px">
+          <input id="pesoData" type="date" style="width:auto">
+          <button class="btn sm" onclick="registrarPeso()">📌 Registrar pesagem</button>
+        </div>
       </div>
     </div>
-    <div class="card"><h2>Histórico de peso</h2><div id="pesoHist"></div></div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <h2 style="margin:0">📈 Evolução</h2>
+        <div class="row">
+          <select id="grafPer" onchange="renderGrafico()">
+            <option value="90">Últimos 90 dias</option>
+            <option value="180">Últimos 6 meses</option>
+            <option value="365">Último ano</option>
+            <option value="0">Tudo</option>
+          </select>
+          <select id="grafSerie" onchange="renderGrafico()">
+            <option value="peso">Peso (kg)</option>
+            <option value="imc">IMC</option>
+          </select>
+        </div>
+      </div>
+      <div id="grafBox"></div>
+      <div id="grafStats" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card"><h2>Pesagens registradas</h2><div id="pesoHist"></div></div>
   </div>
 </div>
 
@@ -314,6 +385,89 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
     <button class="btn" onclick="confirmarAdd()">Adicionar ao diário</button>
     <button class="btn sec" onclick="document.getElementById('dlgAdd').close()">Cancelar</button>
   </div>
+</dialog>
+
+<!-- ================== questionário do cardápio ================== -->
+<dialog id="dlgWiz">
+  <div class="row" style="justify-content:space-between;margin-bottom:2px">
+    <h2 style="font-size:16px;margin:0" id="wizTit">Montar cardápio</h2>
+    <span class="tag" id="wizPasso">1 / 6</span>
+  </div>
+  <div class="bar" style="margin:8px 0 14px"><i id="wizBar" style="background:var(--accent);width:16%"></i></div>
+
+  <div class="wstep" data-w="1">
+    <div class="lb" style="font-size:14px;margin-bottom:10px">Por quanto tempo você quer esse cardápio?</div>
+    <div class="fld"><select id="wDur">
+      <option value="1">1 semana</option><option value="2">2 semanas</option>
+      <option value="4" selected>4 semanas (1 mês)</option><option value="8">8 semanas</option>
+      <option value="12">12 semanas (3 meses)</option>
+    </select></div>
+    <div class="fld"><label class="lb">Quais dias?</label><select id="wDias">
+      <option value="7">Segunda a domingo</option><option value="5">Segunda a sexta</option>
+    </select></div>
+    <div class="fld"><label class="lb">Começando em</label><input id="wInicio" type="date"></div>
+  </div>
+
+  <div class="wstep" data-w="2" style="display:none">
+    <div class="lb" style="font-size:14px;margin-bottom:10px">Quantas refeições por dia você faz?</div>
+    <div id="wRefs" class="row" style="flex-direction:column;align-items:stretch;gap:6px"></div>
+    <div class="hint" style="margin-top:8px">Sua meta de calorias é dividida só entre as refeições marcadas.</div>
+  </div>
+
+  <div class="wstep" data-w="3" style="display:none">
+    <div class="lb" style="font-size:14px;margin-bottom:10px">Qual seu orçamento para a alimentação?</div>
+    <div class="fld"><select id="wOrcModo" onchange="wizOrcModo()">
+      <option value="faixa">Prefiro escolher uma faixa</option>
+      <option value="valor">Tenho um valor por mês</option>
+      <option value="livre">Sem limite de orçamento</option>
+    </select></div>
+    <div class="fld" id="wOrcFaixaBox"><label class="lb">Faixa</label><select id="wOrcFaixa">
+      <option value="1">Econômico — arroz, feijão, ovo, frango, legumes da estação</option>
+      <option value="2" selected>Médio — inclui carne bovina, peixe branco, queijos</option>
+      <option value="3">Sem restrição — salmão, camarão, castanhas à vontade</option>
+    </select></div>
+    <div class="fld" id="wOrcValorBox" style="display:none">
+      <label class="lb">Quanto por mês, só com a sua comida? (R$)</label>
+      <input id="wOrcValor" type="number" step="10" placeholder="ex: 800">
+      <div class="hint" style="margin-top:6px">Considero só as refeições que você marcou, para uma pessoa. Se estourar, eu troco os pratos mais caros por equivalentes até caber.</div>
+    </div>
+  </div>
+
+  <div class="wstep" data-w="4" style="display:none">
+    <div class="lb" style="font-size:14px;margin-bottom:10px">Você tem alguma alergia ou intolerância?</div>
+    <div id="wAlerg" class="row" style="flex-direction:column;align-items:stretch;gap:6px"></div>
+    <div class="hint" style="margin-top:8px">Marcando aqui, nenhuma preparação com esse ingrediente entra no cardápio.</div>
+  </div>
+
+  <div class="wstep" data-w="5" style="display:none">
+    <div class="lb" style="font-size:14px;margin-bottom:10px">Tem algo que você simplesmente não come?</div>
+    <div id="wNao" class="row" style="flex-direction:column;align-items:stretch;gap:6px"></div>
+  </div>
+
+  <div class="wstep" data-w="6" style="display:none">
+    <div class="lb" style="font-size:14px;margin-bottom:10px">Quais proteínas você prefere ver com mais frequência?</div>
+    <div id="wProt" class="row" style="flex-direction:column;align-items:stretch;gap:6px"></div>
+    <div class="fld" style="margin-top:12px"><label class="lb">Variedade: dias mínimos antes de repetir um prato</label>
+      <select id="wVar"><option value="2">2 dias</option><option value="3" selected>3 dias</option>
+        <option value="5">5 dias</option><option value="7">7 dias</option></select></div>
+  </div>
+
+  <div class="msg" id="wizMsg"></div>
+  <div class="row" style="margin-top:14px;justify-content:space-between">
+    <button class="btn sec" onclick="wizVoltar()" id="wizBtnVolta">← Voltar</button>
+    <div class="row">
+      <button class="btn sec" onclick="document.getElementById('dlgWiz').close()">Cancelar</button>
+      <button class="btn" onclick="wizProximo()" id="wizBtnNext">Próximo →</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ==================== trocar uma refeição ==================== -->
+<dialog id="dlgTroca">
+  <h2 style="font-size:16px;margin-bottom:4px">Trocar refeição</h2>
+  <div class="sub" id="trocaInfo">—</div>
+  <div id="trocaLista" style="max-height:52vh;overflow:auto"></div>
+  <div class="row" style="margin-top:12px"><button class="btn sec" onclick="document.getElementById('dlgTroca').close()">Fechar</button></div>
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -361,7 +515,7 @@ function setTab(t){
   });
   if(t==="cardapio"){ renderPlano(); renderReceitas(); }
   if(t==="agua"){ renderAgua(); renderAguaHist(); }
-  if(t==="corpo"){ recalcula(); renderPesoHist(); }
+  if(t==="corpo"){ recalcula(); renderPesoHist(); renderGrafico(); avisoPesagem(); }
   localStorage.setItem("saude_tab",t);
 }
 
@@ -376,6 +530,7 @@ async function carregaPerfil(){
   document.getElementById("pAtiv").value=PERFIL.atividade||"leve";
   document.getElementById("pObj").value=PERFIL.objetivo||"manter";
   document.getElementById("lembOn").checked=PERFIL.lembrete_agua!==false;
+  document.getElementById("pLembPeso").value=PERFIL.lembrete_peso_dias??0;
   const ini=document.getElementById("lembIni"), fim=document.getElementById("lembFim");
   ini.innerHTML=fim.innerHTML="";
   for(let h=0;h<24;h++){
@@ -405,13 +560,14 @@ async function salvarPerfil(avisa){
     lembrete_agua:document.getElementById("lembOn").checked,
     lembrete_ini:parseInt(document.getElementById("lembIni").value,10),
     lembrete_fim:parseInt(document.getElementById("lembFim").value,10),
+    lembrete_peso_dias:parseInt(document.getElementById("pLembPeso").value,10)||0,
     updated_at:new Date().toISOString()
   };
   const {error}=await _sb.from("saude_perfil").upsert(row,{onConflict:"user_id"});
   PERFIL={...PERFIL,...row};
   if(avisa) msg("pMsg",error?("Erro: "+error.message):"Salvo ✓",!error);
   if(error) console.warn(error);
-  renderResumo(); renderAgua();
+  renderResumo(); renderAgua(); avisoPesagem();
 }
 
 // ---------------------------- IMC / TMB ----------------------------
@@ -469,23 +625,133 @@ function recalcula(){
   document.getElementById("rGord").textContent= c.gord?n0(c.gord)+" g":"—";
   document.getElementById("rAgua").textContent= c.agua?n0(c.agua)+" ml":"—";
 }
+let PESOS=[];
 async function registrarPeso(){
-  const peso=parseFloat(document.getElementById("pPeso").value);
-  if(!peso){ msg("pMsg","Informe o peso primeiro."); return; }
-  const {error}=await _sb.from("saude_peso").upsert({user_id:USER.id,dia:hojeISO(),peso_kg:peso},{onConflict:"user_id,dia"});
-  msg("pMsg",error?("Erro: "+error.message):"Peso de hoje registrado ✓",!error);
-  await salvarPerfil(); renderPesoHist();
+  const el=document.getElementById("pesoNovo");
+  const peso=parseFloat(el.value)||parseFloat(document.getElementById("pPeso").value);
+  if(!peso){ msg("pMsg","Informe o peso."); return; }
+  const dia=document.getElementById("pesoData").value||hojeISO();
+  const {error}=await _sb.from("saude_peso").upsert({user_id:USER.id,dia,peso_kg:peso},{onConflict:"user_id,dia"});
+  if(error){ msg("pMsg","Erro: "+error.message); return; }
+  el.value="";
+  if(dia>=hojeISO().slice(0,10)) document.getElementById("pPeso").value=peso;
+  msg("pMsg","Pesagem registrada ✓",true);
+  await salvarPerfil();
+  await carregaPesos(); renderPesoHist(); renderGrafico(); avisoPesagem();
 }
-async function renderPesoHist(){
-  const {data}=await _sb.from("saude_peso").select("*").eq("user_id",USER.id).order("dia",{ascending:false}).limit(30);
+async function editarPeso(dia,atual){
+  const v=prompt("Peso em "+dia.split("-").reverse().join("/")+" (kg):",atual);
+  if(v===null) return;
+  const n=parseFloat(String(v).replace(",","."));
+  if(!n||n<=0){ alert("Valor inválido."); return; }
+  await _sb.from("saude_peso").update({peso_kg:n}).eq("user_id",USER.id).eq("dia",dia);
+  await carregaPesos(); renderPesoHist(); renderGrafico();
+}
+async function excluirPeso(dia){
+  if(!confirm("Excluir a pesagem de "+dia.split("-").reverse().join("/")+"?")) return;
+  await _sb.from("saude_peso").delete().eq("user_id",USER.id).eq("dia",dia);
+  await carregaPesos(); renderPesoHist(); renderGrafico(); avisoPesagem();
+}
+async function carregaPesos(){
+  const {data}=await _sb.from("saude_peso").select("dia,peso_kg").eq("user_id",USER.id).order("dia");
+  PESOS=(data||[]).map(r=>({dia:r.dia,kg:+r.peso_kg}));
+}
+function altura(){ return parseFloat(document.getElementById("pAltura").value)||null; }
+function imcDe(kg){ const a=altura(); return a?kg/Math.pow(a/100,2):null; }
+
+function renderPesoHist(){
   const box=document.getElementById("pesoHist");
-  if(!data||!data.length){ box.innerHTML='<div class="empty">Nenhum peso registrado ainda.</div>'; return; }
-  const alt=parseFloat(document.getElementById("pAltura").value);
-  box.innerHTML=`<table><tr><th>Data</th><th class="n">Peso</th><th class="n">IMC</th></tr>`+
-    data.map(r=>{
-      const imc=alt>0?r.peso_kg/Math.pow(alt/100,2):null;
-      return `<tr><td>${r.dia.split("-").reverse().join("/")}</td><td class="n">${n1(r.peso_kg)} kg</td><td class="n">${imc?n1(imc):"—"}</td></tr>`;
+  if(!PESOS.length){ box.innerHTML='<div class="empty">Nenhuma pesagem registrada. Registrar com frequência é o que faz o gráfico valer alguma coisa. ⚖️</div>'; return; }
+  const lista=PESOS.slice().reverse();
+  box.innerHTML=`<table><tr><th>Data</th><th class="n">Peso</th><th class="n">IMC</th><th class="n">Variação</th><th></th></tr>`+
+    lista.map((r,i)=>{
+      const ant=lista[i+1], dif=ant?r.kg-ant.kg:null, imc=imcDe(r.kg);
+      const cor=dif==null?"var(--muted)":(dif<0?"var(--pos)":(dif>0?"var(--neg)":"var(--muted)"));
+      return `<tr><td>${r.dia.split("-").reverse().join("/")}</td>
+        <td class="n">${n1(r.kg)} kg</td><td class="n">${imc?n1(imc):"—"}</td>
+        <td class="n" style="color:${cor}">${dif==null?"—":(dif>0?"+":"")+n1(dif)+" kg"}</td>
+        <td class="n"><button class="btn sec sm" onclick="editarPeso('${r.dia}',${r.kg})">✎</button>
+          <button class="btn sec sm" onclick="excluirPeso('${r.dia}')">🗑️</button></td></tr>`;
     }).join("")+`</table>`;
+}
+
+function renderGrafico(){
+  const box=document.getElementById("grafBox"), st=document.getElementById("grafStats");
+  const per=parseInt((document.getElementById("grafPer")||{}).value||"90",10);
+  const serie=(document.getElementById("grafSerie")||{}).value||"peso";
+  let pts=PESOS.slice();
+  if(per){ const lim=new Date(); lim.setDate(lim.getDate()-per);
+           const li=lim.toISOString().slice(0,10); pts=pts.filter(p=>p.dia>=li); }
+  if(serie==="imc"){ const a=altura(); if(!a){ box.innerHTML='<div class="empty">Informe a altura para ver o IMC.</div>'; st.innerHTML=""; return; } }
+  if(pts.length<2){
+    box.innerHTML='<div class="empty">Registre pelo menos duas pesagens para o gráfico aparecer. 📈</div>';
+    st.innerHTML=PESOS.length?`<span class="stat">⚖️ <b>${n1(PESOS[PESOS.length-1].kg)}</b> kg na última pesagem</span>`:"";
+    return;
+  }
+  const val=p=>serie==="imc"?imcDe(p.kg):p.kg;
+  const W=720,H=240,ml=44,mr=14,mt=14,mb=26;
+  const t0=new Date(pts[0].dia+"T12:00:00").getTime(), t1=new Date(pts[pts.length-1].dia+"T12:00:00").getTime();
+  const vs=pts.map(val);
+  let vmin=Math.min(...vs), vmax=Math.max(...vs);
+  const pad=Math.max((vmax-vmin)*0.18,serie==="imc"?0.6:0.8);
+  vmin-=pad; vmax+=pad;
+  const x=p=>ml+((new Date(p.dia+"T12:00:00").getTime()-t0)/Math.max(1,t1-t0))*(W-ml-mr);
+  const y=v=>mt+(1-(v-vmin)/Math.max(.001,vmax-vmin))*(H-mt-mb);
+  // faixa saudável (IMC 18,5–24,9)
+  const a=altura();
+  let faixa="";
+  if(a){
+    const lo=serie==="imc"?18.5:18.5*Math.pow(a/100,2);
+    const hi=serie==="imc"?24.9:24.9*Math.pow(a/100,2);
+    const yl=Math.min(H-mb,Math.max(mt,y(hi))), yh=Math.min(H-mb,Math.max(mt,y(lo)));
+    if(yh>yl) faixa=`<rect x="${ml}" y="${yl}" width="${W-ml-mr}" height="${yh-yl}" fill="var(--pos)" opacity=".10"></rect>
+      <text x="${W-mr-4}" y="${yl+12}" text-anchor="end" font-size="9" fill="var(--muted)">faixa saudável</text>`;
+  }
+  const d=pts.map((p,i)=>(i?"L":"M")+x(p).toFixed(1)+" "+y(val(p)).toFixed(1)).join(" ");
+  const area=d+` L ${x(pts[pts.length-1]).toFixed(1)} ${H-mb} L ${x(pts[0]).toFixed(1)} ${H-mb} Z`;
+  const ticks=[vmin,(vmin+vmax)/2,vmax].map(v=>
+    `<line x1="${ml}" y1="${y(v).toFixed(1)}" x2="${W-mr}" y2="${y(v).toFixed(1)}" stroke="var(--border)" stroke-width="1"></line>
+     <text x="${ml-6}" y="${(y(v)+3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${n1(v)}</text>`).join("");
+  const bolas=pts.map(p=>`<circle cx="${x(p).toFixed(1)}" cy="${y(val(p)).toFixed(1)}" r="3.5" fill="var(--accent)"><title>${p.dia.split("-").reverse().join("/")} — ${n1(val(p))}</title></circle>`).join("");
+  const dt=s=>s.split("-").reverse().slice(0,2).join("/");
+  box.innerHTML=`<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:420px;height:auto">
+    ${faixa}${ticks}
+    <path d="${area}" fill="var(--accent)" opacity=".13"></path>
+    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></path>
+    ${bolas}
+    <text x="${ml}" y="${H-8}" font-size="10" fill="var(--muted)">${dt(pts[0].dia)}</text>
+    <text x="${W-mr}" y="${H-8}" text-anchor="end" font-size="10" fill="var(--muted)">${dt(pts[pts.length-1].dia)}</text>
+  </svg></div>`;
+  const dif=vs[vs.length-1]-vs[0];
+  const dias=Math.max(1,(t1-t0)/864e5);
+  const sem=dif/(dias/7);
+  const un=serie==="imc"?"":" kg";
+  st.innerHTML=`<span class="stat">${dif<=0?"📉":"📈"} <b style="color:${dif<0?"var(--pos)":dif>0?"var(--neg)":"var(--muted)"}">${dif>0?"+":""}${n1(dif)}${un}</b> no período</span>
+    <span class="stat">📊 <b>${sem>0?"+":""}${n1(sem)}${un}</b> por semana</span>
+    <span class="stat">⚖️ <b>${n1(vs[vs.length-1])}${un}</b> agora</span>
+    <span class="stat">🔢 <b>${pts.length}</b> pesagens</span>`;
+}
+
+// aviso de pesagem vencida (o push cuida do lembrete com o app fechado)
+function avisoPesagem(){
+  const box=document.getElementById("pesoAviso"); if(!box) return;
+  const dias=parseInt(PERFIL.lembrete_peso_dias||0,10);
+  if(!dias){ box.innerHTML=""; return; }
+  const ult=PESOS.length?PESOS[PESOS.length-1].dia:null;
+  if(!ult){
+    box.innerHTML=`<div class="card" style="border-color:var(--accent)">⚖️ <b>Registre sua primeira pesagem</b>
+      <div class="hint">É a partir dela que o gráfico e a evolução começam a existir.</div></div>`;
+    return;
+  }
+  const passou=Math.floor((new Date(hojeISO()+"T12:00:00")-new Date(ult+"T12:00:00"))/864e5);
+  const falta=dias-passou;
+  if(falta<=0){
+    box.innerHTML=`<div class="card" style="border-color:var(--neg)">⚖️ <b>Hora de pesar</b>
+      <div class="hint">Sua última pesagem foi há ${passou} dia(s), e você pediu para ser lembrado a cada ${dias}.</div></div>`;
+  } else {
+    box.innerHTML=`<div class="card"><span class="stat">⚖️ Próxima pesagem em <b>${falta}</b> dia(s)</span>
+      <span class="stat">📅 Última: <b>${ult.split("-").reverse().join("/")}</b></span></div>`;
+  }
 }
 
 // ============================ DIÁRIO ============================
@@ -748,73 +1014,408 @@ function iniciaLembreteLocal(){
 }
 
 // =========================== CARDÁPIO ===========================
-async function carregaCardapio(){
-  const {data}=await _sb.from("saude_cardapio").select("*").eq("user_id",USER.id).eq("ativo",true).maybeSingle();
-  PLANO=(data&&data.plano)||{};
-  window.__cardapioId=data?data.id:null;
+// Base do gerador: preparações + preços (arquivos estáticos no repo)
+let PREPS=null, PRECOS={}, PRECO_USR={}, BASE_REF="", PLANOCFG=null, PLANO_ID=null;
+const PESO_REF={cafe:.22,lanche1:.10,almoco:.32,lanche2:.10,jantar:.22,ceia:.04};
+const TIPO_DE={cafe:"cafe",lanche1:"lanche",almoco:"almoco",lanche2:"lanche",jantar:"jantar",ceia:"ceia"};
+const ALERGIAS=[["lactose","Leite e derivados (lactose)"],["gluten","Glúten (trigo, aveia, cevada)"],
+  ["ovo","Ovo"],["peixe","Peixe"],["frutos_mar","Frutos do mar"],["amendoim","Amendoim"],
+  ["oleaginosas","Castanhas e nozes"],["soja","Soja"]];
+const NAOCOME=[["boi","Carne bovina"],["porco","Carne suína"],["frango","Frango e aves"],
+  ["peixe","Peixe"],["frutos_mar","Frutos do mar"],["ovo","Ovo"],["lactose","Laticínios"]];
+const PROTS=[["frango","Frango e aves"],["boi","Carne bovina"],["peixe","Peixe"],
+  ["ovo","Ovo"],["porco","Carne suína"],["vegetal","Vegetal (feijão, lentilha, grão-de-bico, tofu)"]];
+
+async function carregaBase(){
+  if(PREPS) return;
+  try{
+    const [a,b]=await Promise.all([
+      fetch("preparacoes.json").then(r=>r.json()),
+      fetch("precos-alimentos.json").then(r=>r.json())]);
+    PREPS=a.itens; BASE_REF=b.data_ref||"";
+    b.itens.forEach(i=>PRECOS[i.slug]=i);
+  }catch(e){ PREPS=[]; console.warn("base do cardápio",e); }
+  try{
+    const {data}=await _sb.from("saude_precos").select("slug,rs_kg").eq("user_id",USER.id);
+    (data||[]).forEach(r=>PRECO_USR[r.slug]=+r.rs_kg);
+  }catch(e){ /* tabela ainda não criada */ }
+}
+function precoKg(slug){ const u=PRECO_USR[slug]; return u!=null?u:((PRECOS[slug]||{}).rs_kg||0); }
+function rendOf(slug){ return (PRECOS[slug]||{}).rend||1; }
+function custoItens(itens,esc){ return itens.reduce((s,i)=>s+i.g*(esc||1)*rendOf(i.slug)*precoKg(i.slug)/1000,0); }
+function tacoParaSlug(){
+  if(window.__t2s) return window.__t2s;
+  const m={}; Object.values(PRECOS).forEach(i=>{ if(m[i.taco]==null) m[i.taco]=i.slug; });
+  return (window.__t2s=m);
+}
+
+// ------- receitas do usuário entram no sorteio como preparações -------
+function receitasComoPreps(){
+  const t2s=tacoParaSlug();
+  return RECEITAS.map(r=>{
+    const por=r.porcoes||1, ing=r.ingredientes||[];
+    const itens=ing.map(i=>({slug:t2s[parseInt(i.ref_id,10)]||null, g:(+i.g||0)/por, nome:i.nome}));
+    const k=ing.reduce((s,i)=>s+(+i.kcal||0),0)/por;
+    return {id:"rec_"+r.id, nome:r.nome+" (sua receita)", tipos:["almoco","jantar"], itens,
+      kcal:k, prot:ing.reduce((s,i)=>s+(+i.prot_g||0),0)/por,
+      carb:ing.reduce((s,i)=>s+(+i.carb_g||0),0)/por,
+      gord:ing.reduce((s,i)=>s+(+i.gord_g||0),0)/por,
+      fibra:0, sodio:0, alerg:[], prot_tipos:[], vegetariano:false, vegano:false,
+      custo:custoItens(itens.filter(i=>i.slug),1), faixa:2, preparo:r.preparo||"", tempo:null, minha:true};
+  }).filter(p=>p.kcal>50);
+}
+
+// --------------------------- questionário ---------------------------
+let WIZ=1;
+function chkList(box,lista,marcados){
+  document.getElementById(box).innerHTML=lista.map(([k,rot])=>
+    `<label style="display:flex;gap:9px;align-items:center;font-size:14px;padding:7px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--row);cursor:pointer">
+      <input type="checkbox" value="${k}" ${(marcados||[]).includes(k)?"checked":""} style="width:18px;height:18px;accent-color:var(--accent)">${rot}</label>`).join("");
+}
+function chkVals(box){ return [...document.querySelectorAll("#"+box+" input:checked")].map(x=>x.value); }
+async function abrirWizard(){
+  await carregaBase();
+  if(!PREPS.length){ alert("Não consegui carregar preparacoes.json. Confira se o arquivo está na raiz do site."); return; }
+  const c=PLANOCFG||{};
+  document.getElementById("wInicio").value=c.inicio||hojeISO();
+  document.getElementById("wDur").value=c.semanas||4;
+  document.getElementById("wDias").value=c.dias_semana||7;
+  document.getElementById("wVar").value=c.variedade||3;
+  chkList("wRefs",REFS,c.refeicoes||["cafe","lanche1","almoco","lanche2","jantar"]);
+  chkList("wAlerg",ALERGIAS,c.alergias||[]);
+  chkList("wNao",NAOCOME,c.nao_come||[]);
+  chkList("wProt",PROTS,c.proteinas||[]);
+  if(c.orcamento_mes){ document.getElementById("wOrcModo").value="valor"; document.getElementById("wOrcValor").value=c.orcamento_mes; }
+  else if(c.faixa_max===9){ document.getElementById("wOrcModo").value="livre"; }
+  else { document.getElementById("wOrcModo").value="faixa"; document.getElementById("wOrcFaixa").value=c.faixa_max||2; }
+  wizOrcModo(); WIZ=1; wizMostra();
+  document.getElementById("dlgWiz").showModal();
+}
+function wizMostra(){
+  document.querySelectorAll(".wstep").forEach(s=>s.style.display=(+s.dataset.w===WIZ)?"block":"none");
+  document.getElementById("wizPasso").textContent=WIZ+" / 6";
+  document.getElementById("wizBar").style.width=Math.round(WIZ/6*100)+"%";
+  document.getElementById("wizBtnVolta").style.visibility=WIZ===1?"hidden":"visible";
+  document.getElementById("wizBtnNext").textContent=WIZ===6?"✨ Gerar cardápio":"Próximo →";
+  msg("wizMsg","");
+}
+function wizVoltar(){ if(WIZ>1){ WIZ--; wizMostra(); } }
+function wizProximo(){
+  if(WIZ===2 && !chkVals("wRefs").length){ msg("wizMsg","Marque pelo menos uma refeição."); return; }
+  if(WIZ===6){ gerarCardapio(); return; }
+  WIZ++; wizMostra();
+}
+function wizOrcModo(){
+  const m=document.getElementById("wOrcModo").value;
+  document.getElementById("wOrcFaixaBox").style.display=m==="faixa"?"block":"none";
+  document.getElementById("wOrcValorBox").style.display=m==="valor"?"block":"none";
+}
+function coletaCfg(){
+  const modo=document.getElementById("wOrcModo").value;
+  return {
+    inicio:document.getElementById("wInicio").value||hojeISO(),
+    semanas:parseInt(document.getElementById("wDur").value,10),
+    dias_semana:parseInt(document.getElementById("wDias").value,10),
+    variedade:parseInt(document.getElementById("wVar").value,10),
+    refeicoes:REFS.map(([k])=>k).filter(k=>chkVals("wRefs").includes(k)),
+    alergias:chkVals("wAlerg"), nao_come:chkVals("wNao"), proteinas:chkVals("wProt"),
+    orcamento_mes: modo==="valor"?(parseFloat(document.getElementById("wOrcValor").value)||null):null,
+    faixa_max: modo==="livre"?9:(modo==="faixa"?parseInt(document.getElementById("wOrcFaixa").value,10):9)
+  };
+}
+
+// ---------------------------- o algoritmo ----------------------------
+function diasDoPlano(cfg){
+  const out=[], d=new Date(cfg.inicio+"T12:00:00"), total=cfg.semanas*7;
+  for(let i=0;i<total;i++){
+    const dow=d.getDay();                       // 0=dom
+    if(cfg.dias_semana===7 || (dow>=1&&dow<=5)) out.push(d.toISOString().slice(0,10));
+    d.setDate(d.getDate()+1);
+  }
+  return out;
+}
+function candidatos(ref,cfg,pool){
+  const tipo=TIPO_DE[ref];
+  return pool.filter(p=>{
+    if(!p.tipos.includes(tipo)) return false;
+    if((p.alerg||[]).some(a=>cfg.alergias.includes(a))) return false;
+    if((p.alerg||[]).some(a=>cfg.nao_come.includes(a))) return false;
+    if(cfg.faixa_max<9 && (p.faixa||1)>cfg.faixa_max) return false;
+    return true;
+  });
+}
+function montaItem(p,esc){
+  return {p:p.id,n:p.nome,e:+esc.toFixed(2),
+    k:+(p.kcal*esc).toFixed(1), pr:+(p.prot*esc).toFixed(1), cb:+(p.carb*esc).toFixed(1),
+    gd:+(p.gord*esc).toFixed(1), fb:+((p.fibra||0)*esc).toFixed(1), sd:+((p.sodio||0)*esc).toFixed(1),
+    c:+custoItens(p.itens,esc).toFixed(2),
+    it:p.itens.map(i=>({s:i.slug,g:+(i.g*esc).toFixed(0),n:i.nome||null})),
+    tx:p.preparo||"", tm:p.tempo||null};
+}
+function gerarPlano(cfg){
+  const pool=PREPS.concat(receitasComoPreps());
+  const metaK=PERFIL.meta_kcal||calcula().meta||2000;
+  const soma=cfg.refeicoes.reduce((s,r)=>s+PESO_REF[r],0);
+  const alvo={}; cfg.refeicoes.forEach(r=>alvo[r]=metaK*PESO_REF[r]/soma);
+  const dias=diasDoPlano(cfg);
+  const orcDia=cfg.orcamento_mes?cfg.orcamento_mes*12/365:null;
+  const usada={}, plano={}, faltou=new Set();
+  dias.forEach((dia,di)=>{
+    plano[dia]={};
+    cfg.refeicoes.forEach(ref=>{
+      let cands=candidatos(ref,cfg,pool);
+      if(!cands.length){ // afrouxa a faixa de preço antes de desistir
+        cands=candidatos(ref,{...cfg,faixa_max:9},pool);
+        if(cands.length) faltou.add(ref);
+      }
+      if(!cands.length){ faltou.add(ref); return; }
+      let best=null;
+      cands.forEach(p=>{
+        const esc=Math.max(.6,Math.min(1.6,alvo[ref]/(p.kcal||1)));
+        const erroK=Math.abs(p.kcal*esc-alvo[ref])/alvo[ref];
+        const gap=usada[p.id]==null?99:di-usada[p.id];
+        const penRep=gap>=cfg.variedade?0:(cfg.variedade-gap)*0.40;
+        const custo=custoItens(p.itens,esc);
+        const alvoCusto=orcDia?orcDia*PESO_REF[ref]/soma:null;
+        const penC=alvoCusto?Math.max(0,(custo-alvoCusto)/alvoCusto)*0.5:0;
+        const bonus=(cfg.proteinas.length&&(p.prot_tipos||[]).some(x=>cfg.proteinas.includes(x)))?-0.30:0;
+        const mine=p.minha?-0.15:0;
+        const sc=erroK+penRep+penC+bonus+mine+Math.random()*0.12;
+        if(!best||sc<best.sc) best={sc,p,esc};
+      });
+      usada[best.p.id]=di;
+      plano[dia][ref]=montaItem(best.p,best.esc);
+    });
+  });
+  if(orcDia) ajustaOrcamento(plano,cfg,pool,alvo,orcDia*dias.length);
+  return {plano,dias,faltou:[...faltou]};
+}
+// troca os pratos mais caros por equivalentes até caber no orçamento
+function ajustaOrcamento(plano,cfg,pool,alvo,tetoTotal){
+  const total=()=>Object.values(plano).reduce((s,d)=>s+Object.values(d).reduce((x,i)=>x+i.c,0),0);
+  let voltas=0;
+  while(total()>tetoTotal*1.02 && voltas++<500){
+    let alvoTroca=null;
+    Object.entries(plano).forEach(([dia,refs])=>Object.entries(refs).forEach(([ref,it])=>{
+      if(!alvoTroca||it.c>alvoTroca.it.c) alvoTroca={dia,ref,it};
+    }));
+    if(!alvoTroca) break;
+    const {dia,ref,it}=alvoTroca;
+    let melhor=null;
+    candidatos(ref,cfg,pool).forEach(p=>{
+      const esc=Math.max(.6,Math.min(1.6,alvo[ref]/(p.kcal||1)));
+      const erro=Math.abs(p.kcal*esc-alvo[ref])/alvo[ref];
+      if(erro>0.35) return;
+      const custo=custoItens(p.itens,esc);
+      if(custo>=it.c*0.97) return;
+      const sc=custo+erro*3;
+      if(!melhor||sc<melhor.sc) melhor={sc,p,esc};
+    });
+    if(!melhor) break;
+    plano[dia][ref]=montaItem(melhor.p,melhor.esc);
+  }
+}
+
+async function gerarCardapio(){
+  const cfg=coletaCfg();
+  if(!(PERFIL.meta_kcal||calcula().meta)){
+    msg("wizMsg","Preencha altura, peso, nascimento e sexo na aba Corpo & IMC — sem isso não tenho sua meta de calorias.");
+    return;
+  }
+  msg("wizMsg","Montando…",true);
+  await new Promise(r=>setTimeout(r,30));
+  const {plano,dias,faltou}=gerarPlano(cfg);
+  PLANOCFG=cfg; window.__plano=plano; window.__dias=dias;
+  await salvarPlano();
+  document.getElementById("dlgWiz").close();
+  setSub("plano"); renderPlano(); renderCompras();
+  if(faltou.length) setTimeout(()=>alert(
+    "Aviso: com as restrições que você marcou, sobraram poucas opções para: "+
+    faltou.map(r=>REFS.find(x=>x[0]===r)[1]).join(", ")+
+    ".\nEu usei o que havia disponível, ignorando a faixa de preço quando precisou."),300);
+}
+async function salvarPlano(){
+  const row={user_id:USER.id,ativo:true,cfg:PLANOCFG,plano:window.__plano,
+             inicio:PLANOCFG.inicio,semanas:PLANOCFG.semanas,
+             custo_total:+custoTotal().toFixed(2),updated_at:new Date().toISOString()};
+  if(PLANO_ID) row.id=PLANO_ID;
+  const {data,error}=await _sb.from("saude_plano").upsert(row).select().maybeSingle();
+  if(data) PLANO_ID=data.id;
+  if(error) console.warn("salvar plano",error);
+}
+async function carregaPlano(){
+  try{
+    const {data}=await _sb.from("saude_plano").select("*").eq("user_id",USER.id).eq("ativo",true)
+      .order("updated_at",{ascending:false}).limit(1).maybeSingle();
+    if(data){ PLANO_ID=data.id; PLANOCFG=data.cfg||null; window.__plano=data.plano||{};
+              window.__dias=Object.keys(window.__plano).sort(); }
+  }catch(e){ /* tabela ainda não criada */ }
+}
+function custoTotal(){
+  const p=window.__plano||{};
+  return Object.values(p).reduce((s,d)=>s+Object.values(d).reduce((x,i)=>x+(+i.c||0),0),0);
+}
+
+// ----------------------------- telas -----------------------------
+function setSub(s){
+  document.querySelectorAll("[data-s]").forEach(x=>x.classList.toggle("act",x.dataset.s===s));
+  ["plano","compras","precos","receitas"].forEach(k=>
+    document.getElementById("sub-"+k).style.display=(k===s)?"block":"none");
+  if(s==="compras") renderCompras();
+  if(s==="precos") renderPrecos();
+  if(s==="receitas") renderReceitas();
 }
 function renderPlano(){
-  const meta=PERFIL.meta_kcal||calcula().meta||2000;
-  document.getElementById("planoDays").innerHTML=DIAS.map(([k,nome])=>{
-    const dia=PLANO[k]||{};
-    let kcal=0;
-    const blocos=REFS.map(([rk,rn])=>{
-      const itens=dia[rk]||[];
-      itens.forEach(i=>kcal+=+i.kcal||0);
-      const li=itens.map((i,idx)=>`<div class="it"><span class="nm">${esc(i.nome)}<span class="tag">${n0(i.g)} g</span></span>
-        <span class="kc">${n0(i.kcal)}</span><button class="x" onclick="delPlano('${k}','${rk}',${idx})">✕</button></div>`).join("");
-      return `<div style="margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:var(--label);display:flex;justify-content:space-between">
-          <span>${rn}</span><button class="x" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:16px" onclick="addPlano('${k}','${rk}')">＋</button></div>
-        ${li||'<div class="hint">—</div>'}</div>`;
+  const plano=window.__plano||{}, dias=Object.keys(plano).sort();
+  const box=document.getElementById("planoDias");
+  const res=document.getElementById("planoResumo");
+  if(!dias.length){ res.textContent="Nenhum cardápio montado ainda."; return; }
+  const custo=custoTotal(), mes=custo/dias.length*30;
+  const kcalMed=dias.reduce((s,d)=>s+Object.values(plano[d]).reduce((x,i)=>x+i.k,0),0)/dias.length;
+  res.innerHTML=`${dias.length} dias · média de <b>${n0(kcalMed)} kcal/dia</b> · custo estimado <b>R$ ${n0(custo)}</b> no período (≈ R$ ${n0(mes)}/mês)`;
+  const hoje=hojeISO();
+  box.innerHTML=dias.map(d=>{
+    const refs=plano[d], tot=Object.values(refs).reduce((a,i)=>({k:a.k+i.k,pr:a.pr+i.pr,cb:a.cb+i.cb,gd:a.gd+i.gd,c:a.c+i.c}),{k:0,pr:0,cb:0,gd:0,c:0});
+    const dt=new Date(d+"T12:00:00");
+    const nome=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"][dt.getDay()];
+    const linhas=REFS.filter(([k])=>refs[k]).map(([k,rot])=>{
+      const i=refs[k];
+      return `<div class="it" style="align-items:flex-start">
+        <span class="nm"><b style="font-size:12px;color:var(--label)">${rot}</b><br>${esc(i.n)}
+          <div class="hint">${i.it.filter(x=>x.g>0).map(x=>esc(nomeIng(x))+" "+n0(x.g)+" g").join(" · ")}</div>
+          ${i.tx?`<div class="hint" style="margin-top:2px;opacity:.85">👩‍🍳 ${esc(i.tx)}${i.tm?" ("+i.tm+" min)":""}</div>`:""}</span>
+        <span class="kc">${n0(i.k)} kcal<br>R$ ${n1(i.c)}</span>
+        <button class="x" title="Trocar" onclick="abrirTroca('${d}','${k}')">↻</button></div>`;
     }).join("");
-    return `<div class="day"><h3 style="font-size:14px;display:flex;justify-content:space-between;margin-bottom:10px">
-        ${nome}<span style="font-size:11px;color:${kcal>meta*1.05?"var(--neg)":"var(--muted)"};font-weight:700">${n0(kcal)} kcal</span></h3>${blocos}</div>`;
+    return `<div class="meal" ${d===hoje?'style="border-color:var(--accent)"':""}>
+      <h3>${nome}, ${d.split("-").reverse().slice(0,2).join("/")}${d===hoje?' <span class="tag">hoje</span>':""}
+        <span>${n0(tot.k)} kcal · P ${n0(tot.pr)} C ${n0(tot.cb)} G ${n0(tot.gd)} · R$ ${n1(tot.c)}</span></h3>
+      ${linhas}
+      <div class="row" style="margin-top:8px"><button class="btn sec sm" onclick="jogarDia('${d}')">📥 Jogar esse dia no diário</button></div></div>`;
   }).join("");
+  const sel=document.getElementById("cpSemana");
+  if(sel && !sel.options.length){
+    const sem=Math.ceil(dias.length/7);
+    sel.innerHTML=`<option value="0">Período inteiro (${dias.length} dias)</option>`+
+      Array.from({length:sem},(_,i)=>`<option value="${i+1}">Semana ${i+1}</option>`).join("");
+  }
 }
-async function addPlano(dia,ref){
-  const t=await carregaTaco();
-  const termo=prompt("Buscar alimento na TACO para "+dia.toUpperCase()+":"); if(!termo) return;
-  const k=chave(termo).split(/\s+/).filter(Boolean);
-  const res=t.filter(a=>{ const c=chave(a.n); return k.every(x=>c.includes(x)); }).slice(0,15);
-  if(!res.length){ alert("Nada encontrado na TACO para \""+termo+"\"."); return; }
-  const escolha=prompt(res.map((a,i)=>(i+1)+") "+a.n+" — "+n0(a.k)+" kcal/100g").join("\n")+"\n\nDigite o número:");
-  const idx=parseInt(escolha,10)-1; const a=res[idx]; if(!a) return;
-  const g=parseFloat(prompt("Quantidade em gramas:","100")||"0"); if(!g) return;
-  const f=g/100;
-  PLANO[dia]=PLANO[dia]||{}; PLANO[dia][ref]=PLANO[dia][ref]||[];
-  PLANO[dia][ref].push({nome:a.n,g,kcal:(a.k||0)*f,prot:(a.p||0)*f,carb:(a.b||0)*f,gord:(a.g||0)*f,
-                        fibra:(a.f||0)*f,sodio:(a.s||0)*f,ref:String(a.i)});
-  renderPlano(); salvarCardapio();
+function nomeIng(x){ return x.s?((PRECOS[x.s]||{}).nome||x.s):(x.n||"item"); }
+
+function abrirTroca(dia,ref){
+  const cfg=PLANOCFG||{alergias:[],nao_come:[],faixa_max:9,proteinas:[]};
+  const pool=PREPS.concat(receitasComoPreps());
+  const metaK=PERFIL.meta_kcal||calcula().meta||2000;
+  const soma=(cfg.refeicoes||REFS.map(([k])=>k)).reduce((s,r)=>s+PESO_REF[r],0);
+  const alvo=metaK*PESO_REF[ref]/soma;
+  const atual=window.__plano[dia][ref];
+  document.getElementById("trocaInfo").textContent=
+    REFS.find(x=>x[0]===ref)[1]+" · "+dia.split("-").reverse().join("/")+" · alvo ≈ "+n0(alvo)+" kcal";
+  const lista=candidatos(ref,cfg,pool).map(p=>{
+    const e=Math.max(.6,Math.min(1.6,alvo/(p.kcal||1)));
+    return {p,e,k:p.kcal*e,c:custoItens(p.itens,e),err:Math.abs(p.kcal*e-alvo)/alvo};
+  }).sort((a,b)=>a.err-b.err).slice(0,40);
+  document.getElementById("trocaLista").innerHTML=`<table>
+    <tr><th>Prato</th><th class="n">kcal</th><th class="n">R$</th><th></th></tr>`+
+    lista.map(x=>`<tr class="${x.p.id===atual.p?"":"pick"}">
+      <td>${esc(x.p.nome)}${x.p.id===atual.p?'<span class="tag">atual</span>':""}
+        <div class="hint">${(x.p.prot_tipos||[]).join(", ")||"—"}${x.p.vegano?" · vegano":(x.p.vegetariano?" · vegetariano":"")}</div></td>
+      <td class="n">${n0(x.k)}</td><td class="n">${n1(x.c)}</td>
+      <td><button class="btn sm" onclick="fazTroca('${dia}','${ref}','${x.p.id}',${x.e.toFixed(2)})">usar</button></td></tr>`).join("")+`</table>`;
+  document.getElementById("dlgTroca").showModal();
 }
-function delPlano(dia,ref,idx){ (PLANO[dia]?.[ref]||[]).splice(idx,1); renderPlano(); salvarCardapio(); }
-async function salvarCardapio(){
-  const row={user_id:USER.id,nome:"Meu cardápio",ativo:true,plano:PLANO,updated_at:new Date().toISOString()};
-  if(window.__cardapioId) row.id=window.__cardapioId;
-  const {data,error}=await _sb.from("saude_cardapio").upsert(row).select().maybeSingle();
-  if(data) window.__cardapioId=data.id;
-  if(error) console.warn(error);
+async function fazTroca(dia,ref,pid,esc){
+  const pool=PREPS.concat(receitasComoPreps());
+  const p=pool.find(x=>x.id===pid); if(!p) return;
+  window.__plano[dia][ref]=montaItem(p,esc);
+  document.getElementById("dlgTroca").close();
+  renderPlano(); await salvarPlano();
 }
-function gerarCardapio(){
-  const meta=PERFIL.meta_kcal||calcula().meta;
-  if(!meta){ alert("Preencha altura, peso, nascimento e sexo na aba Corpo & IMC para eu calcular sua meta."); return; }
-  const dist={cafe:.25,lanche1:.10,almoco:.35,lanche2:.10,jantar:.25,ceia:.05};
-  const txt=REFS.map(([k,n])=>n+": ~"+n0(meta*(dist[k]||0))+" kcal").join("\n");
-  alert("Distribuição sugerida para "+n0(meta)+" kcal/dia:\n\n"+txt+
-        "\n\nUse o ＋ de cada refeição para montar com alimentos da TACO até chegar perto desses valores.");
-}
-async function copiarDiaParaDiario(){
-  const map=["dom","seg","ter","qua","qui","sex","sab"];
-  const k=map[new Date(diaSel()+"T12:00:00").getDay()];
-  const dia=PLANO[k]; if(!dia){ alert("Nada planejado para "+k.toUpperCase()+"."); return; }
+async function jogarDia(dia){
+  const refs=(window.__plano||{})[dia]; if(!refs) return;
   const rows=[];
-  REFS.forEach(([rk])=>(dia[rk]||[]).forEach(i=>rows.push({
-    user_id:USER.id,dia:diaSel(),refeicao:rk,alimento:i.nome,quantidade_g:i.g,
-    kcal:i.kcal,prot_g:i.prot,carb_g:i.carb,gord_g:i.gord,fibra_g:i.fibra,sodio_mg:i.sodio,
-    fonte:"taco",ref_id:i.ref})));
-  if(!rows.length){ alert("Esse dia do cardápio está vazio."); return; }
+  Object.entries(refs).forEach(([ref,i])=>rows.push({
+    user_id:USER.id,dia:diaSel(),refeicao:ref,alimento:i.n,quantidade_g:i.it.reduce((s,x)=>s+(+x.g||0),0),
+    kcal:i.k,prot_g:i.pr,carb_g:i.cb,gord_g:i.gd,fibra_g:i.fb,sodio_mg:i.sd,fonte:"cardapio",ref_id:i.p}));
+  if(!rows.length) return;
   const {error}=await _sb.from("saude_registro").insert(rows);
   if(error){ alert("Erro: "+error.message); return; }
   setTab("hoje"); carregaDia();
+}
+
+// ------------------------- lista de compras -------------------------
+const CORREDOR={"Carnes e derivados":"🥩 Açougue","Pescados e frutos do mar":"🐟 Peixaria",
+  "Ovos e derivados":"🥚 Ovos","Leite e derivados":"🥛 Laticínios",
+  "Verduras, hortaliças e derivados":"🥬 Hortifrúti","Frutas e derivados":"🍎 Hortifrúti",
+  "Leguminosas e derivados":"🫘 Mercearia","Cereais e derivados":"🌾 Mercearia",
+  "Nozes e sementes":"🥜 Mercearia","Gorduras e óleos":"🫒 Mercearia"};
+function renderCompras(){
+  const plano=window.__plano||{}, dias=Object.keys(plano).sort();
+  const box=document.getElementById("comprasBox");
+  if(!dias.length){ box.innerHTML='<div class="empty">Monte um cardápio primeiro.</div>'; return; }
+  const sem=parseInt((document.getElementById("cpSemana")||{}).value||"0",10);
+  const alvo=sem?dias.slice((sem-1)*7,sem*7):dias;
+  const agg={};
+  alvo.forEach(d=>Object.values(plano[d]).forEach(i=>i.it.forEach(x=>{
+    const key=x.s||("livre:"+(x.n||"item"));
+    agg[key]=agg[key]||{g:0,slug:x.s,nome:x.s?((PRECOS[x.s]||{}).nome||x.s):(x.n||"item")};
+    agg[key].g+=+x.g||0;
+  })));
+  const linhas=Object.values(agg).map(a=>{
+    const rend=a.slug?rendOf(a.slug):1, kg=a.g*rend/1000;
+    const rs=a.slug?precoKg(a.slug):null;
+    const cat=a.slug?(PRECOS[a.slug]||{}).cat:null;
+    return {...a,kg,rs,custo:rs!=null?kg*rs:null,corredor:CORREDOR[cat]||"🛒 Outros"};
+  }).sort((a,b)=>a.corredor.localeCompare(b.corredor)||b.kg-a.kg);
+  const total=linhas.reduce((s,l)=>s+(l.custo||0),0);
+  let html=`<div class="row" style="margin-bottom:10px"><span class="stat">🧾 Total estimado <b>R$ ${n0(total)}</b></span>
+    <span class="stat">📅 <b>${alvo.length}</b> dias</span>
+    <span class="stat">📉 <b>R$ ${n1(total/alvo.length)}</b> por dia</span></div>`;
+  let corr=null;
+  html+="<table>";
+  linhas.forEach(l=>{
+    if(l.corredor!==corr){ corr=l.corredor; html+=`<tr><th colspan="3">${corr}</th></tr>`; }
+    html+=`<tr><td>${esc(l.nome)}${l.rs==null?'<span class="tag">sem preço</span>':""}</td>
+      <td class="n">${l.kg<1?n0(l.kg*1000)+" g":n1(l.kg)+" kg"}</td>
+      <td class="n">${l.custo!=null?"R$ "+n1(l.custo):"—"}</td></tr>`;
+  });
+  html+="</table>";
+  box.innerHTML=html;
+}
+function copiarCompras(){
+  const txt=[...document.querySelectorAll("#comprasBox tr")].map(tr=>
+    [...tr.children].map(td=>td.textContent.trim()).join("  ")).join("\n");
+  navigator.clipboard.writeText(txt).then(()=>alert("Lista copiada."),()=>alert("Não consegui copiar."));
+}
+
+// ----------------------------- preços -----------------------------
+function renderPrecos(){
+  const box=document.getElementById("precosBox");
+  if(!Object.keys(PRECOS).length){ box.innerHTML='<div class="empty">Base de preços não carregada.</div>'; return; }
+  document.getElementById("precoRef").innerHTML=
+    `Referência aproximada de <b>${esc(BASE_REF||"—")}</b> para o Brasil — não é uma tabela oficial. Corrija o que você compra e o custo do cardápio passa a usar os seus valores.`;
+  const f=chave((document.getElementById("pcBusca")||{}).value||"");
+  const itens=Object.values(PRECOS).filter(i=>!f||chave(i.nome).includes(f)).sort((a,b)=>a.nome.localeCompare(b.nome));
+  box.innerHTML=`<table><tr><th>Ingrediente</th><th class="n">R$ / kg (ou L)</th><th>Faixa</th></tr>`+
+    itens.map(i=>{
+      const v=PRECO_USR[i.slug];
+      return `<tr><td>${esc(i.nome)}<div class="hint">${esc(i.taco_nome)}</div></td>
+        <td class="n"><input type="number" step="0.5" value="${v!=null?v:i.rs_kg}" style="width:96px;text-align:right"
+             onchange="salvarPreco('${i.slug}',this.value)">${v!=null?'<span class="tag">seu</span>':""}</td>
+        <td>${["","💚 econômico","💛 médio","❤️ premium"][i.faixa]}</td></tr>`;
+    }).join("")+`</table>`;
+}
+async function salvarPreco(slug,v){
+  const n=parseFloat(v); if(isNaN(n)||n<0) return;
+  PRECO_USR[slug]=n;
+  const {error}=await _sb.from("saude_precos").upsert({user_id:USER.id,slug,rs_kg:n},{onConflict:"user_id,slug"});
+  if(error) console.warn(error);
+  renderPrecos(); if(window.__plano) renderCompras();
+}
+async function resetPrecos(){
+  if(!confirm("Voltar todos os preços para os valores de referência?")) return;
+  await _sb.from("saude_precos").delete().eq("user_id",USER.id);
+  PRECO_USR={}; renderPrecos(); renderCompras();
 }
 
 // --------------------------- receitas ---------------------------
@@ -877,14 +1478,16 @@ async function boot(){
   buildNav(_sb,"saude");
   document.getElementById("dia").value=hojeISO();
   await carregaPerfil();
-  await Promise.all([carregaCardapio(),carregaReceitas()]);
+  await Promise.all([carregaBase(),carregaReceitas()]);
+  await carregaPlano(); await carregaPesos();
+  document.getElementById("pesoData").value=hojeISO();
   document.getElementById("app").style.display="block";
   await carregaDia();
   recalcula();
   // veio do clique na notificação: "Bebi 1 copo"
   const p=new URLSearchParams(location.search);
   if(p.get("agua")){ await addAgua(parseInt(p.get("agua"),10)||copoMl()); history.replaceState({},"","vida-saudavel-web.html"); }
-  setTab(localStorage.getItem("saude_tab")||"hoje");
+  setTab(p.get("aba")||localStorage.getItem("saude_tab")||"hoje");
   if(("Notification" in window) && Notification.permission==="granted") iniciaLembreteLocal();
 }
 boot();
