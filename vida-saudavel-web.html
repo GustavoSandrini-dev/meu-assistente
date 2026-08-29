@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vida Saudável</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{color-scheme:dark}
+body[data-theme="claro"]{--bg:#f4f6fa;--card:#fff;--text:#1a2233;--muted:#67728a;--label:#4a5568;--border:#d8dfeb;--row:#eef1f7;--head:#e6eaf2;--input:#fff;--accent:#4f7cf7;--accent-h:#3b66e0;--accent-t:#fff;--pos:#0d8a62;--neg:#c0392b;--shadow:0 1px 4px rgba(20,30,60,.07)}
+body[data-theme="escuro"]{color-scheme:dark;--bg:#12151c;--card:#1c212b;--text:#e6eaf2;--muted:#8a93a8;--label:#aab3c5;--border:#323a4a;--row:#272e3b;--head:#323a4a;--input:#151a23;--accent:#4f7cf7;--accent-h:#6b90f9;--accent-t:#fff;--pos:#3ecf9a;--neg:#f07567;--shadow:0 1px 6px rgba(0,0,0,.35)}
+body[data-theme="rosa"]{--bg:#fdf2f7;--card:#fff;--text:#3d2233;--muted:#a1738c;--label:#7c4a63;--border:#f3cfe0;--row:#fae8f1;--head:#f3cfe0;--input:#fffafd;--accent:#e0559a;--accent-h:#c93f85;--accent-t:#fff;--pos:#0d8a62;--neg:#c0392b;--shadow:0 1px 4px rgba(160,60,110,.10)}
+body[data-theme="rosa-escuro"]{color-scheme:dark;--bg:#231018;--card:#321a26;--text:#fce7f3;--muted:#c48aa8;--label:#e3aec9;--border:#553046;--row:#40222f;--head:#553046;--input:#281420;--accent:#f472b6;--accent-h:#f88fc6;--accent-t:#3d0f28;--pos:#3ecf9a;--neg:#f07567;--shadow:0 1px 6px rgba(0,0,0,.4)}
+body[data-theme="dracula"]{color-scheme:dark;--bg:#282a36;--card:#343746;--text:#f8f8f2;--muted:#8b90a8;--label:#bdc0d4;--border:#4d5066;--row:#3d4054;--head:#4d5066;--input:#2c2e3c;--accent:#bd93f9;--accent-h:#cba6fb;--accent-t:#22232e;--pos:#50fa7b;--neg:#ff5555;--shadow:0 1px 6px rgba(0,0,0,.4)}
+body[data-theme="nord"]{color-scheme:dark;--bg:#2e3440;--card:#3b4252;--text:#eceff4;--muted:#94a0b8;--label:#c2cbdc;--border:#4c566a;--row:#434c5e;--head:#4c566a;--input:#333947;--accent:#88c0d0;--accent-h:#9fd0de;--accent-t:#1d2530;--pos:#a3be8c;--neg:#bf616a;--shadow:0 1px 6px rgba(0,0,0,.35)}
+body[data-theme="solarizado"]{--bg:#fdf6e3;--card:#fffbf0;--text:#403a2e;--muted:#93a1a1;--label:#657b83;--border:#e6dcc0;--row:#f3ecd7;--head:#e6dcc0;--input:#fffdf5;--accent:#268bd2;--accent-h:#1c76b6;--accent-t:#fff;--pos:#859900;--neg:#dc322f;--shadow:0 1px 4px rgba(120,100,50,.10)}
+body[data-theme="oceano"]{color-scheme:dark;--bg:#0f1c2e;--card:#16283e;--text:#dcecfb;--muted:#7d95b3;--label:#a8c0dc;--border:#2c4360;--row:#1d3350;--head:#2c4360;--input:#122238;--accent:#38bdf8;--accent-h:#5ecafa;--accent-t:#08243a;--pos:#34d399;--neg:#fb7185;--shadow:0 1px 6px rgba(0,0,0,.4)}
+body[data-theme="floresta"]{color-scheme:dark;--bg:#14211a;--card:#1d2f25;--text:#e2f2e7;--muted:#84a390;--label:#aecbb8;--border:#33503f;--row:#243c2f;--head:#33503f;--input:#182a20;--accent:#4ade80;--accent-h:#6ee79a;--accent-t:#0c2415;--pos:#4ade80;--neg:#f87171;--shadow:0 1px 6px rgba(0,0,0,.4)}
+body[data-theme="sepia"]{--bg:#f4ecd8;--card:#fbf5e6;--text:#43362a;--muted:#96866f;--label:#6e5c46;--border:#dfd0b4;--row:#efe5cd;--head:#dfd0b4;--input:#fffaf0;--accent:#8b5e34;--accent-h:#75492a;--accent-t:#fff8ec;--pos:#3f7d3a;--neg:#b3382c;--shadow:0 1px 4px rgba(110,80,40,.12)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 32px}
+@media(max-width:600px){body{padding:16px 12px}}
+.wrap{max-width:1200px;margin:0 auto}
+.navrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.navrow a,.navrow button,.navrow select{text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer}
+#themeSel{flex:0 0 auto;width:auto;max-width:160px}
+h1{font-size:22px;margin-bottom:2px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:9px 16px;border-radius:12px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;user-select:none}
+.tab.act{background:var(--accent);color:var(--accent-t);border-color:var(--accent)}
+.card{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow);margin-bottom:16px}
+.card h2{font-size:15px;margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+input,select,textarea{background:var(--input);border:1.5px solid var(--border);color:var(--text);border-radius:9px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+label.lb{display:block;font-size:12px;color:var(--label);font-weight:700;margin-bottom:4px}
+.fld{margin-bottom:10px}
+.fld input,.fld select{width:100%}
+.btn{background:var(--accent);color:var(--accent-t);border:none;border-radius:9px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.sec{background:var(--card);color:var(--muted);border:1.5px solid var(--border)}
+.btn.sm{padding:6px 11px;font-size:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.empty{color:var(--muted);font-size:14px;text-align:center;padding:26px}
+.stat{display:inline-block;background:var(--row);border:1.5px solid var(--border);border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;margin:0 8px 8px 0}
+.stat b{color:var(--accent)}
+.ringwrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.ring{position:relative;width:132px;height:132px;flex:0 0 auto}
+.ring svg{transform:rotate(-90deg)}
+.ring .in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .in b{font-size:23px;line-height:1}
+.ring .in span{font-size:11px;color:var(--muted)}
+.macros{flex:1;min-width:210px}
+.mac{margin-bottom:9px}
+.mac .t{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:3px}
+.bar{height:8px;border-radius:6px;background:var(--row);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:6px}
+.meal{border:1.5px solid var(--border);border-radius:12px;background:var(--row);padding:12px;margin-bottom:10px}
+.meal h3{font-size:13px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.meal h3 span{font-weight:600;color:var(--muted);font-size:12px}
+.it{display:flex;gap:8px;align-items:center;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border)}
+.it:last-child{border-bottom:none}
+.it .nm{flex:1;min-width:0;word-break:break-word}
+.it .kc{color:var(--muted);font-size:12px;flex:0 0 auto;font-variant-numeric:tabular-nums}
+.it .x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px}
+.it .x:hover{color:var(--neg)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 9px;border-bottom:1px solid var(--border)}
+th{background:var(--head);font-size:12px;color:var(--label)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.pick:hover{background:var(--row);cursor:pointer}
+.tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--border);color:var(--muted);margin-left:6px}
+.water{display:flex;gap:10px;align-items:flex-end;height:130px;margin:10px 0}
+.glass{position:relative;width:74px;height:120px;border:3px solid var(--border);border-radius:8px 8px 16px 16px;overflow:hidden;flex:0 0 auto;background:var(--row)}
+.glass i{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,#38bdf8,#0ea5e9);transition:height .4s}
+.imcbar{height:22px;border-radius:8px;background:linear-gradient(90deg,#60a5fa 0 18%,#3ecf9a 18% 43%,#f5b301 43% 62%,#f59e0b 62% 78%,#f07567 78% 100%);position:relative;margin:8px 0 4px}
+.imcbar i{position:absolute;top:-5px;width:3px;height:32px;background:var(--text);border-radius:2px}
+.imcleg{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+.day{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+.days{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.msg{font-size:12px;color:var(--muted);margin-top:8px;min-height:16px}
+dialog{border:1.5px solid var(--border);border-radius:14px;background:var(--card);color:var(--text);padding:18px;max-width:520px;width:92vw}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+.hint{font-size:11px;color:var(--muted);line-height:1.5}
+</style>
+</head>
+<body data-theme="escuro">
+<div class="wrap" id="app" style="display:none">
+  <div class="navrow">
+    <div id="appNav" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <a href="index.html">🏠 Início</a>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <select id="themeSel" onchange="setTheme(this.value)" title="Tema">
+        <option value="claro">☀️ Claro</option><option value="escuro">🌙 Escuro</option>
+        <option value="rosa">🌸 Rosa</option><option value="rosa-escuro">🌷 Rosa escuro</option>
+        <option value="dracula">🧛 Drácula</option><option value="nord">❄️ Nord</option>
+        <option value="solarizado">🌅 Solarizado</option><option value="oceano">🌊 Oceano</option>
+        <option value="floresta">🌲 Floresta</option><option value="sepia">📜 Sépia</option>
+      </select>
+      <button onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <h1>🥗 Vida Saudável</h1>
+  <div class="sub">Cardápio, contador de calorias, água e IMC — dados da tabela TACO (UNICAMP) e Open Food Facts.</div>
+
+  <div class="tabs">
+    <span class="tab act" data-t="hoje"     onclick="setTab('hoje')">📊 Hoje</span>
+    <span class="tab"     data-t="cardapio" onclick="setTab('cardapio')">🍽️ Cardápio</span>
+    <span class="tab"     data-t="alimentos"onclick="setTab('alimentos')">🔎 Alimentos</span>
+    <span class="tab"     data-t="agua"     onclick="setTab('agua')">💧 Água</span>
+    <span class="tab"     data-t="corpo"    onclick="setTab('corpo')">⚖️ Corpo & IMC</span>
+  </div>
+
+  <!-- ============================ HOJE ============================ -->
+  <div id="view-hoje">
+    <div class="card">
+      <div class="row" style="margin-bottom:14px">
+        <button class="btn sec sm" onclick="mudaDia(-1)">◀</button>
+        <input id="dia" type="date" onchange="carregaDia()">
+        <button class="btn sec sm" onclick="mudaDia(1)">▶</button>
+        <button class="btn sec sm" onclick="hojeDia()">Hoje</button>
+      </div>
+      <div class="ringwrap">
+        <div class="ring">
+          <svg width="132" height="132">
+            <circle cx="66" cy="66" r="56" fill="none" stroke="var(--row)" stroke-width="13"></circle>
+            <circle id="ringArc" cx="66" cy="66" r="56" fill="none" stroke="var(--accent)" stroke-width="13"
+                    stroke-linecap="round" stroke-dasharray="351.8" stroke-dashoffset="351.8"></circle>
+          </svg>
+          <div class="in"><b id="ringKcal">0</b><span id="ringMeta">de 0 kcal</span></div>
+        </div>
+        <div class="macros">
+          <div class="mac"><div class="t"><span>Proteína</span><span id="mProtT">0 g</span></div><div class="bar"><i id="mProt" style="background:#4f7cf7"></i></div></div>
+          <div class="mac"><div class="t"><span>Carboidrato</span><span id="mCarbT">0 g</span></div><div class="bar"><i id="mCarb" style="background:#f5b301"></i></div></div>
+          <div class="mac"><div class="t"><span>Gordura</span><span id="mGordT">0 g</span></div><div class="bar"><i id="mGord" style="background:#f07567"></i></div></div>
+          <div class="row" style="margin-top:10px">
+            <span class="stat">🌾 <b id="sFibra">0</b> g fibra</span>
+            <span class="stat">🧂 <b id="sSodio">0</b> mg sódio</span>
+            <span class="stat">💧 <b id="sAgua">0</b> ml água</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="refeicoes"></div>
+  </div>
+
+  <!-- ========================== CARDÁPIO ========================== -->
+  <div id="view-cardapio" style="display:none">
+    <div class="card">
+      <h2>🍽️ Cardápio da semana</h2>
+      <div class="row" style="margin-bottom:10px">
+        <button class="btn sm" onclick="gerarCardapio()">✨ Sugerir distribuição por refeição</button>
+        <button class="btn sec sm" onclick="salvarCardapio()">💾 Salvar cardápio</button>
+        <button class="btn sec sm" onclick="copiarDiaParaDiario()">📥 Jogar o dia de hoje no diário</button>
+      </div>
+      <div class="hint">Monte cada refeição da semana. Cada item usa a tabela nutricional da TACO, então o total de kcal do dia sai calculado. O botão de sugerir distribui a sua meta de kcal entre as refeições (café 25% · almoço 35% · lanche 10% · jantar 25% · ceia 5%).</div>
+    </div>
+    <div class="days" id="planoDays"></div>
+
+    <div class="card" style="margin-top:16px">
+      <h2>📖 Minhas receitas</h2>
+      <div class="row" style="margin-bottom:10px">
+        <button class="btn sm" onclick="novaReceita()">➕ Nova receita</button>
+        <input id="recBusca" placeholder="Buscar receita na web…" style="flex:1;min-width:180px" onkeydown="if(event.key==='Enter')buscarReceitaWeb()">
+        <button class="btn sec sm" onclick="buscarReceitaWeb()">🌐 Buscar na web</button>
+      </div>
+      <div class="hint">A busca na web abre uma nova aba com receitas em português (TudoGostoso, Panelinha, Receitas Nestlé…). Traga os ingredientes de volta pra cá e o app calcula a tabela nutricional de cada porção pela TACO.</div>
+      <div id="recList" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- ========================= ALIMENTOS ========================== -->
+  <div id="view-alimentos" style="display:none">
+    <div class="card">
+      <h2>🔎 Buscar alimento</h2>
+      <div class="row">
+        <input id="fBusca" placeholder="Ex: arroz integral, frango grelhado, banana…" style="flex:1;min-width:200px" onkeydown="if(event.key==='Enter')buscarAlimento()">
+        <select id="fFonte">
+          <option value="taco">TACO (in natura / caseiro)</option>
+          <option value="off">Open Food Facts (industrializados)</option>
+        </select>
+        <button class="btn" onclick="buscarAlimento()">Buscar</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="fBarras" inputmode="numeric" placeholder="Código de barras (EAN)" style="max-width:230px" onkeydown="if(event.key==='Enter')buscarBarras()">
+        <button class="btn sec sm" onclick="buscarBarras()">📷 Buscar por código</button>
+        <button class="btn sec sm" onclick="novoAlimento()">➕ Alimento manual</button>
+      </div>
+      <div class="msg" id="fMsg"></div>
+    </div>
+    <div class="card"><div id="fRes"><div class="empty">Busque um alimento para ver a tabela nutricional completa.</div></div></div>
+  </div>
+
+  <!-- ============================ ÁGUA ============================ -->
+  <div id="view-agua" style="display:none">
+    <div class="grid2">
+      <div class="card">
+        <h2>💧 Água de hoje</h2>
+        <div class="water">
+          <div class="glass"><i id="glassFill" style="height:0%"></i></div>
+          <div>
+            <div style="font-size:26px;font-weight:800" id="aguaTot">0 ml</div>
+            <div class="sub" id="aguaMeta" style="margin:0">meta 2000 ml</div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn sm" onclick="addAgua(copoMl())">+ 1 copo</button>
+              <button class="btn sec sm" onclick="addAgua(500)">+ 500 ml</button>
+              <button class="btn sec sm" onclick="addAgua(-copoMl())">− 1 copo</button>
+            </div>
+          </div>
+        </div>
+        <div class="hint">Meta sugerida: 35 ml por kg de peso. Ajuste na aba Corpo &amp; IMC.</div>
+      </div>
+      <div class="card">
+        <h2>🔔 Lembrete de 1 em 1 hora</h2>
+        <div class="fld"><label class="lb">Janela do lembrete (horário de Brasília)</label>
+          <div class="row">
+            <select id="lembIni" onchange="salvarPerfil()"></select>
+            <span class="sub" style="margin:0">até</span>
+            <select id="lembFim" onchange="salvarPerfil()"></select>
+          </div>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <label style="font-size:13px;display:flex;gap:7px;align-items:center;cursor:pointer">
+            <input type="checkbox" id="lembOn" onchange="salvarPerfil()" style="width:18px;height:18px;accent-color:var(--accent)">
+            Quero ser lembrado de beber água
+          </label>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn sm" onclick="ativarPush()">📲 Ativar notificação no celular</button>
+          <button class="btn sec sm" onclick="testarNotificacao()">🔕 Testar (sem som)</button>
+        </div>
+        <div class="msg" id="pushMsg"></div>
+        <div class="hint" style="margin-top:10px">
+          A notificação é <b>silenciosa</b> (sem som, só aparece na tela). Para ela chegar com o app fechado,
+          instale o Meu Assistente na tela inicial do celular e mantenha o lembrete ativado.
+          Enquanto a página estiver aberta, o lembrete local já funciona sozinho.
+        </div>
+      </div>
+    </div>
+    <div class="card"><h2>Últimos 14 dias</h2><div id="aguaHist"></div></div>
+  </div>
+
+  <!-- =========================== CORPO ============================ -->
+  <div id="view-corpo" style="display:none">
+    <div class="grid2">
+      <div class="card">
+        <h2>⚖️ Seus dados</h2>
+        <div class="fld"><label class="lb">Altura (cm)</label><input id="pAltura" type="number" step="0.5" oninput="recalcula()"></div>
+        <div class="fld"><label class="lb">Peso (kg)</label><input id="pPeso" type="number" step="0.1" oninput="recalcula()"></div>
+        <div class="fld"><label class="lb">Data de nascimento</label><input id="pNasc" type="date" oninput="recalcula()"></div>
+        <div class="fld"><label class="lb">Sexo (só para o cálculo de gasto energético)</label>
+          <select id="pSexo" onchange="recalcula()"><option value="">—</option><option value="M">Masculino</option><option value="F">Feminino</option></select></div>
+        <div class="fld"><label class="lb">Nível de atividade</label>
+          <select id="pAtiv" onchange="recalcula()">
+            <option value="sedentario">Sedentário (pouco ou nenhum exercício)</option>
+            <option value="leve">Leve (1–3x por semana)</option>
+            <option value="moderado">Moderado (3–5x por semana)</option>
+            <option value="intenso">Intenso (6–7x por semana)</option>
+            <option value="atleta">Muito intenso (2x por dia / trabalho físico)</option>
+          </select></div>
+        <div class="fld"><label class="lb">Objetivo</label>
+          <select id="pObj" onchange="recalcula()">
+            <option value="perder">Emagrecer (−20%)</option><option value="manter">Manter o peso</option><option value="ganhar">Ganhar massa (+15%)</option>
+          </select></div>
+        <button class="btn" onclick="salvarPerfil(true)">💾 Salvar</button>
+        <div class="msg" id="pMsg"></div>
+      </div>
+      <div class="card">
+        <h2>📐 Resultado</h2>
+        <div style="font-size:34px;font-weight:800" id="imcVal">—</div>
+        <div class="sub" id="imcCls" style="margin-bottom:2px">Preencha altura e peso.</div>
+        <div class="imcbar"><i id="imcMark" style="left:0;display:none"></i></div>
+        <div class="imcleg"><span>&lt;18,5</span><span>18,5–25</span><span>25–30</span><span>30–35</span><span>35+</span></div>
+        <div style="margin-top:16px">
+          <span class="stat">🔥 TMB <b id="rTmb">—</b></span>
+          <span class="stat">⚡ Gasto diário <b id="rGet">—</b></span>
+          <span class="stat">🎯 Meta <b id="rMeta">—</b></span>
+        </div>
+        <div style="margin-top:6px">
+          <span class="stat">🥩 <b id="rProt">—</b> proteína</span>
+          <span class="stat">🍚 <b id="rCarb">—</b> carbo</span>
+          <span class="stat">🥑 <b id="rGord">—</b> gordura</span>
+          <span class="stat">💧 <b id="rAgua">—</b> água</span>
+        </div>
+        <div class="hint" style="margin-top:12px">
+          IMC pela classificação da OMS · TMB por Mifflin-St Jeor · macros em 2 g de proteína/kg,
+          25% das kcal em gordura e o restante em carboidrato. São estimativas — não substituem
+          orientação de nutricionista ou médico.
+        </div>
+        <button class="btn sec sm" style="margin-top:12px" onclick="registrarPeso()">📌 Registrar o peso de hoje</button>
+      </div>
+    </div>
+    <div class="card"><h2>Histórico de peso</h2><div id="pesoHist"></div></div>
+  </div>
+</div>
+
+<!-- ====================== diálogo de porção ====================== -->
+<dialog id="dlgAdd">
+  <h2 style="font-size:16px;margin-bottom:4px" id="dlgNome">Alimento</h2>
+  <div class="sub" id="dlgInfo">—</div>
+  <div class="fld"><label class="lb">Quantidade (g ou ml)</label><input id="dlgQtd" type="number" value="100" step="1" oninput="dlgPreview()"></div>
+  <div class="fld"><label class="lb">Refeição</label>
+    <select id="dlgRef">
+      <option value="cafe">☕ Café da manhã</option><option value="lanche1">🍎 Lanche da manhã</option>
+      <option value="almoco">🍛 Almoço</option><option value="lanche2">🥪 Lanche da tarde</option>
+      <option value="jantar">🍲 Jantar</option><option value="ceia">🌙 Ceia</option>
+    </select></div>
+  <div class="fld"><label class="lb">Data</label><input id="dlgDia" type="date"></div>
+  <div class="stat" id="dlgPrev">0 kcal</div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn" onclick="confirmarAdd()">Adicionar ao diário</button>
+    <button class="btn sec" onclick="document.getElementById('dlgAdd').close()">Cancelar</button>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="common.js"></script>
+<script>
+const SB_URL="https://ovpncggowjhualakjaug.supabase.co", SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92cG5jZ2dvd2podWFsYWtqYXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NDI1MDIsImV4cCI6MjEwMDMxODUwMn0.yGWi4aWynDVhIEftBZcayGrbPxgqj93ckDua0zTr4zI";
+const _sb=window.supabase.createClient(SB_URL,SB_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+
+// Chave pública VAPID do Web Push. Enquanto estiver vazia, só o lembrete
+// local (com a página aberta) funciona. Veja vida_saudavel_setup.sql.
+const VAPID_PUBLIC="";
+
+// ----- tema -----
+const PAGE="saude";
+function currentTheme(){ return localStorage.getItem("themeOverride_"+PAGE)||localStorage.getItem("assistTheme")||"escuro"; }
+function applyTheme(){ const t=currentTheme(); document.body.dataset.theme=t; const s=document.getElementById("themeSel"); if(s) s.value=t; }
+function setTheme(t){
+  const all=confirm("Aplicar este tema em TODOS os módulos?\n\nOK = todos os módulos\nCancelar = só nesta tela");
+  if(all){ localStorage.setItem("assistTheme",t); localStorage.removeItem("themeOverride_"+PAGE); }
+  else { localStorage.setItem("themeOverride_"+PAGE,t); }
+  document.body.dataset.theme=t;
+}
+applyTheme();
+
+// ----- utilidades -----
+function esc(s){ return (s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function n1(v){ return v==null||isNaN(v)?"—":(Math.round(v*10)/10).toLocaleString("pt-BR"); }
+function n0(v){ return v==null||isNaN(v)?"—":Math.round(v).toLocaleString("pt-BR"); }
+function chave(s){ return (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
+function hojeISO(){ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); }
+function msg(id,t,ok){ const e=document.getElementById(id); if(!e)return; e.textContent=t||""; e.style.color=ok?"var(--pos)":"var(--muted)"; }
+
+// ----- estado -----
+let USER=null, PERFIL={}, REGS=[], AGUA=[], PLANO={}, RECEITAS=[], TACO=null;
+const REFS=[["cafe","☕ Café da manhã"],["lanche1","🍎 Lanche da manhã"],["almoco","🍛 Almoço"],
+            ["lanche2","🥪 Lanche da tarde"],["jantar","🍲 Jantar"],["ceia","🌙 Ceia"]];
+const DIAS=[["seg","Segunda"],["ter","Terça"],["qua","Quarta"],["qui","Quinta"],["sex","Sexta"],["sab","Sábado"],["dom","Domingo"]];
+const FATOR={sedentario:1.2,leve:1.375,moderado:1.55,intenso:1.725,atleta:1.9};
+
+// ----- abas -----
+function setTab(t){
+  document.querySelectorAll(".tabs .tab").forEach(x=>x.classList.toggle("act",x.dataset.t===t));
+  ["hoje","cardapio","alimentos","agua","corpo"].forEach(k=>{
+    document.getElementById("view-"+k).style.display = k===t?"block":"none";
+  });
+  if(t==="cardapio"){ renderPlano(); renderReceitas(); }
+  if(t==="agua"){ renderAgua(); renderAguaHist(); }
+  if(t==="corpo"){ recalcula(); renderPesoHist(); }
+  localStorage.setItem("saude_tab",t);
+}
+
+// ============================ PERFIL ============================
+async function carregaPerfil(){
+  const {data}=await _sb.from("saude_perfil").select("*").eq("user_id",USER.id).maybeSingle();
+  PERFIL=data||{meta_agua_ml:2000,copo_ml:250,atividade:"leve",objetivo:"manter",lembrete_agua:true,lembrete_ini:8,lembrete_fim:22};
+  document.getElementById("pAltura").value=PERFIL.altura_cm??"";
+  document.getElementById("pPeso").value=PERFIL.peso_kg??"";
+  document.getElementById("pNasc").value=PERFIL.nascimento??"";
+  document.getElementById("pSexo").value=PERFIL.sexo??"";
+  document.getElementById("pAtiv").value=PERFIL.atividade||"leve";
+  document.getElementById("pObj").value=PERFIL.objetivo||"manter";
+  document.getElementById("lembOn").checked=PERFIL.lembrete_agua!==false;
+  const ini=document.getElementById("lembIni"), fim=document.getElementById("lembFim");
+  ini.innerHTML=fim.innerHTML="";
+  for(let h=0;h<24;h++){
+    const rot=String(h).padStart(2,"0")+":00";
+    ini.insertAdjacentHTML("beforeend",`<option value="${h}">${rot}</option>`);
+    fim.insertAdjacentHTML("beforeend",`<option value="${h}">${rot}</option>`);
+  }
+  ini.value=PERFIL.lembrete_ini??8; fim.value=PERFIL.lembrete_fim??22;
+}
+async function salvarPerfil(avisa){
+  const alt=parseFloat(document.getElementById("pAltura").value)||null;
+  const peso=parseFloat(document.getElementById("pPeso").value)||null;
+  const calc=calcula();
+  const row={
+    user_id:USER.id,
+    altura_cm:alt, peso_kg:peso,
+    nascimento:document.getElementById("pNasc").value||null,
+    sexo:document.getElementById("pSexo").value||null,
+    atividade:document.getElementById("pAtiv").value,
+    objetivo:document.getElementById("pObj").value,
+    meta_kcal:calc.meta?Math.round(calc.meta):null,
+    meta_prot_g:calc.prot?Math.round(calc.prot):null,
+    meta_carb_g:calc.carb?Math.round(calc.carb):null,
+    meta_gord_g:calc.gord?Math.round(calc.gord):null,
+    meta_agua_ml:calc.agua?Math.round(calc.agua):(PERFIL.meta_agua_ml||2000),
+    copo_ml:PERFIL.copo_ml||250,
+    lembrete_agua:document.getElementById("lembOn").checked,
+    lembrete_ini:parseInt(document.getElementById("lembIni").value,10),
+    lembrete_fim:parseInt(document.getElementById("lembFim").value,10),
+    updated_at:new Date().toISOString()
+  };
+  const {error}=await _sb.from("saude_perfil").upsert(row,{onConflict:"user_id"});
+  PERFIL={...PERFIL,...row};
+  if(avisa) msg("pMsg",error?("Erro: "+error.message):"Salvo ✓",!error);
+  if(error) console.warn(error);
+  renderResumo(); renderAgua();
+}
+
+// ---------------------------- IMC / TMB ----------------------------
+function idade(){
+  const d=document.getElementById("pNasc").value; if(!d) return null;
+  const nasc=new Date(d+"T12:00:00"), hoje=new Date();
+  let a=hoje.getFullYear()-nasc.getFullYear();
+  const m=hoje.getMonth()-nasc.getMonth();
+  if(m<0||(m===0&&hoje.getDate()<nasc.getDate())) a--;
+  return a;
+}
+function calcula(){
+  const alt=parseFloat(document.getElementById("pAltura").value);
+  const peso=parseFloat(document.getElementById("pPeso").value);
+  const sexo=document.getElementById("pSexo").value;
+  const ativ=document.getElementById("pAtiv").value, obj=document.getElementById("pObj").value;
+  const id=idade();
+  const r={imc:null,tmb:null,get:null,meta:null,prot:null,carb:null,gord:null,agua:null};
+  if(alt>0&&peso>0){ r.imc=peso/Math.pow(alt/100,2); r.agua=peso*35; }
+  if(alt>0&&peso>0&&id!=null&&sexo){
+    r.tmb=10*peso+6.25*alt-5*id+(sexo==="M"?5:-161);
+    r.get=r.tmb*(FATOR[ativ]||1.375);
+    r.meta=r.get*(obj==="perder"?0.8:obj==="ganhar"?1.15:1);
+    r.prot=peso*2;
+    r.gord=(r.meta*0.25)/9;
+    r.carb=Math.max(0,(r.meta-r.prot*4-r.gord*9)/4);
+  }
+  return r;
+}
+function classeIMC(v){
+  if(v<18.5) return ["Abaixo do peso","#60a5fa"];
+  if(v<25)   return ["Peso normal","#3ecf9a"];
+  if(v<30)   return ["Sobrepeso","#f5b301"];
+  if(v<35)   return ["Obesidade grau I","#f59e0b"];
+  if(v<40)   return ["Obesidade grau II","#f07567"];
+  return ["Obesidade grau III","#dc2626"];
+}
+function recalcula(){
+  const c=calcula();
+  const el=document.getElementById("imcVal"), cl=document.getElementById("imcCls"), mk=document.getElementById("imcMark");
+  if(c.imc){
+    const [nome,cor]=classeIMC(c.imc);
+    el.textContent=c.imc.toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1});
+    el.style.color=cor; cl.textContent=nome+" · faixa saudável: "+
+      n1(18.5*Math.pow(parseFloat(document.getElementById("pAltura").value)/100,2))+"–"+
+      n1(24.9*Math.pow(parseFloat(document.getElementById("pAltura").value)/100,2))+" kg";
+    const pos=Math.max(0,Math.min(100,((c.imc-15)/(40-15))*100));
+    mk.style.display="block"; mk.style.left="calc("+pos+"% - 1.5px)";
+  } else { el.textContent="—"; el.style.color="var(--text)"; cl.textContent="Preencha altura e peso."; mk.style.display="none"; }
+  document.getElementById("rTmb").textContent = c.tmb?n0(c.tmb)+" kcal":"—";
+  document.getElementById("rGet").textContent = c.get?n0(c.get)+" kcal":"—";
+  document.getElementById("rMeta").textContent= c.meta?n0(c.meta)+" kcal":"—";
+  document.getElementById("rProt").textContent= c.prot?n0(c.prot)+" g":"—";
+  document.getElementById("rCarb").textContent= c.carb?n0(c.carb)+" g":"—";
+  document.getElementById("rGord").textContent= c.gord?n0(c.gord)+" g":"—";
+  document.getElementById("rAgua").textContent= c.agua?n0(c.agua)+" ml":"—";
+}
+async function registrarPeso(){
+  const peso=parseFloat(document.getElementById("pPeso").value);
+  if(!peso){ msg("pMsg","Informe o peso primeiro."); return; }
+  const {error}=await _sb.from("saude_peso").upsert({user_id:USER.id,dia:hojeISO(),peso_kg:peso},{onConflict:"user_id,dia"});
+  msg("pMsg",error?("Erro: "+error.message):"Peso de hoje registrado ✓",!error);
+  await salvarPerfil(); renderPesoHist();
+}
+async function renderPesoHist(){
+  const {data}=await _sb.from("saude_peso").select("*").eq("user_id",USER.id).order("dia",{ascending:false}).limit(30);
+  const box=document.getElementById("pesoHist");
+  if(!data||!data.length){ box.innerHTML='<div class="empty">Nenhum peso registrado ainda.</div>'; return; }
+  const alt=parseFloat(document.getElementById("pAltura").value);
+  box.innerHTML=`<table><tr><th>Data</th><th class="n">Peso</th><th class="n">IMC</th></tr>`+
+    data.map(r=>{
+      const imc=alt>0?r.peso_kg/Math.pow(alt/100,2):null;
+      return `<tr><td>${r.dia.split("-").reverse().join("/")}</td><td class="n">${n1(r.peso_kg)} kg</td><td class="n">${imc?n1(imc):"—"}</td></tr>`;
+    }).join("")+`</table>`;
+}
+
+// ============================ DIÁRIO ============================
+function diaSel(){ return document.getElementById("dia").value||hojeISO(); }
+function mudaDia(d){ const x=new Date(diaSel()+"T12:00:00"); x.setDate(x.getDate()+d);
+  document.getElementById("dia").value=x.toISOString().slice(0,10); carregaDia(); }
+function hojeDia(){ document.getElementById("dia").value=hojeISO(); carregaDia(); }
+
+async function carregaDia(){
+  const dia=diaSel();
+  const [{data:regs},{data:ag}]=await Promise.all([
+    _sb.from("saude_registro").select("*").eq("user_id",USER.id).eq("dia",dia).order("created_at"),
+    _sb.from("saude_agua").select("*").eq("user_id",USER.id).eq("dia",dia)
+  ]);
+  REGS=regs||[]; AGUA=ag||[];
+  renderResumo(); renderRefeicoes(); renderAgua();
+}
+function totais(){
+  const t={kcal:0,prot:0,carb:0,gord:0,fibra:0,sodio:0};
+  REGS.forEach(r=>{ t.kcal+=+r.kcal||0; t.prot+=+r.prot_g||0; t.carb+=+r.carb_g||0;
+                    t.gord+=+r.gord_g||0; t.fibra+=+r.fibra_g||0; t.sodio+=+r.sodio_mg||0; });
+  return t;
+}
+function renderResumo(){
+  const t=totais(), meta=PERFIL.meta_kcal||calcula().meta||2000;
+  const pct=Math.min(1,t.kcal/meta), circ=2*Math.PI*56;
+  const arc=document.getElementById("ringArc");
+  arc.setAttribute("stroke-dasharray",circ);
+  arc.setAttribute("stroke-dashoffset",circ*(1-pct));
+  arc.setAttribute("stroke",t.kcal>meta?"var(--neg)":"var(--accent)");
+  document.getElementById("ringKcal").textContent=n0(t.kcal);
+  document.getElementById("ringMeta").textContent="de "+n0(meta)+" kcal";
+  const mp=PERFIL.meta_prot_g||calcula().prot||120, mc=PERFIL.meta_carb_g||calcula().carb||220, mg=PERFIL.meta_gord_g||calcula().gord||60;
+  const set=(id,v,m)=>{ document.getElementById(id).style.width=Math.min(100,(v/m)*100)+"%"; };
+  set("mProt",t.prot,mp); set("mCarb",t.carb,mc); set("mGord",t.gord,mg);
+  document.getElementById("mProtT").textContent=n0(t.prot)+" / "+n0(mp)+" g";
+  document.getElementById("mCarbT").textContent=n0(t.carb)+" / "+n0(mc)+" g";
+  document.getElementById("mGordT").textContent=n0(t.gord)+" / "+n0(mg)+" g";
+  document.getElementById("sFibra").textContent=n0(t.fibra);
+  document.getElementById("sSodio").textContent=n0(t.sodio);
+  document.getElementById("sAgua").textContent=n0(AGUA.reduce((s,a)=>s+(+a.ml||0),0));
+}
+function renderRefeicoes(){
+  const box=document.getElementById("refeicoes");
+  box.innerHTML=REFS.map(([k,nome])=>{
+    const itens=REGS.filter(r=>r.refeicao===k);
+    const kc=itens.reduce((s,r)=>s+(+r.kcal||0),0);
+    const linhas=itens.length?itens.map(r=>`<div class="it">
+        <span class="nm">${esc(r.alimento)} <span class="tag">${n0(r.quantidade_g)} g</span></span>
+        <span class="kc">${n0(r.kcal)} kcal · P ${n1(r.prot_g)} · C ${n1(r.carb_g)} · G ${n1(r.gord_g)}</span>
+        <button class="x" onclick="delReg('${r.id}')">✕</button></div>`).join("")
+      :'<div class="it" style="color:var(--muted)">Nada registrado</div>';
+    return `<div class="meal"><h3>${nome} <span>${n0(kc)} kcal</span></h3>${linhas}
+      <div class="row" style="margin-top:8px"><button class="btn sec sm" onclick="abrirBusca('${k}')">➕ Adicionar alimento</button></div></div>`;
+  }).join("");
+}
+async function delReg(id){
+  await _sb.from("saude_registro").delete().eq("id",id);
+  REGS=REGS.filter(r=>r.id!==id); renderResumo(); renderRefeicoes();
+}
+function abrirBusca(ref){ window.__ref=ref; setTab("alimentos"); document.getElementById("fBusca").focus(); }
+
+// =========================== ALIMENTOS ===========================
+async function carregaTaco(){
+  if(TACO) return TACO;
+  msg("fMsg","Carregando tabela TACO…");
+  try{
+    const r=await fetch("alimentos-taco.json");
+    TACO=await r.json(); msg("fMsg",TACO.length+" alimentos da TACO carregados.",true);
+  }catch(e){ TACO=[]; msg("fMsg","Não consegui carregar a tabela TACO."); }
+  return TACO;
+}
+function tacoParaItem(a){
+  return {nome:a.n, cat:a.c, fonte:"taco", ref:String(a.i), base:100,
+          kcal:a.k, prot:a.p, carb:a.b, gord:a.g, fibra:a.f, sodio:a.s,
+          extra:{Cálcio:[a.ca,"mg"],Ferro:[a.fe,"mg"],"Vitamina C":[a.vc,"mg"],"Gord. saturada":[a.sa,"g"],Colesterol:[a.co,"mg"]}};
+}
+async function buscarAlimento(){
+  const q=document.getElementById("fBusca").value.trim();
+  if(!q){ return; }
+  if(document.getElementById("fFonte").value==="off") return buscarOFF(q);
+  const t=await carregaTaco(), k=chave(q).split(/\s+/).filter(Boolean);
+  const res=t.filter(a=>{ const c=chave(a.n); return k.every(x=>c.includes(x)); }).slice(0,60);
+  msg("fMsg",res.length+" resultado(s) na TACO.",true);
+  mostraResultados(res.map(tacoParaItem));
+}
+async function buscarOFF(q){
+  msg("fMsg","Buscando no Open Food Facts…");
+  try{
+    const url="https://br.openfoodfacts.org/cgi/search.pl?search_terms="+encodeURIComponent(q)+
+      "&search_simple=1&action=process&json=1&page_size=25"+
+      "&fields=code,product_name,brands,nutriments,serving_quantity";
+    const r=await fetch(url); const j=await r.json();
+    const itens=(j.products||[]).filter(p=>p.product_name&&p.nutriments).map(p=>{
+      const nu=p.nutriments;
+      return {nome:p.product_name, cat:p.brands||"", fonte:"off", ref:p.code, base:100,
+              kcal:nu["energy-kcal_100g"]??(nu.energy_100g?nu.energy_100g/4.184:null),
+              prot:nu.proteins_100g, carb:nu.carbohydrates_100g, gord:nu.fat_100g,
+              fibra:nu.fiber_100g, sodio:nu.sodium_100g!=null?nu.sodium_100g*1000:null,
+              extra:{Açúcares:[nu.sugars_100g,"g"],"Gord. saturada":[nu["saturated-fat_100g"],"g"],Sal:[nu.salt_100g,"g"]}};
+    }).filter(x=>x.kcal!=null);
+    msg("fMsg",itens.length+" produto(s) encontrado(s).",true);
+    mostraResultados(itens);
+  }catch(e){ msg("fMsg","Falha ao consultar o Open Food Facts (precisa de internet)."); }
+}
+async function buscarBarras(){
+  const cod=document.getElementById("fBarras").value.replace(/\D/g,"");
+  if(!cod){ return; }
+  msg("fMsg","Consultando código "+cod+"…");
+  try{
+    const r=await fetch("https://world.openfoodfacts.org/api/v0/product/"+cod+".json");
+    const j=await r.json();
+    if(j.status!==1){ msg("fMsg","Produto não encontrado nesse código."); return; }
+    const p=j.product, nu=p.nutriments||{};
+    mostraResultados([{nome:p.product_name||("Produto "+cod), cat:p.brands||"", fonte:"off", ref:cod, base:100,
+      kcal:nu["energy-kcal_100g"]??(nu.energy_100g?nu.energy_100g/4.184:null),
+      prot:nu.proteins_100g, carb:nu.carbohydrates_100g, gord:nu.fat_100g,
+      fibra:nu.fiber_100g, sodio:nu.sodium_100g!=null?nu.sodium_100g*1000:null,
+      extra:{Açúcares:[nu.sugars_100g,"g"],"Gord. saturada":[nu["saturated-fat_100g"],"g"],Sal:[nu.salt_100g,"g"]}}]);
+    msg("fMsg","Encontrado ✓",true);
+  }catch(e){ msg("fMsg","Falha ao consultar (precisa de internet)."); }
+}
+let ULTIMOS=[];
+function mostraResultados(itens){
+  ULTIMOS=itens;
+  const box=document.getElementById("fRes");
+  if(!itens.length){ box.innerHTML='<div class="empty">Nada encontrado. Tente outro termo ou cadastre um alimento manual.</div>'; return; }
+  box.innerHTML=`<table>
+    <tr><th>Alimento</th><th class="n">kcal</th><th class="n">Prot</th><th class="n">Carb</th><th class="n">Gord</th><th class="n">Fibra</th><th class="n">Sódio</th><th></th></tr>`+
+    itens.map((a,i)=>`<tr class="pick" onclick="abrirPorcao(${i})">
+      <td>${esc(a.nome)}${a.cat?`<span class="tag">${esc(a.cat)}</span>`:""}<div class="hint">por 100 g/ml · ${a.fonte==="taco"?"TACO":"Open Food Facts"}</div></td>
+      <td class="n">${n0(a.kcal)}</td><td class="n">${n1(a.prot)}</td><td class="n">${n1(a.carb)}</td>
+      <td class="n">${n1(a.gord)}</td><td class="n">${n1(a.fibra)}</td><td class="n">${n0(a.sodio)}</td>
+      <td><button class="btn sm" onclick="event.stopPropagation();abrirPorcao(${i})">＋</button></td></tr>
+      <tr><td colspan="8" class="hint" style="padding-top:0">${
+        Object.entries(a.extra||{}).filter(([,v])=>v[0]!=null).map(([k,v])=>k+": "+n1(v[0])+" "+v[1]).join(" · ")||"&nbsp;"
+      }</td></tr>`).join("")+`</table>`;
+}
+let ITEM=null;
+function abrirPorcao(i){
+  ITEM=ULTIMOS[i];
+  document.getElementById("dlgNome").textContent=ITEM.nome;
+  document.getElementById("dlgInfo").textContent=(ITEM.cat?ITEM.cat+" · ":"")+"valores por 100 g/ml";
+  document.getElementById("dlgQtd").value=100;
+  document.getElementById("dlgDia").value=diaSel();
+  if(window.__ref) document.getElementById("dlgRef").value=window.__ref;
+  dlgPreview();
+  document.getElementById("dlgAdd").showModal();
+}
+function fator(){ return (parseFloat(document.getElementById("dlgQtd").value)||0)/100; }
+function dlgPreview(){
+  const f=fator();
+  document.getElementById("dlgPrev").innerHTML=
+    `<b>${n0((ITEM.kcal||0)*f)}</b> kcal · P ${n1((ITEM.prot||0)*f)} g · C ${n1((ITEM.carb||0)*f)} g · G ${n1((ITEM.gord||0)*f)} g`;
+}
+async function confirmarAdd(){
+  const f=fator(), q=parseFloat(document.getElementById("dlgQtd").value)||0;
+  if(!q){ return; }
+  const row={user_id:USER.id, dia:document.getElementById("dlgDia").value||hojeISO(),
+    refeicao:document.getElementById("dlgRef").value, alimento:ITEM.nome, quantidade_g:q,
+    kcal:(ITEM.kcal||0)*f, prot_g:(ITEM.prot||0)*f, carb_g:(ITEM.carb||0)*f, gord_g:(ITEM.gord||0)*f,
+    fibra_g:(ITEM.fibra||0)*f, sodio_mg:(ITEM.sodio||0)*f, fonte:ITEM.fonte, ref_id:ITEM.ref};
+  const {error}=await _sb.from("saude_registro").insert(row);
+  document.getElementById("dlgAdd").close();
+  window.__ref=null;
+  if(error){ alert("Erro ao salvar: "+error.message); return; }
+  setTab("hoje"); document.getElementById("dia").value=row.dia; carregaDia();
+}
+function novoAlimento(){
+  const nome=prompt("Nome do alimento:"); if(!nome) return;
+  const kcal=parseFloat(prompt("kcal por 100 g:")||"0");
+  const prot=parseFloat(prompt("Proteína (g) por 100 g:")||"0");
+  const carb=parseFloat(prompt("Carboidrato (g) por 100 g:")||"0");
+  const gord=parseFloat(prompt("Gordura (g) por 100 g:")||"0");
+  mostraResultados([{nome,cat:"manual",fonte:"manual",ref:null,base:100,kcal,prot,carb,gord,fibra:null,sodio:null,extra:{}}]);
+}
+
+// ============================= ÁGUA =============================
+function copoMl(){ return PERFIL.copo_ml||250; }
+function metaAgua(){ return PERFIL.meta_agua_ml || Math.round((calcula().agua)||2000); }
+async function addAgua(ml){
+  if(!ml) return;
+  const dia=diaSel();
+  const {error}=await _sb.from("saude_agua").insert({user_id:USER.id,dia,ml});
+  if(error){ console.warn(error); return; }
+  AGUA.push({dia,ml}); renderAgua(); renderResumo(); renderAguaHist();
+}
+function renderAgua(){
+  const tot=AGUA.reduce((s,a)=>s+(+a.ml||0),0), meta=metaAgua();
+  const g=document.getElementById("glassFill"); if(g) g.style.height=Math.min(100,(tot/meta)*100)+"%";
+  const t=document.getElementById("aguaTot"); if(t) t.textContent=n0(tot)+" ml";
+  const m=document.getElementById("aguaMeta");
+  if(m) m.textContent="meta "+n0(meta)+" ml · faltam "+n0(Math.max(0,meta-tot))+" ml";
+  document.getElementById("sAgua").textContent=n0(tot);
+}
+async function renderAguaHist(){
+  const de=new Date(); de.setDate(de.getDate()-13);
+  const {data}=await _sb.from("saude_agua").select("dia,ml").eq("user_id",USER.id)
+    .gte("dia",de.toISOString().slice(0,10)).order("dia",{ascending:false});
+  const por={}; (data||[]).forEach(r=>{ por[r.dia]=(por[r.dia]||0)+(+r.ml||0); });
+  const dias=Object.keys(por).sort().reverse();
+  const box=document.getElementById("aguaHist");
+  if(!dias.length){ box.innerHTML='<div class="empty">Sem registros ainda.</div>'; return; }
+  const meta=metaAgua();
+  box.innerHTML=`<table><tr><th>Dia</th><th class="n">Total</th><th>Meta</th></tr>`+
+    dias.map(d=>`<tr><td>${d.split("-").reverse().join("/")}</td><td class="n">${n0(por[d])} ml</td>
+      <td><div class="bar" style="width:160px"><i style="width:${Math.min(100,(por[d]/meta)*100)}%;background:#38bdf8"></i></div></td></tr>`).join("")+`</table>`;
+}
+
+// ------------------------- notificações -------------------------
+function urlB64ToUint8Array(b64){
+  const pad="=".repeat((4-b64.length%4)%4);
+  const base=(b64+pad).replace(/-/g,"+").replace(/_/g,"/");
+  const raw=atob(base), arr=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i);
+  return arr;
+}
+async function ativarPush(){
+  if(!("Notification" in window)){ msg("pushMsg","Este navegador não suporta notificações."); return; }
+  const perm=await Notification.requestPermission();
+  if(perm!=="granted"){ msg("pushMsg","Permissão negada — libere nas configurações do site."); return; }
+  await salvarPerfil();
+  iniciaLembreteLocal();
+  if(!("serviceWorker" in navigator)||!("PushManager" in window)||!VAPID_PUBLIC){
+    msg("pushMsg","Lembrete local ativado (funciona com a página aberta). Para chegar com o app fechado, falta configurar a chave VAPID do Web Push.",true);
+    return;
+  }
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8Array(VAPID_PUBLIC)});
+    const j=sub.toJSON();
+    const {error}=await _sb.from("push_subs").upsert(
+      {user_id:USER.id,endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth,user_agent:navigator.userAgent},
+      {onConflict:"endpoint"});
+    msg("pushMsg",error?("Erro ao salvar inscrição: "+error.message):"Notificação ativada neste aparelho ✓",!error);
+  }catch(e){ msg("pushMsg","Não deu para ativar o push: "+e.message); }
+}
+async function notificar(titulo,corpo){
+  if(Notification.permission!=="granted") return;
+  const opts={body:corpo,icon:"icon-192.png",badge:"icon-192.png",silent:true,tag:"agua",data:{url:"vida-saudavel-web.html?agua="+copoMl()}};
+  try{ const reg=await navigator.serviceWorker.ready; await reg.showNotification(titulo,opts); }
+  catch(e){ new Notification(titulo,opts); }
+}
+function testarNotificacao(){ notificar("💧 Hora de beber água","Teste do lembrete — sem som, só aviso."); }
+let _lembT=null;
+function iniciaLembreteLocal(){
+  clearInterval(_lembT);
+  _lembT=setInterval(()=>{
+    if(!document.getElementById("lembOn").checked) return;
+    const h=new Date().getHours();
+    const ini=parseInt(document.getElementById("lembIni").value,10), fim=parseInt(document.getElementById("lembFim").value,10);
+    if(h<ini||h>fim) return;
+    const ult=+(localStorage.getItem("saude_ultLemb")||0);
+    if(Date.now()-ult < 55*60*1000) return;
+    localStorage.setItem("saude_ultLemb",Date.now());
+    const tot=AGUA.reduce((s,a)=>s+(+a.ml||0),0);
+    notificar("💧 Hora de beber água",`Você está em ${n0(tot)} ml de ${n0(metaAgua())} ml hoje.`);
+  },60*1000);
+}
+
+// =========================== CARDÁPIO ===========================
+async function carregaCardapio(){
+  const {data}=await _sb.from("saude_cardapio").select("*").eq("user_id",USER.id).eq("ativo",true).maybeSingle();
+  PLANO=(data&&data.plano)||{};
+  window.__cardapioId=data?data.id:null;
+}
+function renderPlano(){
+  const meta=PERFIL.meta_kcal||calcula().meta||2000;
+  document.getElementById("planoDays").innerHTML=DIAS.map(([k,nome])=>{
+    const dia=PLANO[k]||{};
+    let kcal=0;
+    const blocos=REFS.map(([rk,rn])=>{
+      const itens=dia[rk]||[];
+      itens.forEach(i=>kcal+=+i.kcal||0);
+      const li=itens.map((i,idx)=>`<div class="it"><span class="nm">${esc(i.nome)}<span class="tag">${n0(i.g)} g</span></span>
+        <span class="kc">${n0(i.kcal)}</span><button class="x" onclick="delPlano('${k}','${rk}',${idx})">✕</button></div>`).join("");
+      return `<div style="margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:var(--label);display:flex;justify-content:space-between">
+          <span>${rn}</span><button class="x" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:16px" onclick="addPlano('${k}','${rk}')">＋</button></div>
+        ${li||'<div class="hint">—</div>'}</div>`;
+    }).join("");
+    return `<div class="day"><h3 style="font-size:14px;display:flex;justify-content:space-between;margin-bottom:10px">
+        ${nome}<span style="font-size:11px;color:${kcal>meta*1.05?"var(--neg)":"var(--muted)"};font-weight:700">${n0(kcal)} kcal</span></h3>${blocos}</div>`;
+  }).join("");
+}
+async function addPlano(dia,ref){
+  const t=await carregaTaco();
+  const termo=prompt("Buscar alimento na TACO para "+dia.toUpperCase()+":"); if(!termo) return;
+  const k=chave(termo).split(/\s+/).filter(Boolean);
+  const res=t.filter(a=>{ const c=chave(a.n); return k.every(x=>c.includes(x)); }).slice(0,15);
+  if(!res.length){ alert("Nada encontrado na TACO para \""+termo+"\"."); return; }
+  const escolha=prompt(res.map((a,i)=>(i+1)+") "+a.n+" — "+n0(a.k)+" kcal/100g").join("\n")+"\n\nDigite o número:");
+  const idx=parseInt(escolha,10)-1; const a=res[idx]; if(!a) return;
+  const g=parseFloat(prompt("Quantidade em gramas:","100")||"0"); if(!g) return;
+  const f=g/100;
+  PLANO[dia]=PLANO[dia]||{}; PLANO[dia][ref]=PLANO[dia][ref]||[];
+  PLANO[dia][ref].push({nome:a.n,g,kcal:(a.k||0)*f,prot:(a.p||0)*f,carb:(a.b||0)*f,gord:(a.g||0)*f,
+                        fibra:(a.f||0)*f,sodio:(a.s||0)*f,ref:String(a.i)});
+  renderPlano(); salvarCardapio();
+}
+function delPlano(dia,ref,idx){ (PLANO[dia]?.[ref]||[]).splice(idx,1); renderPlano(); salvarCardapio(); }
+async function salvarCardapio(){
+  const row={user_id:USER.id,nome:"Meu cardápio",ativo:true,plano:PLANO,updated_at:new Date().toISOString()};
+  if(window.__cardapioId) row.id=window.__cardapioId;
+  const {data,error}=await _sb.from("saude_cardapio").upsert(row).select().maybeSingle();
+  if(data) window.__cardapioId=data.id;
+  if(error) console.warn(error);
+}
+function gerarCardapio(){
+  const meta=PERFIL.meta_kcal||calcula().meta;
+  if(!meta){ alert("Preencha altura, peso, nascimento e sexo na aba Corpo & IMC para eu calcular sua meta."); return; }
+  const dist={cafe:.25,lanche1:.10,almoco:.35,lanche2:.10,jantar:.25,ceia:.05};
+  const txt=REFS.map(([k,n])=>n+": ~"+n0(meta*(dist[k]||0))+" kcal").join("\n");
+  alert("Distribuição sugerida para "+n0(meta)+" kcal/dia:\n\n"+txt+
+        "\n\nUse o ＋ de cada refeição para montar com alimentos da TACO até chegar perto desses valores.");
+}
+async function copiarDiaParaDiario(){
+  const map=["dom","seg","ter","qua","qui","sex","sab"];
+  const k=map[new Date(diaSel()+"T12:00:00").getDay()];
+  const dia=PLANO[k]; if(!dia){ alert("Nada planejado para "+k.toUpperCase()+"."); return; }
+  const rows=[];
+  REFS.forEach(([rk])=>(dia[rk]||[]).forEach(i=>rows.push({
+    user_id:USER.id,dia:diaSel(),refeicao:rk,alimento:i.nome,quantidade_g:i.g,
+    kcal:i.kcal,prot_g:i.prot,carb_g:i.carb,gord_g:i.gord,fibra_g:i.fibra,sodio_mg:i.sodio,
+    fonte:"taco",ref_id:i.ref})));
+  if(!rows.length){ alert("Esse dia do cardápio está vazio."); return; }
+  const {error}=await _sb.from("saude_registro").insert(rows);
+  if(error){ alert("Erro: "+error.message); return; }
+  setTab("hoje"); carregaDia();
+}
+
+// --------------------------- receitas ---------------------------
+async function carregaReceitas(){
+  const {data}=await _sb.from("saude_receita").select("*").eq("user_id",USER.id).order("created_at",{ascending:false});
+  RECEITAS=data||[];
+}
+function renderReceitas(){
+  const box=document.getElementById("recList");
+  if(!RECEITAS.length){ box.innerHTML='<div class="empty">Nenhuma receita salva. Busque na web e cadastre a sua. 📖</div>'; return; }
+  box.innerHTML=RECEITAS.map(r=>{
+    const kc=(r.ingredientes||[]).reduce((s,i)=>s+(+i.kcal||0),0)/(r.porcoes||1);
+    return `<div class="meal"><h3>${esc(r.nome)} <span>${n0(kc)} kcal/porção · ${r.porcoes||1} porções</span></h3>
+      ${(r.ingredientes||[]).map(i=>`<div class="it"><span class="nm">${esc(i.nome)} <span class="tag">${n0(i.g)} g</span></span><span class="kc">${n0(i.kcal)} kcal</span></div>`).join("")}
+      ${r.preparo?`<div class="hint" style="margin-top:8px;white-space:pre-wrap">${esc(r.preparo)}</div>`:""}
+      <div class="row" style="margin-top:8px">
+        ${r.url_fonte?`<a class="btn sec sm" style="text-decoration:none" href="${esc(r.url_fonte)}" target="_blank" rel="noopener">🔗 Fonte</a>`:""}
+        <button class="btn sec sm" onclick="delReceita('${r.id}')">🗑️ Excluir</button></div></div>`;
+  }).join("");
+}
+function buscarReceitaWeb(){
+  const q=document.getElementById("recBusca").value.trim()||"receita saudável";
+  window.open("https://www.google.com/search?q="+encodeURIComponent(q+" receita site:tudogostoso.com.br OR site:panelinha.com.br OR site:receitas.globo.com"),"_blank","noopener");
+}
+async function novaReceita(){
+  const nome=prompt("Nome da receita:"); if(!nome) return;
+  const porcoes=parseInt(prompt("Rende quantas porções?","2")||"2",10)||1;
+  const url=prompt("Link da receita (opcional):")||null;
+  const t=await carregaTaco();
+  const ing=[];
+  while(true){
+    const termo=prompt("Ingrediente (busca na TACO). Deixe vazio para terminar:");
+    if(!termo) break;
+    const k=chave(termo).split(/\s+/).filter(Boolean);
+    const res=t.filter(a=>{ const c=chave(a.n); return k.every(x=>c.includes(x)); }).slice(0,15);
+    if(!res.length){ alert("Nada encontrado."); continue; }
+    const esc2=prompt(res.map((a,i)=>(i+1)+") "+a.n).join("\n")+"\n\nNúmero:");
+    const a=res[parseInt(esc2,10)-1]; if(!a) continue;
+    const g=parseFloat(prompt("Quantos gramas de \""+a.n+"\"?","100")||"0"); if(!g) continue;
+    const f=g/100;
+    ing.push({nome:a.n,g,kcal:(a.k||0)*f,prot_g:(a.p||0)*f,carb_g:(a.b||0)*f,gord_g:(a.g||0)*f,ref_id:String(a.i)});
+  }
+  const preparo=prompt("Modo de preparo (opcional):")||null;
+  const {error}=await _sb.from("saude_receita").insert({user_id:USER.id,nome,porcoes,ingredientes:ing,preparo,url_fonte:url});
+  if(error){ alert("Erro: "+error.message); return; }
+  await carregaReceitas(); renderReceitas();
+}
+async function delReceita(id){
+  if(!confirm("Excluir esta receita?")) return;
+  await _sb.from("saude_receita").delete().eq("id",id);
+  RECEITAS=RECEITAS.filter(r=>r.id!==id); renderReceitas();
+}
+
+// =========================== login/boot ===========================
+async function logout(){ try{ await _sb.auth.signOut(); }catch(e){} location.href="index.html"; }
+async function boot(){
+  const {data:{session}}=await _sb.auth.getSession();
+  if(!session){ location.href="index.html"; return; }
+  USER=session.user;
+  buildNav(_sb,"saude");
+  document.getElementById("dia").value=hojeISO();
+  await carregaPerfil();
+  await Promise.all([carregaCardapio(),carregaReceitas()]);
+  document.getElementById("app").style.display="block";
+  await carregaDia();
+  recalcula();
+  // veio do clique na notificação: "Bebi 1 copo"
+  const p=new URLSearchParams(location.search);
+  if(p.get("agua")){ await addAgua(parseInt(p.get("agua"),10)||copoMl()); history.replaceState({},"","vida-saudavel-web.html"); }
+  setTab(localStorage.getItem("saude_tab")||"hoje");
+  if(("Notification" in window) && Notification.permission==="granted") iniciaLembreteLocal();
+}
+boot();
+</script>
+</body>
+</html>
