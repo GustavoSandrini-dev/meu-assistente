@@ -144,6 +144,14 @@ try:
     from dados_lanches import LANCHES, PORT_SECO
 except ImportError:
     LANCHES, PORT_SECO = [], set()
+try:
+    from dados_mercado import MERCADO_TACO, MERCADO_ING, MERCADO_P, MERCADO_SECO
+    for _x in MERCADO_TACO:
+        TACO[_x["i"]] = _x
+    ING.update(MERCADO_ING)
+    PORT_SECO = PORT_SECO | MERCADO_SECO
+except ImportError:
+    MERCADO_P = []
 
 PROTEINA = {  # de qual proteína a preparação "é"
  "frango": ["frango_peito","frango_coxa","frango_sobrecoxa","frango_desfiado","linguica_frango","peru",
@@ -400,10 +408,11 @@ for slug, (tid, nome, rs, rend, med, al) in ING.items():
                        k=a.get("k") or 0, p=a.get("p") or 0, b=a.get("b") or 0,
                        g=a.get("g") or 0, f=a.get("f") or 0, s=a.get("s") or 0,
                        sa=a.get("sa") or 0, co=a.get("co") or 0, fe=a.get("fe") or 0,
+                       rotulo=a.get("rotulo") or 0,
                        veg=a["c"] in ("Verduras, hortaliças e derivados","Frutas e derivados")))
 precos.sort(key=lambda x: x["slug"])
 
-P = P + EXTRA_P + LANCHES
+P = P + EXTRA_P + LANCHES + MERCADO_P
 preps, erros = [], []
 for pid, nome, tipos, itens, prep, tempo in P:
     for slug, _g in itens:
@@ -417,7 +426,7 @@ for pid, nome, tipos, itens, prep, tempo in P:
     vegetariano = not animal
     vegano = vegetariano and "lactose" not in al and "ovo" not in al
     custo = n.pop("custo")
-    port = pid.startswith("lv_")
+    port = pid.startswith("lv_") or pid.startswith("mk_")
     preps.append(dict(id=pid, nome=nome, tipos=tipos,
                       port=port, port_seco=pid in PORT_SECO,
                       itens=[dict(slug=s, g=g) for s, g in itens],

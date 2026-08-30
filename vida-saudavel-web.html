@@ -565,7 +565,14 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
   <!-- 5 · frequências -------------------------------------------- -->
   <div class="wstep" data-w="5" data-sec="Frequência dos alimentos" style="display:none">
     <div class="wq">Como você quer dividir as proteínas na semana?</div>
+    <div class="wh" style="margin:-4px 0 10px">Cada dia tem uma proteína principal. Distribua os dias
+      entre o que você marcou — o que sobrar eu completo variando entre ovo, leguminosas e o que couber no orçamento.</div>
     <div id="wDist"></div>
+    <div id="wDistBarra" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:8px">
+      <button type="button" class="btn sec sm" onclick="distIgual()">⚖️ Dividir igualmente</button>
+      <button type="button" class="btn sec sm" onclick="distZerar()">↺ Deixar tudo livre</button>
+    </div>
     <div class="wh" id="wDistResumo" style="margin-top:8px"></div>
     <div class="wq">Quantas refeições livres por semana?</div>
     <div class="fld"><select id="wLivre">
@@ -1425,7 +1432,7 @@ function iniciaLembreteLocal(){
 }
 
 // =========================== CARDÁPIO ===========================
-const DADOS_V="45";   // troque junto com a versão do sw.js para furar o cache
+const DADOS_V="46";   // troque junto com a versão do sw.js para furar o cache
 let PREPS=null, PRECOS={}, PRECO_USR={}, BASE_REF="", PLANOCFG=null, PLANO_ID=null, FAVS=[];
 const PESO_REF={cafe:.22,lanche1:.10,almoco:.32,lanche2:.10,jantar:.22,ceia:.04};
 const TIPO_DE={cafe:"cafe",lanche1:"lanche",almoco:"almoco",lanche2:"lanche",jantar:"jantar",ceia:"ceia"};
@@ -1641,50 +1648,98 @@ function wizMostra(){
   const d=document.getElementById("dlgWiz"); if(d) d.scrollTop=0;
   msg("wizMsg","");
 }
-// monta os seletores de dias por proteína escolhida no passo anterior
+// distribuição de proteínas: a soma nunca passa do número de dias da semana
+const PROT_CURTO={frango:"frango",boi:"carne bovina",peixe:"peixe",ovo:"ovo",porco:"carne suína",vegetal:"vegetal"};
+function protCurto(k){ return PROT_CURTO[k]||k; }
+function diasSemana(){ return parseInt(val("wDias"),10)||7; }
+function rotDias(d){ return d===0?"nenhum dia":(d===1?"1 dia":d+" dias"); }
 function montaDistribuicao(){
   const box=document.getElementById("wDist"); if(!box) return;
-  const escolhidas=chkVals("wProt");
-  const dias=parseInt(val("wDias"),10)||7;
+  const escolhidas=chkVals("wProt"), dias=diasSemana();
   const prev=(PLANOCFG&&PLANOCFG.prot_dias)||{};
   if(!escolhidas.length){
+    window.__dist={};
     box.innerHTML=`<div class="wh">Você não marcou nenhuma proteína preferida no passo anterior,
       então eu fico livre para variar como achar melhor. Volte um passo se quiser dirigir isso.</div>`;
+    document.getElementById("wDistBarra").innerHTML="";
     document.getElementById("wDistResumo").textContent="";
     return;
   }
-  box.innerHTML=escolhidas.map(k=>{
+  const st={};
+  escolhidas.forEach((k,idx)=>{
+    st[k]= prev[k]!=null ? prev[k]
+         : Math.floor(dias/escolhidas.length)+(idx<dias%escolhidas.length?1:0);
+  });
+  // se o que veio salvo estoura a semana, tira do maior até caber
+  let soma=Object.values(st).reduce((a,b)=>a+b,0);
+  while(soma>dias){
+    const maior=Object.keys(st).sort((a,b)=>st[b]-st[a])[0];
+    if(st[maior]<=0) break;
+    st[maior]--; soma--;
+  }
+  window.__dist=st;
+  desenhaDist();
+}
+function desenhaDist(){
+  const box=document.getElementById("wDist"); if(!box) return;
+  const st=window.__dist||{}, dias=diasSemana();
+  box.innerHTML=Object.keys(st).map(k=>{
     const rot=(PROTS.find(x=>x[0]===k)||[,k])[1];
-    const v=prev[k]!=null?prev[k]:Math.max(1,Math.round(dias/escolhidas.length));
+    const max=dias;   // pode pedir qualquer número; se estourar, eu tiro dos outros
     return `<div class="row" style="justify-content:space-between;gap:8px;padding:8px 11px;
         border:1.5px solid var(--border);border-radius:10px;background:var(--row);margin-bottom:6px">
       <span style="font-size:14px">${rot}</span>
-      <select data-prot="${k}" onchange="resumoDistribuicao()" style="width:auto">
-        ${Array.from({length:dias+1},(_,d)=>
-          `<option value="${d}" ${d===v?"selected":""}>${d===0?"nenhum dia":d+(d===1?" dia":" dias")}</option>`).join("")}
+      <select data-prot="${k}" onchange="mudaDist('${k}',this.value)" style="width:auto">
+        ${Array.from({length:max+1},(_,d)=>
+          `<option value="${d}" ${d===st[k]?"selected":""}>${rotDias(d)}</option>`).join("")}
       </select></div>`;
   }).join("");
   resumoDistribuicao();
 }
-function leDistribuicao(){
-  const out={};
-  document.querySelectorAll("#wDist select[data-prot]").forEach(el=>{
-    out[el.dataset.prot]=parseInt(el.value,10)||0;
-  });
-  return out;
+function mudaDist(k,v){
+  const st=window.__dist||{}, dias=diasSemana();
+  const antes={...st};
+  st[k]=Math.max(0,Math.min(dias,parseInt(v,10)||0));
+  let soma=Object.values(st).reduce((a,b)=>a+b,0);
+  while(soma>dias){        // a semana não estica: tira do que tem mais dias
+    const outro=Object.keys(st).filter(x=>x!==k).sort((a,b)=>st[b]-st[a])[0];
+    if(outro==null||st[outro]<=0){ st[k]-=(soma-dias); break; }
+    st[outro]--; soma--;
+  }
+  window.__distAjustou=Object.keys(st).filter(x=>x!==k&&st[x]!==antes[x]).map(protCurto);
+  desenhaDist();
 }
+function distIgual(){
+  const st=window.__dist||{}, ks=Object.keys(st), dias=diasSemana();
+  if(!ks.length) return;
+  ks.forEach((k,i)=>{ st[k]=Math.floor(dias/ks.length)+(i<dias%ks.length?1:0); });
+  desenhaDist();
+}
+function distZerar(){
+  const st=window.__dist||{};
+  Object.keys(st).forEach(k=>st[k]=0);
+  desenhaDist();
+}
+function leDistribuicao(){ return window.__dist||{}; }
 function resumoDistribuicao(){
-  const el=document.getElementById("wDistResumo"); if(!el) return;
-  const d=leDistribuicao(), dias=parseInt(val("wDias"),10)||7;
-  const soma=Object.values(d).reduce((a,b)=>a+b,0);
-  const txt=Object.entries(d).filter(([,v])=>v>0)
-    .map(([k,v])=>v+(v===1?" dia de ":" dias de ")+((PROTS.find(x=>x[0]===k)||[,k])[1].split(" ")[0].toLowerCase())).join(", ");
-  if(soma>dias) el.innerHTML=`Você somou <b>${soma} dias</b> numa semana de ${dias} —
-    dá certo assim mesmo, porque um dia pode ter duas proteínas (frango no almoço e carne no jantar).
-    Se ficar apertado demais, eu encaixo o que couber.`;
-  else if(soma===0) el.innerHTML="Nenhum dia reservado — fico livre para variar.";
-  else el.innerHTML=`Na semana: <b>${txt}</b>. Os outros ${dias-soma} dia(s) eu completo variando entre
-    ovo, leguminosas e o que couber no seu orçamento.`;
+  const el=document.getElementById("wDistResumo"), barra=document.getElementById("wDistBarra");
+  if(!el) return;
+  const st=window.__dist||{}, dias=diasSemana();
+  const soma=Object.values(st).reduce((a,b)=>a+b,0), livres=dias-soma;
+  if(barra) barra.innerHTML=`<div class="bar" style="height:10px"><i style="width:${
+      Math.round(soma/dias*100)}%;background:var(--accent)"></i></div>
+    <div class="wh" style="margin-top:5px"><b>${soma}</b> de ${dias} dias definidos ·
+      <b>${livres}</b> dia(s) livre(s) para eu variar</div>`;
+  const txt=Object.entries(st).filter(([,v])=>v>0)
+    .map(([k,v])=>`<b>${rotDias(v)}</b> de ${protCurto(k)}`)
+    .join(", ");
+  if(!soma) el.innerHTML="Nenhum dia reservado — fico livre para variar entre todas as proteínas.";
+  else if(livres===0) el.innerHTML=`Semana fechada: ${txt}.`;
+  else el.innerHTML=`Na semana: ${txt}. Nos outros ${livres} dia(s) eu uso ovo, leguminosas ou o que couber melhor.`;
+  const aj=window.__distAjustou;
+  if(aj&&aj.length) el.innerHTML+=`<br><span style="opacity:.8">A semana só tem ${dias} dias,
+    então eu tirei de ${aj.join(" e ")} para caber.</span>`;
+  window.__distAjustou=null;
 }
 function wizVoltar(){ if(WIZ>1){ WIZ--; wizMostra(); } }
 function wizProximo(){
