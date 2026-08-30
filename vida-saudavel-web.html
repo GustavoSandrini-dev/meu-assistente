@@ -662,6 +662,18 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
   <div class="row" style="margin-top:12px"><button class="btn sec" onclick="document.getElementById('dlgTroca').close()">Fechar</button></div>
 </dialog>
 
+<!-- ==================== não gosto disso ==================== -->
+<dialog id="dlgNao">
+  <h2 style="font-size:16px;margin-bottom:4px">🚫 Tirar do cardápio</h2>
+  <div class="sub" id="naoInfo">—</div>
+  <div id="naoLista" class="wchk" style="margin-top:10px"></div>
+  <div class="wh" style="margin-top:8px">Vale para este cardápio e para todos os próximos. Dá para desfazer no questionário, no campo "alimento que você não suporta".</div>
+  <div class="row" style="margin-top:14px">
+    <button class="btn" onclick="aplicarNaoGosto()">Tirar e recalcular</button>
+    <button class="btn sec" onclick="document.getElementById('dlgNao').close()">Cancelar</button>
+  </div>
+</dialog>
+
 <!-- ====================== favoritos ====================== -->
 <dialog id="dlgFav">
   <h2 style="font-size:16px;margin-bottom:4px">⭐ Cardápios favoritos</h2>
@@ -1411,7 +1423,7 @@ function iniciaLembreteLocal(){
 }
 
 // =========================== CARDÁPIO ===========================
-const DADOS_V="42";   // troque junto com a versão do sw.js para furar o cache
+const DADOS_V="43";   // troque junto com a versão do sw.js para furar o cache
 let PREPS=null, PRECOS={}, PRECO_USR={}, BASE_REF="", PLANOCFG=null, PLANO_ID=null, FAVS=[];
 const PESO_REF={cafe:.22,lanche1:.10,almoco:.32,lanche2:.10,jantar:.22,ceia:.04};
 const TIPO_DE={cafe:"cafe",lanche1:"lanche",almoco:"almoco",lanche2:"lanche",jantar:"jantar",ceia:"ceia"};
@@ -1571,6 +1583,7 @@ function coletaCfg(){
     veg_extra:val("wVeg")==="1",
     sodio_max: cond.includes("pressao")?1500:0,
     odeio:(val("wOdeio")||"").split(",").map(x=>chave(x.trim())).filter(Boolean),
+    odeio_slugs:(PLANOCFG&&PLANOCFG.odeio_slugs)||[],
     usar_receitas:val("wReceitas")==="1", site_receita:val("wSite"),
     orcamento_mes: modo==="valor"?(parseFloat(val("wOrcValor"))||null):null,
     faixa_max: modo==="livre"?9:(modo==="faixa"?parseInt(val("wOrcFaixa"),10):9)
@@ -1589,6 +1602,8 @@ function diasDoPlano(cfg){
 }
 function ehFds(dia){ const w=new Date(dia+"T12:00:00").getDay(); return w===0||w===6; }
 function odiado(p,cfg){
+  const slugs=cfg.odeio_slugs||[];
+  if(slugs.length && (p.itens||[]).some(i=>slugs.includes(i.slug))) return true;
   if(!cfg.odeio||!cfg.odeio.length) return false;
   const alvo=chave(p.nome)+" "+(p.itens||[]).map(i=>chave((PRECOS[i.slug]||{}).nome||i.nome||"")).join(" ");
   return cfg.odeio.some(t=>t&&alvo.includes(t));
@@ -1872,6 +1887,79 @@ async function excluirFavorito(id){
   await carregaFavoritos(); abrirFavoritos();
 }
 
+// ------------------- conferência contra as regras -------------------
+function prepPorId(id){ return PREPS.concat(receitasComoPreps()).find(x=>x.id===id); }
+function violacoesPlano(){
+  const cfg=PLANOCFG; if(!cfg||!window.__plano) return [];
+  const out=[];
+  Object.entries(window.__plano).forEach(([dia,refs])=>Object.entries(refs).forEach(([ref,it])=>{
+    if(it.livre) return;
+    const p=prepPorId(it.p); if(!p) return;
+    const al=p.alerg||[];
+    let motivo=null;
+    if(al.some(a=>(cfg.alergias||[]).includes(a))) motivo="alergia ou intolerância";
+    else if(al.some(a=>(cfg.nao_come||[]).includes(a))) motivo="grupo que você não come";
+    else if(odiado(p,cfg)) motivo="alimento que você excluiu";
+    if(motivo) out.push({dia,ref,nome:p.nome,motivo});
+  }));
+  return out;
+}
+function melhorPara(ref,dia,cfg,pool,evitar){
+  const metaK=PERFIL.meta_kcal||calcula().meta||2000;
+  const soma=(cfg.refeicoes||REFS.map(([k])=>k)).reduce((s,r)=>s+PESO_REF[r],0)||1;
+  const alvo=metaK*PESO_REF[ref]/soma;
+  let best=null;
+  candidatos(ref,cfg,pool,dia).forEach(p=>{
+    if(evitar&&evitar.has(p.id)) return;
+    const esc=Math.max(.6,Math.min(1.6,alvo/(num(p.kcal)||1)));
+    const n=nutriDePrep(p,esc,cfg.veg_extra?1.35:1);
+    const sc=Math.abs(n.k-alvo)/alvo+Math.random()*0.15;
+    if(!best||sc<best.sc) best={sc,p,esc};
+  });
+  return best;
+}
+async function corrigirViolacoes(silencioso){
+  const v=violacoesPlano();
+  if(!v.length){ if(!silencioso) alert("Nenhum prato fora das suas regras."); return 0; }
+  const cfg=PLANOCFG, pool=PREPS.concat(cfg.usar_receitas===false?[]:receitasComoPreps());
+  let trocados=0;
+  v.forEach(x=>{
+    const usados=new Set(Object.entries(window.__plano[x.dia]).filter(([r])=>r!==x.ref).map(([,i])=>i.p));
+    const b=melhorPara(x.ref,x.dia,cfg,pool,usados);
+    if(b){ window.__plano[x.dia][x.ref]=montaItem(b.p,b.esc,cfg); trocados++; }
+  });
+  await salvarPlano(); renderPlano(); renderCompras();
+  if(!silencioso) alert(trocados+" prato(s) trocado(s).");
+  return trocados;
+}
+
+// ---------------------- "não gosto disso" ----------------------
+function abrirNaoGosto(dia,ref){
+  const it=(window.__plano[dia]||{})[ref]; if(!it||it.livre) return;
+  window.__nao={dia,ref,id:it.p,nome:it.n};
+  document.getElementById("naoInfo").textContent=
+    "O que você quer tirar do cardápio a partir de agora?";
+  const ings=(it.it||[]).filter(x=>x.s).map(x=>
+    `<label class="wopt"><input type="checkbox" data-slug="${x.s}">Todo prato que use ${esc(nomeIng(x))}</label>`);
+  document.getElementById("naoLista").innerHTML=
+    `<label class="wopt"><input type="checkbox" data-prato="1" checked>Só este prato: ${esc(it.n)}</label>`+
+    ings.join("");
+  document.getElementById("dlgNao").showModal();
+}
+async function aplicarNaoGosto(){
+  const cfg=PLANOCFG; if(!cfg||!window.__nao) return;
+  const marcados=[...document.querySelectorAll("#naoLista input:checked")];
+  if(!marcados.length){ document.getElementById("dlgNao").close(); return; }
+  cfg.odeio=cfg.odeio||[]; cfg.odeio_slugs=cfg.odeio_slugs||[];
+  marcados.forEach(el=>{
+    if(el.dataset.prato) { const t=chave(window.__nao.nome); if(!cfg.odeio.includes(t)) cfg.odeio.push(t); }
+    if(el.dataset.slug && !cfg.odeio_slugs.includes(el.dataset.slug)) cfg.odeio_slugs.push(el.dataset.slug);
+  });
+  document.getElementById("dlgNao").close();
+  const n=await corrigirViolacoes(true);
+  alert("Anotado. Troquei "+n+" refeição(ões) do cardápio, e isso vale para os próximos que eu montar.");
+}
+
 // ----------------------------- telas -----------------------------
 function setSub(s){
   document.querySelectorAll("[data-s]").forEach(x=>x.classList.toggle("act",x.dataset.s===s));
@@ -1898,7 +1986,15 @@ function renderPlano(){
     média de <b>${n0(kcalMed)} kcal por dia</b> ·
     custo estimado de <b>R$ ${n0(custo)}</b> no período, cerca de <b>R$ ${n0(mes)} por mês</b>`;
   const hoje=hojeISO();
-  box.innerHTML=dias.map(d=>{
+  const viol=violacoesPlano();
+  const aviso=viol.length?`<div class="card" style="border-color:var(--neg)">
+    <b>⚠️ ${viol.length} refeição(ões) fora das suas regras</b>
+    <div class="hint" style="margin:6px 0">${viol.slice(0,4).map(v=>
+      esc(v.nome)+" em "+v.dia.split("-").reverse().slice(0,2).join("/")+" — "+v.motivo).join("<br>")}
+      ${viol.length>4?"<br>e mais "+(viol.length-4)+"…":""}
+      <br><br>Isso acontece quando você muda uma restrição depois que o cardápio já estava montado.</div>
+    <button class="btn sm" onclick="corrigirViolacoes()">🔧 Trocar esses pratos agora</button></div>`:"";
+  box.innerHTML=aviso+dias.map(d=>{
     const refs=plano[d];
     const tot=Object.values(refs).reduce((a,i)=>({k:a.k+num(i.k),pr:a.pr+num(i.pr),cb:a.cb+num(i.cb),
       gd:a.gd+num(i.gd),fb:a.fb+num(i.fb),sd:a.sd+num(i.sd),c:a.c+num(i.c)}),{k:0,pr:0,cb:0,gd:0,fb:0,sd:0,c:0});
@@ -1922,6 +2018,7 @@ function renderPlano(){
           <span class="stat sm2">Gordura ${n1(i.gd)} g</span>
           <span class="stat sm2">R$ ${n1(i.c)}</span>
           <button class="btn sec sm" onclick="abrirTroca('${d}','${k}')">↻ Trocar prato</button>
+          <button class="btn sec sm" onclick="abrirNaoGosto('${d}','${k}')">🚫 Não gosto</button>
           <a class="btn sec sm" style="text-decoration:none" target="_blank" rel="noopener"
              href="${i.url?esc(i.url):linkReceita(i.n)}">🔎 Ver receita</a>
         </div></div>`;
