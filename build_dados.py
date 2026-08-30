@@ -134,13 +134,25 @@ ING = {
  "farofa":            (131, "Farofa temperada",          18.00, 1.0, "-",  []),
 }
 
+# ------- ampliação (dados_extra.py) -------
+try:
+    from dados_extra import EXTRA_ING, EXTRA_P
+    ING.update(EXTRA_ING)
+except ImportError:
+    EXTRA_P = []
+
 PROTEINA = {  # de qual proteína a preparação "é"
- "frango": ["frango_peito","frango_coxa","frango_sobrecoxa","frango_desfiado","linguica_frango","peru"],
- "boi":    ["patinho","acem_moido","musculo","coxao_mole","contra_file","figado"],
- "porco":  ["porco_lombo","porco_bisteca","presunto"],
- "peixe":  ["merluza","pintado","atum_lata","sardinha_lata","salmao","camarao"],
- "ovo":    ["ovo_cozido","ovo_frito"],
- "vegetal":["feijao_carioca","feijao_preto","lentilha","grao_de_bico","tofu","leite_soja"],
+ "frango": ["frango_peito","frango_coxa","frango_sobrecoxa","frango_desfiado","linguica_frango","peru",
+            "frango_caipira","frango_assado","coracao_frango","frango_milanesa","estrog_frango","salpicao","frango_acafrao"],
+ "boi":    ["patinho","acem_moido","musculo","coxao_mole","contra_file","figado","alcatra","maminha",
+            "lagarto","coxao_duro","cupim","file_mignon","carne_seca","hamburguer","quibe",
+            "estrog_carne","arroz_carreteiro","bolonhesa","charuto_repolho","vaca_atolada","barreado"],
+ "porco":  ["porco_lombo","porco_bisteca","presunto","pernil","feijoada","feijao_tropeiro","virado_paulista","manicoba"],
+ "peixe":  ["merluza","pintado","atum_lata","sardinha_lata","salmao","camarao","abadejo","cacao",
+            "corvina","bacalhau","sardinha_fresca","vatapa"],
+ "ovo":    ["ovo_cozido","ovo_frito","ovo_codorna","clara"],
+ "vegetal":["feijao_carioca","feijao_preto","lentilha","grao_de_bico","tofu","leite_soja",
+            "feijao_fradinho","feijao_roxo","tremoco","baiao_dois"],
  "laticinio":["queijo_minas","mussarela","ricota","iogurte","leite","leite_desnatado","requeijao"],
 }
 DE_ING = {}
@@ -387,6 +399,7 @@ for slug, (tid, nome, rs, rend, med, al) in ING.items():
                        veg=a["c"] in ("Verduras, hortaliças e derivados","Frutas e derivados")))
 precos.sort(key=lambda x: x["slug"])
 
+P = P + EXTRA_P
 preps, erros = [], []
 for pid, nome, tipos, itens, prep, tempo in P:
     for slug, _g in itens:
