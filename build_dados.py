@@ -152,6 +152,11 @@ try:
     PORT_SECO = PORT_SECO | MERCADO_SECO
 except ImportError:
     MERCADO_P = []
+try:
+    from dados_cafe import CAFE_P, CAFE_SECO
+    PORT_SECO = PORT_SECO | CAFE_SECO
+except ImportError:
+    CAFE_P = []
 
 PROTEINA = {  # de qual proteína a preparação "é"
  "frango": ["frango_peito","frango_coxa","frango_sobrecoxa","frango_desfiado","linguica_frango","peru",
@@ -412,7 +417,7 @@ for slug, (tid, nome, rs, rend, med, al) in ING.items():
                        veg=a["c"] in ("Verduras, hortaliças e derivados","Frutas e derivados")))
 precos.sort(key=lambda x: x["slug"])
 
-P = P + EXTRA_P + LANCHES + MERCADO_P
+P = P + EXTRA_P + LANCHES + MERCADO_P + CAFE_P
 preps, erros = [], []
 for pid, nome, tipos, itens, prep, tempo in P:
     for slug, _g in itens:

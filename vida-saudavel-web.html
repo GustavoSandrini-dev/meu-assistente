@@ -103,6 +103,9 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 .ri{font-size:12px;color:var(--muted);line-height:1.55}
 .rk{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
 .stat.sm2{font-size:11.5px;padding:5px 10px;margin:0}
+.ingbt{font:inherit;font-size:12px;color:var(--muted);background:var(--row);border:1px solid var(--border);
+  border-radius:7px;padding:3px 7px;margin:2px 3px 2px 0;cursor:pointer}
+.ingbt:hover{border-color:var(--accent);color:var(--text)}
 .hint{font-size:11px;color:var(--muted);line-height:1.5}
 </style>
 </head>
@@ -556,6 +559,11 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
     <div id="wNao" class="wchk"></div>
     <div class="wq" style="margin-top:16px">Quais proteínas você gosta de ver com mais frequência?</div>
     <div id="wProt" class="wchk"></div>
+    <div class="wq" style="margin-top:16px">Alguma exceção ao que você marcou acima?</div>
+    <div class="fld"><input id="wAceito" placeholder="ex: atum, ovo de codorna" oninput="ecoAceito()">
+      <div class="wh">Se você não come peixe mas aceita atum, escreva "atum" aqui. Vale para os grupos
+        que você desmarcou — <b>alergia declarada nunca é liberada por aqui</b>.</div>
+      <div class="wh" id="aceitoEco" style="margin-top:6px"></div></div>
     <div class="wq" style="margin-top:16px">Tem algum alimento que você não suporta?</div>
     <div class="fld"><input id="wOdeio" placeholder="ex: figado, quiabo, beringela" oninput="ecoOdeio()">
       <div class="wh">Separe por vírgula. Pode escrever sem acento ou errar a grafia — eu entendo.</div>
@@ -574,6 +582,12 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
       <button type="button" class="btn sec sm" onclick="distZerar()">↺ Deixar tudo livre</button>
     </div>
     <div class="wh" id="wDistResumo" style="margin-top:8px"></div>
+    <div class="wq" style="margin-top:18px">E nos dias que sobrarem, o que eu posso usar?</div>
+    <div class="fld"><select id="wLivresPol">
+      <option value="escolhidas_mais" selected>Só o que marquei, mais ovo e leguminosas</option>
+      <option value="so_escolhidas">Só as proteínas que marquei, nada além disso</option>
+      <option value="todas">Pode variar entre todas, inclusive as que não marquei</option>
+    </select></div>
     <div class="wq">Quantas refeições livres por semana?</div>
     <div class="fld"><select id="wLivre">
       <option value="0">Nenhuma, quero o plano fechado</option>
@@ -669,6 +683,17 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
   <div class="sub" id="trocaInfo">—</div>
   <div id="trocaLista" style="max-height:52vh;overflow:auto"></div>
   <div class="row" style="margin-top:12px"><button class="btn sec" onclick="document.getElementById('dlgTroca').close()">Fechar</button></div>
+</dialog>
+
+<!-- ================= trocar um ingrediente ================= -->
+<dialog id="dlgIng">
+  <h2 style="font-size:16px;margin-bottom:4px">⇄ Trocar um item do prato</h2>
+  <div class="sub" id="tiInfo">—</div>
+  <div id="tiLista" style="max-height:52vh;overflow:auto;margin-top:8px"></div>
+  <div class="wh" style="margin-top:8px">A quantidade é recalculada para manter as calorias parecidas.
+    O resto do prato continua igual.</div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn sec" onclick="document.getElementById('dlgIng').close()">Fechar</button></div>
 </dialog>
 
 <!-- ==================== não gosto disso ==================== -->
@@ -1432,7 +1457,7 @@ function iniciaLembreteLocal(){
 }
 
 // =========================== CARDÁPIO ===========================
-const DADOS_V="46";   // troque junto com a versão do sw.js para furar o cache
+const DADOS_V="47";   // troque junto com a versão do sw.js para furar o cache
 let PREPS=null, PRECOS={}, PRECO_USR={}, BASE_REF="", PLANOCFG=null, PLANO_ID=null, FAVS=[];
 const PESO_REF={cafe:.22,lanche1:.10,almoco:.32,lanche2:.10,jantar:.22,ceia:.04};
 const TIPO_DE={cafe:"cafe",lanche1:"lanche",almoco:"almoco",lanche2:"lanche",jantar:"jantar",ceia:"ceia"};
@@ -1600,6 +1625,18 @@ function ecoOdeio(){
   ].filter(Boolean).join(" · ");
 }
 
+function ecoAceito(){
+  const el=document.getElementById("aceitoEco"); if(!el) return;
+  const txt=val("wAceito");
+  if(!txt||!txt.trim()){ el.innerHTML=""; return; }
+  const r=interpretaOdeio(txt);
+  const ok=r.mapa.filter(m=>m.para).map(m=>
+    m.exato?`<b>${esc(m.para)}</b>`:`<b>${esc(m.para)}</b> <span style="opacity:.7">(você escreveu "${esc(m.de)}")</span>`);
+  const nao=r.mapa.filter(m=>!m.para).map(m=>`"${esc(m.de)}"`);
+  el.innerHTML=[ ok.length?`✅ Liberado mesmo assim: ${ok.join(", ")}`:"",
+    nao.length?`⚠️ Não reconheci ${nao.join(", ")}`:"" ].filter(Boolean).join(" · ");
+}
+
 // --------------------------- questionário ---------------------------
 let WIZ=1; const WIZ_TOTAL=8;
 function chkList(box,lista,marcados){
@@ -1620,6 +1657,7 @@ async function abrirWizard(){
   set("wVeg",c.veg_extra?1:0); set("wLivre",c.livre_semana!=null?c.livre_semana:1);
   set("wAlmoco",c.almoco_tipo||"casa");
   set("wOdeio",c.odeio_texto!=null?c.odeio_texto:(c.odeio||[]).join(", "));
+  set("wAceito",c.aceito_texto||""); set("wLivresPol",c.livres_pol||"escolhidas_mais");
   set("wLanchePrep",c.lanche_preparo||"casa"); set("wReceitas",c.usar_receitas===false?0:1);
   set("wSite",c.site_receita!=null?c.site_receita:"tudogostoso.com.br");
   chkList("wRefs",REFS,c.refeicoes||["cafe","lanche1","almoco","lanche2","jantar"]);
@@ -1644,7 +1682,7 @@ function wizMostra(){
   document.getElementById("wizBtnVolta").style.visibility=WIZ===1?"hidden":"visible";
   document.getElementById("wizBtnNext").textContent=WIZ===WIZ_TOTAL?"✨ Gerar cardápio":"Próximo →";
   if(WIZ===5) montaDistribuicao();
-  if(WIZ===4) ecoOdeio();
+  if(WIZ===4){ ecoOdeio(); ecoAceito(); }
   const d=document.getElementById("dlgWiz"); if(d) d.scrollTop=0;
   msg("wizMsg","");
 }
@@ -1755,6 +1793,7 @@ function wizOrcModo(){
 function coletaCfg(){
   const modo=val("wOrcModo");
   const od=interpretaOdeio(val("wOdeio"));
+  const ac=interpretaOdeio(val("wAceito"));
   const almoco=val("wAlmoco");
   let refs=REFS.map(([k])=>k).filter(k=>chkVals("wRefs").includes(k));
   if(almoco==="fora") refs=refs.filter(k=>k!=="almoco");   // come fora: sai do plano
@@ -1774,6 +1813,8 @@ function coletaCfg(){
     veg_extra:val("wVeg")==="1",
     sodio_max: cond.includes("pressao")?1500:0,
     odeio:od.livres, odeio_slugs:od.slugs, odeio_texto:val("wOdeio")||"",
+    aceito_slugs:ac.slugs, aceito_texto:val("wAceito")||"",
+    livres_pol:val("wLivresPol")||"escolhidas_mais",
     usar_receitas:val("wReceitas")==="1", site_receita:val("wSite"),
     orcamento_mes: modo==="valor"?(parseFloat(val("wOrcValor"))||null):null,
     faixa_max: modo==="livre"?9:(modo==="faixa"?parseInt(val("wOrcFaixa"),10):9)
@@ -1798,6 +1839,30 @@ function odiado(p,cfg){
   const alvo=chave(p.nome)+" "+(p.itens||[]).map(i=>chave((PRECOS[i.slug]||{}).nome||i.nome||"")).join(" ");
   return cfg.odeio.some(t=>t&&alvo.includes(t));
 }
+// grupo que a pessoa disse que não come — checado ingrediente a ingrediente,
+// para que uma exceção ("aceito atum") não libere o grupo inteiro
+function violaGrupo(p,cfg){
+  const nao=cfg.nao_come||[]; if(!nao.length) return false;
+  const ok=cfg.aceito_slugs||[];
+  return (p.itens||[]).some(i=>{
+    if(!i.slug||ok.includes(i.slug)) return false;
+    return ((PRECOS[i.slug]||{}).alerg||[]).some(a=>nao.includes(a));
+  });
+}
+// proteína que não entrou na distribuição da semana
+function proteinaForaDoCombinado(p,cfg){
+  const metas=cfg.prot_dias||{};
+  const escolhidas=Object.keys(metas).filter(k=>metas[k]>0);
+  if(!escolhidas.length || cfg.livres_pol==="todas") return false;
+  const extra=cfg.livres_pol==="so_escolhidas"?[]:["ovo","vegetal"];
+  const permitidas=new Set([...escolhidas,...extra,"laticinio"]);
+  const ok=cfg.aceito_slugs||[];
+  return (p.itens||[]).some(i=>{
+    if(!i.slug||ok.includes(i.slug)) return false;
+    const t=(PRECOS[i.slug]||{}).prot_tipo;
+    return t && !permitidas.has(t);
+  });
+}
 function candidatos(ref,cfg,pool,dia){
   const tipo=TIPO_DE[ref];
   const limite=dia?(ehFds(dia)?cfg.tempo_fds:cfg.tempo_semana):999;
@@ -1809,7 +1874,9 @@ function candidatos(ref,cfg,pool,dia){
     if(!p.tipos.includes(tipo)) return false;
     if(semGeladeira && !p.port_seco) return false;
     if(semFogao && !p.port) return false;
-    if((p.alerg||[]).some(a=>(cfg.alergias||[]).includes(a)||(cfg.nao_come||[]).includes(a))) return false;
+    if((p.alerg||[]).some(a=>(cfg.alergias||[]).includes(a))) return false;  // alergia: nunca libera
+    if(violaGrupo(p,cfg)) return false;
+    if(proteinaForaDoCombinado(p,cfg)) return false;
     if(cfg.faixa_max<9 && (p.faixa||1)>cfg.faixa_max) return false;
     if(limite<999 && (p.tempo||0)>limite) return false;
     if(odiado(p,cfg)) return false;
@@ -2107,7 +2174,8 @@ function violacoesPlano(){
     const al=p.alerg||[];
     let motivo=null;
     if(al.some(a=>(cfg.alergias||[]).includes(a))) motivo="alergia ou intolerância";
-    else if(al.some(a=>(cfg.nao_come||[]).includes(a))) motivo="grupo que você não come";
+    else if(violaGrupo(p,cfg)) motivo="grupo que você não come";
+    else if(proteinaForaDoCombinado(p,cfg)) motivo="proteína fora da divisão da semana";
     else if(odiado(p,cfg)) motivo="alimento que você excluiu";
     if(motivo) out.push({dia,ref,nome:p.nome,motivo});
   }));
@@ -2140,6 +2208,99 @@ async function corrigirViolacoes(silencioso){
   await salvarPlano(); renderPlano(); renderCompras();
   if(!silencioso) alert(trocados+" prato(s) trocado(s).");
   return trocados;
+}
+
+// ------------------- trocar UM ingrediente do prato -------------------
+const FAMILIA={"Frutas e derivados":"fruta","Verduras, hortaliças e derivados":"vegetal",
+  "Cereais e derivados":"carbo","Leguminosas e derivados":"leguminosa",
+  "Carnes e derivados":"proteina","Pescados e frutos do mar":"proteina",
+  "Ovos e derivados":"proteina","Leite e derivados":"laticinio",
+  "Nozes e sementes":"oleaginosa","Gorduras e óleos":"gordura",
+  "Miscelâneas":"outro","Alimentos preparados":"prato",
+  "Bebidas (alcoólicas e não alcoólicas)":"bebida","Outros alimentos industrializados":"outro"};
+function familiaDe(slug){
+  const P=PRECOS[slug]||{};
+  if(P.prot_tipo && P.prot_tipo!=="laticinio") return "proteina";
+  return FAMILIA[P.cat]||"outro";
+}
+const FAM_ROT={proteina:"proteína",fruta:"fruta",vegetal:"verdura ou legume",carbo:"carboidrato",
+  leguminosa:"leguminosa",laticinio:"laticínio",oleaginosa:"castanha",gordura:"gordura",
+  bebida:"bebida",prato:"prato pronto",outro:"item"};
+function abrirTrocaIng(dia,ref,idx){
+  const it=(window.__plano[dia]||{})[ref]; if(!it||it.livre) return;
+  const alvo=(it.it||[])[idx]; if(!alvo||!alvo.s) return;
+  const cfg=PLANOCFG||{};
+  const fam=familiaDe(alvo.s), atual=PRECOS[alvo.s]||{};
+  window.__trocaIng={dia,ref,idx};
+  document.getElementById("tiInfo").innerHTML=
+    `Trocando <b>${esc(atual.nome||alvo.s)}</b> (${n0(alvo.g)} g) em <b>${esc(it.n)}</b> —
+     sugestões de ${FAM_ROT[fam]||"item"} que combinam com o resto do prato.`;
+  // candidatos: mesma família, respeitando alergia, grupo, exceções e alimentos excluídos
+  const ok=cfg.aceito_slugs||[], fora=cfg.odeio_slugs||[];
+  const lista=Object.values(PRECOS).filter(i=>{
+    if(i.slug===alvo.s) return false;
+    if(familiaDe(i.slug)!==fam) return false;
+    if(fora.includes(i.slug)) return false;
+    if((i.alerg||[]).some(a=>(cfg.alergias||[]).includes(a))) return false;
+    if(!ok.includes(i.slug) && (i.alerg||[]).some(a=>(cfg.nao_come||[]).includes(a))) return false;
+    // respeita também a divisão de proteínas da semana
+    if(!ok.includes(i.slug) && i.prot_tipo &&
+       proteinaForaDoCombinado({itens:[{slug:i.slug}]},cfg)) return false;
+    if(cfg.faixa_max<9 && (i.faixa||1)>cfg.faixa_max) return false;
+    if(!i.k) return false;
+    return true;
+  }).map(i=>{
+    // mantém as calorias do item original, ajustando a gramatura
+    const base=(atual.k||1)*alvo.g/100;
+    let g=Math.round(base/(i.k/100)/5)*5;
+    g=Math.max(10,Math.min(600,g));
+    const kcal=i.k*g/100, custo=g*(i.rend||1)*precoKg(i.slug)/1000;
+    const custoAtual=alvo.g*(atual.rend||1)*precoKg(alvo.s)/1000;
+    const razao=Math.abs(Math.log(g/Math.max(1,alvo.g)));   // porção parecida com a original
+    return {i,g,kcal,prot:i.p*g/100,custo,dif:custo-custoAtual,razao,
+            mesmo: i.prot_tipo && i.prot_tipo===atual.prot_tipo ? 0 : 1};
+  }).filter(x=>x.razao<1.2)                      // corta porção absurda (3x maior ou menor)
+    .sort((a,b)=>{
+    if(fam==="proteina"){                         // mesma família de proteína primeiro,
+      if(a.mesmo!==b.mesmo) return a.mesmo-b.mesmo;
+      if(Math.abs(a.razao-b.razao)>0.25) return a.razao-b.razao;  // depois porção parecida
+      return b.prot-a.prot;                       // e por fim mais proteína
+    }
+    if(Math.abs(a.razao-b.razao)>0.4) return a.razao-b.razao;
+    return a.custo-b.custo;
+  }).slice(0,40);
+  document.getElementById("tiLista").innerHTML=lista.length?`<div style="overflow-x:auto"><table>
+    <tr><th>Trocar por</th><th class="n">Quanto</th><th class="n">Proteína</th><th class="n">Custo</th><th></th></tr>`+
+    lista.map((x,n)=>`<tr class="pick">
+      <td>${esc(x.i.nome)}${x.i.rotulo?'<span class="tag">valor de rótulo</span>':""}
+        <div class="hint">${n0(x.kcal)} kcal nessa porção</div></td>
+      <td class="n">${n0(x.g)} g</td><td class="n">${n1(x.prot)} g</td>
+      <td class="n">R$ ${n1(x.custo)}<div class="hint" style="color:${x.dif<0?"var(--pos)":x.dif>0?"var(--neg)":"var(--muted)"}">${
+        x.dif>0?"+":""}${n1(x.dif)}</div></td>
+      <td><button class="btn sm" onclick="fazTrocaIng('${x.i.slug}',${x.g})">usar</button></td></tr>`).join("")+
+    `</table></div>`
+    :'<div class="empty">Não achei substituto compatível dentro das suas restrições.</div>';
+  document.getElementById("dlgIng").showModal();
+}
+// recalcula um item do plano a partir da lista de ingredientes dele
+function recalcItem(it){
+  const n=nutriDeItens((it.it||[]).map(x=>({slug:x.s,g:x.g})),1,1);
+  it.k=+n.k.toFixed(1); it.pr=+n.p.toFixed(1); it.cb=+n.b.toFixed(1);
+  it.gd=+n.g.toFixed(1); it.fb=+n.f.toFixed(1); it.sd=+n.s.toFixed(0);
+  it.c=+n.custo.toFixed(2);
+  return it;
+}
+async function fazTrocaIng(slug,g){
+  const t=window.__trocaIng; if(!t) return;
+  const it=window.__plano[t.dia][t.ref];
+  const antigo=it.it[t.idx];
+  it.it[t.idx]={s:slug,g:+g,n:null};
+  it.mod=true;
+  it.trocas=(it.trocas||[]).concat([{de:(PRECOS[antigo.s]||{}).nome||antigo.s,
+                                     para:(PRECOS[slug]||{}).nome||slug}]);
+  recalcItem(it);
+  document.getElementById("dlgIng").close();
+  renderPlano(); renderCompras(); await salvarPlano();
 }
 
 // ---------------------- "não gosto disso" ----------------------
@@ -2217,8 +2378,13 @@ function renderPlano(){
         <div class="rk"><button class="btn sec sm" onclick="abrirTroca('${d}','${k}')">↻ Quero um prato aqui</button></div></div>`;
       return `<div class="ref">
         <div class="rt">${rot}</div>
-        <div class="rn">${esc(i.n)}</div>
-        <div class="ri">${(i.it||[]).filter(x=>x.g>0).map(x=>esc(nomeIng(x))+" — "+n0(x.g)+" g").join(" · ")}</div>
+        <div class="rn">${esc(i.n)}${i.mod?'<span class="tag">adaptado</span>':""}</div>
+        <div class="ri">${(i.it||[]).map((x,ix)=>({x,ix})).filter(o=>o.x.g>0).map(o=>
+          o.x.s?`<button class="ingbt" title="Trocar só este item" onclick="abrirTrocaIng('${d}','${k}',${o.ix})">${
+            esc(nomeIng(o.x))} — ${n0(o.x.g)} g ⇄</button>`
+              :`<span>${esc(nomeIng(o.x))} — ${n0(o.x.g)} g</span>`).join(" ")}</div>
+        ${i.trocas&&i.trocas.length?`<div class="ri" style="opacity:.75">🔁 ${
+          i.trocas.map(t=>esc(t.de)+" → "+esc(t.para)).join(" · ")}</div>`:""}
         ${i.tx?`<div class="ri" style="opacity:.85">👩‍🍳 ${esc(i.tx)}${i.tm?" · leva cerca de "+i.tm+" min":""}</div>`:""}
         <div class="rk">
           <span class="stat sm2">${n0(i.k)} kcal</span>
