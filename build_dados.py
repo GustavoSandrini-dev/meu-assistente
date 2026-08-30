@@ -379,7 +379,11 @@ for slug, (tid, nome, rs, rend, med, al) in ING.items():
     faixa = 1 if rs <= 15 else (2 if rs <= 45 else 3)
     precos.append(dict(slug=slug, nome=nome, taco=tid, taco_nome=a["n"],
                        rs_kg=rs, rend=rend, medida=med, faixa=faixa, cat=a["c"],
-                       alerg=al, prot_tipo=DE_ING.get(slug)))
+                       alerg=al, prot_tipo=DE_ING.get(slug),
+                       # nutrição por 100 g, para o gerador escalar ingrediente a ingrediente
+                       k=a.get("k") or 0, p=a.get("p") or 0, b=a.get("b") or 0,
+                       g=a.get("g") or 0, f=a.get("f") or 0, s=a.get("s") or 0,
+                       veg=a["c"] in ("Verduras, hortaliças e derivados","Frutas e derivados")))
 precos.sort(key=lambda x: x["slug"])
 
 preps, erros = [], []

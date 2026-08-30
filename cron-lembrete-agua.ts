@@ -4,6 +4,9 @@
 //    1) beber água — quem ligou o lembrete e ainda não bateu a meta do dia
 //    2) se pesar   — quem passou do intervalo escolhido (1/7/15/30/60/90 dias)
 //
+//  O cron chama de 30 em 30 minutos; o intervalo de cada usuário
+//  (30 min a 3 h) é respeitado pela coluna ultimo_push_agua.
+//
 //  Usa @negrel/webpush (nativa de Deno, sem depender de shims do Node).
 //
 //  Deploy:
@@ -81,13 +84,21 @@ Deno.serve(async () => {
   // ------------------------------------------------------------ água
   const { data: perfisAgua, error } = await sb
     .from("saude_perfil")
-    .select("user_id, meta_agua_ml, copo_ml, lembrete_ini, lembrete_fim")
+    .select("user_id, meta_agua_ml, copo_ml, lembrete_ini, lembrete_fim, lembrete_agua_min, ultimo_push_agua")
     .eq("lembrete_agua", true)
     .lte("lembrete_ini", hora)
     .gte("lembrete_fim", hora);
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
 
+  const agora = Date.now();
   for (const p of perfisAgua ?? []) {
+    // respeita o intervalo escolhido pelo usuário (30, 60, 90, 120 ou 180 min).
+    // Esta função roda de 30 em 30 min; quem pediu 1h só recebe a cada 2 execuções.
+    const intervalo = (p.lembrete_agua_min ?? 60) * 60000;
+    if (p.ultimo_push_agua) {
+      const desde = agora - Date.parse(p.ultimo_push_agua);
+      if (desde < intervalo - 120000) continue;   // 2 min de folga
+    }
     const { data: goles } = await sb
       .from("saude_agua").select("ml").eq("user_id", p.user_id).eq("dia", dia);
     const tot = (goles ?? []).reduce((s, g) => s + (Number(g.ml) || 0), 0);
@@ -95,12 +106,15 @@ Deno.serve(async () => {
     if (tot >= meta) continue;            // já bateu a meta, não incomoda
     const subs = await subsDe(p.user_id);
     if (!subs.length) continue;
+    const copo = p.copo_ml ?? 250;
     await mandar(subs, {
       title: "💧 Hora de beber água",
-      body: `Você está em ${tot} ml de ${meta} ml. Faltam ${meta - tot} ml hoje.`,
+      body: `Você está em ${tot} ml de ${meta} ml. Um copo de ${copo} ml agora — faltam ${meta - tot} ml hoje.`,
       tag: "agua",
-      url: `./vida-saudavel-web.html?agua=${p.copo_ml ?? 250}`,
+      url: `./vida-saudavel-web.html?agua=${copo}`,
     });
+    await sb.from("saude_perfil")
+      .update({ ultimo_push_agua: new Date().toISOString() }).eq("user_id", p.user_id);
   }
 
   // --------------------------------------------------------- pesagem
