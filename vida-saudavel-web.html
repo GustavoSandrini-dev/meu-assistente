@@ -247,6 +247,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
         <div class="row" style="gap:6px;justify-content:flex-end">
           <button class="btn" onclick="abrirWizard()">✨ Montar cardápio</button>
           <button class="btn sec sm" onclick="regerarPlano()" title="Mesmas respostas, outro sorteio">🎲 Outra variação</button>
+          <button class="btn sec sm" onclick="jogarPlanoTodo()" title="Lança o cardápio inteiro de uma vez, cada dia na sua data">📆 Lançar tudo no diário</button>
           <button class="btn sec sm" onclick="salvarFavorito()">⭐ Salvar favorito</button>
           <button class="btn sec sm" onclick="abrirFavoritos()">📂 Favoritos</button>
           <button class="btn sec sm" onclick="excluirPlano()">🗑️ Excluir cardápio</button>
@@ -456,6 +457,11 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
         <div class="hint" style="margin-top:12px" id="metodoTmb">
           IMC pela classificação da OMS · metabolismo basal por Mifflin-St Jeor.
         </div>
+        <div id="metaBox" style="margin-top:12px"></div>
+        <label class="lb" style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer">
+          <input id="ajusteAuto" type="checkbox" style="width:auto;margin:0" onchange="salvarPerfil(true)">
+          Corrigir a meta e o cardápio sozinho conforme eu registro peso e medidas
+        </label>
         <div class="row" style="margin-top:12px">
           <input id="pesoNovo" type="number" step="0.1" placeholder="kg" style="width:100px">
           <input id="pesoData" type="date" style="width:auto">
@@ -868,6 +874,7 @@ async function carregaPerfil(){
   document.getElementById("pObj").value=PERFIL.objetivo||"manter";
   document.getElementById("lembOn").checked=PERFIL.lembrete_agua!==false;
   document.getElementById("pLembPeso").value=PERFIL.lembrete_peso_dias??0;
+  document.getElementById("ajusteAuto").checked=PERFIL.ajuste_auto!==false;
   document.getElementById("copoSel").value=PERFIL.copo_ml??250;
   document.getElementById("lembInt").value=PERFIL.lembrete_agua_min??60;
   document.getElementById("somSel").value=PERFIL.lembrete_som||"silencioso";
@@ -908,6 +915,7 @@ async function salvarPerfil(avisa){
     lembrete_ini:parseInt(document.getElementById("lembIni").value,10),
     lembrete_fim:parseInt(document.getElementById("lembFim").value,10),
     lembrete_peso_dias:parseInt(document.getElementById("pLembPeso").value,10)||0,
+    ajuste_auto:document.getElementById("ajusteAuto").checked,
     updated_at:new Date().toISOString()
   };
   const {error}=await _sb.from("saude_perfil").upsert(row,{onConflict:"user_id"});
@@ -944,7 +952,12 @@ function calcula(){
   }
   if(r.tmb){
     r.get=r.tmb*(FATOR[ativ]||1.375);
-    r.meta=r.get*(obj==="perder"?0.8:obj==="ganhar"?1.15:1);
+    r.base=r.get*(obj==="perder"?0.8:obj==="ganhar"?1.15:1);
+    // correção pelo que a balança mostrou: o déficit teórico raramente bate
+    const aj=ajusteRitmo(r,peso,sexo,obj);
+    r.ritmo_alvo=aj.alvo; r.ritmo_real=aj.real; r.ajuste=aj.delta;
+    r.ajuste_motivo=aj.motivo; r.piso=aj.piso; r.teto=aj.teto;
+    r.meta=aj.meta;
     // proteína: por kg de massa magra quando ela é conhecida, senão por kg de peso
     const gkg=parseFloat(PERFIL.prot_g_kg||2);
     r.prot=r.mlg?r.mlg*(gkg+0.2):peso*gkg;
@@ -952,6 +965,71 @@ function calcula(){
     r.carb=Math.max(0,(r.meta-r.prot*4-r.gord*9)/4);
   }
   return r;
+}
+
+// ------------------ meta calórica que se corrige sozinha ------------------
+// O déficit teórico (GET × 0,8) é só um ponto de partida. O que manda é o que
+// a balança mostrou: se o peso não desce no ritmo combinado, o alvo aperta;
+// se desce rápido demais, afrouxa. Sempre com piso de segurança.
+function ritmoSemanal(janela){
+  const corte=new Date(Date.now()-(janela||42)*864e5).toISOString().slice(0,10);
+  const pts=PESOS.filter(p=>p.dia>=corte);
+  if(pts.length<3) return null;
+  const t0=new Date(pts[0].dia+"T12:00:00").getTime();
+  const t1=new Date(pts[pts.length-1].dia+"T12:00:00").getTime();
+  const dias=(t1-t0)/864e5;
+  if(dias<14) return null;                         // menos de 2 semanas é ruído de água
+  // regressão linear simples: menos sensível a um dia de retenção que dois pontos soltos
+  const xs=pts.map(p=>(new Date(p.dia+"T12:00:00").getTime()-t0)/864e5), ys=pts.map(p=>p.kg);
+  const n=xs.length, mx=xs.reduce((a,b)=>a+b,0)/n, my=ys.reduce((a,b)=>a+b,0)/n;
+  let num=0, den=0;
+  for(let i=0;i<n;i++){ num+=(xs[i]-mx)*(ys[i]-my); den+=(xs[i]-mx)**2; }
+  if(!den) return null;
+  return {kgSem:(num/den)*7, dias:Math.round(dias), n};
+}
+// ritmo que a pessoa combinou: pela meta de peso e prazo, ou pelo objetivo
+function ritmoAlvo(peso,obj){
+  const meta=parseFloat(PERFIL.peso_meta), prazo=PERFIL.peso_meta_prazo;
+  if(meta>0 && peso>0 && prazo){
+    const sem=(new Date(prazo+"T12:00:00")-new Date(hojeISO()+"T12:00:00"))/(7*864e5);
+    if(sem>=1){
+      const r=(meta-peso)/sem;
+      return Math.max(-1,Math.min(0.5,r));         // nada de prometer mais de 1 kg/semana
+    }
+  }
+  if(obj==="perder") return -0.7;
+  if(obj==="ganhar") return  0.25;
+  return 0;
+}
+function ajusteRitmo(r,peso,sexo,obj){
+  const piso=Math.max(r.tmb, sexo==="F"?1200:1500); // nunca abaixo do basal nem do mínimo clínico
+  const teto=r.get*1.25;
+  const out={meta:r.base,alvo:ritmoAlvo(peso,obj),real:null,delta:0,piso,teto,
+             motivo:"Ainda estou usando só a conta teórica — preciso de pelo menos 3 pesagens em 2 semanas para corrigir pelo seu resultado real."};
+  if(PERFIL.ajuste_auto===false){ out.motivo="Ajuste automático desligado — a meta é a conta teórica pura."; return out; }
+  const rt=ritmoSemanal(42);
+  if(!rt) return out;
+  out.real=rt.kgSem;
+  const erro=rt.kgSem-out.alvo;                    // >0 = perdendo menos do que devia
+  if(Math.abs(erro)<0.12){                         // dentro do esperado: não mexe
+    out.motivo="Você está no ritmo combinado ("+n1(rt.kgSem)+" kg/semana nos últimos "+rt.dias+" dias). Mantive a meta.";
+    return out;
+  }
+  // 7.700 kcal ≈ 1 kg. Corrijo 60% do erro por vez, para não ficar balançando.
+  let delta=-erro*1100*0.6;
+  const lim=Math.min(400,r.base*0.2);
+  delta=Math.max(-lim,Math.min(lim,delta));
+  let meta=r.base+delta;
+  if(meta<piso) meta=piso;
+  if(meta>teto) meta=teto;
+  out.delta=Math.round(meta-r.base); out.meta=meta;
+  out.motivo=(erro>0
+    ? "Nos últimos "+rt.dias+" dias você "+(rt.kgSem>0?"ganhou "+n1(rt.kgSem):"perdeu "+n1(-rt.kgSem))+
+      " kg/semana, e o combinado era "+n1(out.alvo)+". Apertei a meta em "+n0(Math.abs(out.delta))+" kcal."
+    : "Nos últimos "+rt.dias+" dias você mudou "+n1(rt.kgSem)+" kg/semana, mais rápido que os "+n1(out.alvo)+
+      " combinados. Afrouxei a meta em "+n0(Math.abs(out.delta))+" kcal para preservar massa magra.")+
+    (meta===piso?" A meta parou no piso de segurança ("+n0(piso)+" kcal).":"");
+  return out;
 }
 function classeIMC(v){
   if(v<18.5) return ["Abaixo do peso","#60a5fa"];
@@ -985,6 +1063,34 @@ function recalcula(){
   if(m) m.innerHTML="IMC pela classificação da OMS · metabolismo basal por <b>"+esc(c.metodo)+"</b>"+
     (c.mlg?" (massa magra estimada em "+n1(c.mlg)+" kg)":"")+
     " · proteína a "+n1(PERFIL.prot_g_kg||2)+" g por kg. São estimativas — não substituem nutricionista ou médico.";
+  renderMetaBox(c);
+}
+// mostra de onde saiu a meta de calorias e quanto ela foi corrigida
+function renderMetaBox(c){
+  const box=document.getElementById("metaBox"); if(!box) return;
+  c=c||calcula();
+  if(!c.meta){ box.innerHTML=""; return; }
+  const dif=Math.round(c.meta-(c.base||c.meta));
+  const cor=dif===0?"var(--muted)":(dif<0?"var(--neg)":"var(--pos)");
+  const ref=(PLANOCFG&&PLANOCFG.meta_ref)||null;
+  const fora=ref&&Math.abs(c.meta-ref)>Math.max(60,ref*0.03);
+  box.innerHTML=`<div style="border:1px solid var(--border);border-radius:12px;padding:10px 12px">
+    <div style="font-size:12px;font-weight:800;color:var(--label);margin-bottom:6px">COMO CHEGUEI NA META DE HOJE</div>
+    <div class="row" style="gap:6px">
+      <span class="stat">Conta teórica <b>${n0(c.base||c.meta)} kcal</b></span>
+      <span class="stat">Correção pela balança <b style="color:${cor}">${dif>0?"+":""}${n0(dif)} kcal</b></span>
+      <span class="stat">Meta de hoje <b style="color:var(--accent)">${n0(c.meta)} kcal</b></span>
+    </div>
+    <div class="row" style="gap:6px;margin-top:6px">
+      <span class="stat">Ritmo combinado <b>${c.ritmo_alvo==null?"—":(c.ritmo_alvo>0?"+":"")+n1(c.ritmo_alvo)+" kg/sem"}</b></span>
+      <span class="stat">Ritmo medido <b>${c.ritmo_real==null?"sem dados ainda":(c.ritmo_real>0?"+":"")+n1(c.ritmo_real)+" kg/sem"}</b></span>
+      <span class="stat">Piso de segurança <b>${n0(c.piso)} kcal</b></span>
+    </div>
+    <div class="hint" style="margin-top:8px">${esc(c.ajuste_motivo||"")}</div>
+    ${fora?`<div class="row" style="margin-top:8px">
+      <span class="hint" style="color:var(--neg)">Seu cardápio foi montado para ${n0(ref)} kcal.</span>
+      <button class="btn sec sm" onclick="reescalarCardapio(true)">🔄 Reajustar o cardápio para ${n0(c.meta)} kcal</button></div>`:""}
+  </div>`;
 }
 
 // ==================== composição corporal e medidas ====================
@@ -1101,7 +1207,10 @@ async function salvarMedidas(){
   if(!algum){ msg("medMsg","Preencha pelo menos um campo."); return; }
   const {error}=await _sb.from("saude_medidas").upsert(row,{onConflict:"user_id,dia"});
   msg("medMsg",error?("Erro: "+error.message):"Medidas salvas ✓",!error);
-  if(!error){ await carregaMedidas(); renderMedHist(); renderGrafico(); }
+  if(!error){
+    await carregaMedidas(); renderMedHist(); renderGrafico(); calcComposicao(); avisoPesagem();
+    await sincronizaMetaPlano();   // gordura e cintura novas mudam o basal e, com ele, a meta
+  }
 }
 async function excluirMedidas(dia){
   if(!confirm("Excluir as medidas de "+dia.split("-").reverse().join("/")+"?")) return;
@@ -1124,6 +1233,99 @@ function renderMedHist(){
     `</table></div>`;
 }
 
+// ============ o cardápio acompanha a meta, sem remontar tudo ============
+// Reescalona as porções dos dias que ainda não passaram para a meta nova.
+// Os pratos continuam os mesmos — muda a quantidade no prato.
+function reescalaPlano(nova){
+  const plano=window.__plano||{}, hoje=hojeISO();
+  const ref=(PLANOCFG&&PLANOCFG.meta_ref)||nova;
+  const dias=Object.keys(plano).filter(d=>d>=hoje);
+  if(!dias.length||!ref) return {dias:0,ref:0};
+  const f0=nova/ref;
+  let n=0, travados=0;
+  dias.forEach(d=>Object.keys(plano[d]).forEach(k=>{
+    const i=plano[d][k]; if(!i||i.livre) return;
+    // a escala acumulada não pode fugir do que a receita comporta
+    const bruto=(i.e||1)*f0;
+    const eNova=Math.max(.55,Math.min(1.8,bruto));
+    if(Math.abs(eNova-bruto)>0.01) travados++;
+    const f=eNova/(i.e||1);
+    if(Math.abs(f-1)<0.005) return;
+    i.e=+eNova.toFixed(2);
+    ["k","pr","cb","gd","fb","sd","c"].forEach(c=>{ if(i[c]!=null) i[c]=+(i[c]*f).toFixed(c==="sd"?0:(c==="c"?2:1)); });
+    (i.it||[]).forEach(x=>{ x.g=+(num(x.g)*f).toFixed(0); });
+    i.resc=1; n++;
+  }));
+  return {dias:dias.length,refs:n,travados};
+}
+// troca no diário as refeições de hoje pra frente que vieram do cardápio,
+// para os totais do dia baterem com as porções novas
+async function ressincronizaDiarioFuturo(){
+  const plano=window.__plano||{}, hoje=hojeISO();
+  const dias=Object.keys(plano).filter(d=>d>=hoje);
+  if(!dias.length) return 0;
+  const {data}=await _sb.from("saude_registro").select("id,dia,refeicao")
+    .eq("user_id",USER.id).eq("fonte","cardapio").gte("dia",dias[0]).lte("dia",dias[dias.length-1]);
+  const velhos=(data||[]).filter(r=>plano[r.dia]&&plano[r.dia][r.refeicao]);
+  if(!velhos.length) return 0;
+  await _sb.from("saude_registro").delete().in("id",velhos.map(r=>r.id));
+  const rows=velhos.map(r=>{ const i=plano[r.dia][r.refeicao];
+    return {user_id:USER.id,dia:r.dia,refeicao:r.refeicao,alimento:i.n,
+      quantidade_g:(i.it||[]).reduce((s,x)=>s+num(x.g),0),
+      kcal:i.k,prot_g:i.pr,carb_g:i.cb,gord_g:i.gd,fibra_g:i.fb,sodio_mg:i.sd,
+      fonte:"cardapio",ref_id:i.p};});
+  for(let j=0;j<rows.length;j+=150) await _sb.from("saude_registro").insert(rows.slice(j,j+150));
+  return rows.length;
+}
+async function reescalarCardapio(avisa){
+  const c=calcula();
+  if(!c.meta){ if(avisa) alert("Preencha altura, peso, nascimento e sexo primeiro."); return; }
+  if(!window.__plano||!Object.keys(window.__plano).length){ if(avisa) alert("Não há cardápio montado."); return; }
+  const r=reescalaPlano(c.meta);
+  if(!r.refs){ if(avisa) alert("O cardápio já está na meta atual."); return; }
+  PLANOCFG=PLANOCFG||{}; PLANOCFG.meta_ref=Math.round(c.meta);
+  await salvarPlano(); renderPlano(); renderCompras(); renderMetaBox(c);
+  const n=await ressincronizaDiarioFuturo();
+  if(diaSel()>=hojeISO()) await carregaDia();
+  if(avisa) alert("Cardápio reajustado para "+n0(c.meta)+" kcal por dia.\n\n"+
+    r.refs+" refeição(ões) em "+r.dias+" dia(s) tiveram a porção recalculada"+
+    (n?" e "+n+" lançamento(s) no diário foram atualizados":"")+
+    ".\n\nOs pratos continuam os mesmos — mudou a quantidade no prato."+
+    (r.travados?"\n\nAtenção: "+r.travados+" prato(s) chegaram no limite do que a porção comporta. "+
+      "Para essas refeições, vale usar '🎲 Outra variação' e montar o cardápio de novo na meta nova.":""));
+}
+// chamada toda vez que peso ou medidas mudam
+async function sincronizaMetaPlano(){
+  const c=calcula();
+  if(!c.meta) return;
+  await salvarPerfil();                       // grava meta_kcal e os macros novos
+  renderMetaBox(c);
+  if(PERFIL.ajuste_auto===false) return;
+  const ref=(PLANOCFG&&PLANOCFG.meta_ref)||null;
+  if(!ref||!window.__plano||!Object.keys(window.__plano).length) return;
+  if(Math.abs(c.meta-ref)<=Math.max(60,ref*0.03)) return;   // variação pequena: não mexe
+  const r=reescalaPlano(c.meta);
+  if(!r.refs) return;
+  PLANOCFG.meta_ref=Math.round(c.meta);
+  await salvarPlano(); renderPlano(); renderCompras();
+  const n=await ressincronizaDiarioFuturo();
+  if(diaSel()>=hojeISO()) await carregaDia();
+  renderMetaBox(c);
+  toastMeta("🎯 Meta ajustada para "+n0(c.meta)+" kcal — reajustei as porções de "+r.dias+" dia(s) do cardápio"+
+    (n?" e "+n+" lançamento(s) do diário":"")+"."+
+    (r.travados?" "+r.travados+" prato(s) bateram no limite da porção: vale remontar o cardápio.":""));
+}
+function toastMeta(txt){
+  let t=document.getElementById("toastMeta");
+  if(!t){ t=document.createElement("div"); t.id="toastMeta";
+    t.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:99;max-width:92vw;"+
+      "background:var(--card);border:1px solid var(--accent);border-radius:12px;padding:12px 16px;"+
+      "box-shadow:0 8px 30px rgba(0,0,0,.35);font-size:14px;line-height:1.4";
+    document.body.appendChild(t); }
+  t.textContent=txt; t.style.display="block";
+  clearTimeout(window.__tmTo); window.__tmTo=setTimeout(()=>{t.style.display="none";},7000);
+}
+
 // ============================ pesagens ============================
 async function registrarPeso(){
   const el=document.getElementById("pesoNovo");
@@ -1135,8 +1337,8 @@ async function registrarPeso(){
   el.value="";
   if(dia>=hojeISO()) document.getElementById("pPeso").value=peso;
   msg("pMsg","Pesagem registrada ✓",true);
-  await salvarPerfil();
   await carregaPesos(); renderPesoHist(); renderGrafico(); avisoPesagem(); renderObjetivo();
+  await sincronizaMetaPlano();
 }
 async function editarPeso(dia,atual){
   const v=prompt("Peso em "+dia.split("-").reverse().join("/")+" (kg):",atual);
@@ -1144,16 +1346,23 @@ async function editarPeso(dia,atual){
   const n=parseFloat(String(v).replace(",","."));
   if(!n||n<=0){ alert("Valor inválido."); return; }
   await _sb.from("saude_peso").update({peso_kg:n}).eq("user_id",USER.id).eq("dia",dia);
-  await carregaPesos(); renderPesoHist(); renderGrafico();
+  await carregaPesos(); renderPesoHist(); renderGrafico(); renderObjetivo();
+  await sincronizaMetaPlano();
 }
 async function excluirPeso(dia){
   if(!confirm("Excluir a pesagem de "+dia.split("-").reverse().join("/")+"?")) return;
   await _sb.from("saude_peso").delete().eq("user_id",USER.id).eq("dia",dia);
-  await carregaPesos(); renderPesoHist(); renderGrafico(); avisoPesagem();
+  await carregaPesos(); renderPesoHist(); renderGrafico(); avisoPesagem(); renderObjetivo();
+  await sincronizaMetaPlano();
 }
 async function carregaPesos(){
   const {data}=await _sb.from("saude_peso").select("dia,peso_kg").eq("user_id",USER.id).order("dia");
   PESOS=(data||[]).map(r=>({dia:r.dia,kg:+r.peso_kg}));
+  // o peso do perfil segue sempre a pesagem mais recente — é dele que sai o cálculo
+  if(PESOS.length){
+    const el=document.getElementById("pPeso");
+    if(el) el.value=PESOS[PESOS.length-1].kg;
+  }
 }
 function altura(){ return parseFloat(document.getElementById("pAltura").value)||null; }
 function imcDe(kg){ const a=altura(); return a?kg/Math.pow(a/100,2):null; }
@@ -1232,24 +1441,55 @@ function renderGrafico(){
     <span class="stat">🔢 Registros: <b>${pts.length}</b></span>`;
 }
 
+// dias desde o último registro de um campo das medidas (null = nunca)
+function desdeMedida(col){
+  const m=MEDIDAS.filter(x=>x[col]!=null);
+  if(!m.length) return null;
+  const ult=m[m.length-1].dia;
+  return {dia:ult,dias:Math.floor((new Date(hojeISO()+"T12:00:00")-new Date(ult+"T12:00:00"))/864e5)};
+}
+const BIO_DIAS=90;   // bioimpedância: a cada 3 meses, como o usuário pediu
 function avisoPesagem(){
   const box=document.getElementById("pesoAviso"); if(!box) return;
   const dias=parseInt(PERFIL.lembrete_peso_dias||0,10);
-  if(!dias){ box.innerHTML=""; return; }
+  const fita=desdeMedida("cintura"), bio=desdeMedida("gordura_pct");
+  // bioimpedância roda no próprio calendário dela, independente da pesagem
+  const bioVenc=!bio||bio.dias>=BIO_DIAS;
+  const bioCard=bioVenc
+    ? `<div class="card" style="border-color:var(--accent);margin-top:8px">🧪 <b>Hora da bioimpedância</b>
+        <div class="hint">${bio?"A última foi há "+bio.dias+" dia(s) ("+bio.dia.split("-").reverse().join("/")+")."
+          :"Você ainda não registrou nenhuma."} Peço a cada ${BIO_DIAS} dias — é o intervalo em que a
+          composição corporal muda o bastante para valer a pena remedir. Suba na balança de bioimpedância
+          em jejum e copie gordura, músculo, água e gordura visceral no bloco de medidas.</div></div>`
+    : `<div class="card" style="margin-top:8px"><span class="stat">🧪 Próxima bioimpedância em
+        <b>${BIO_DIAS-bio.dias}</b> dia(s)</span>
+        <span class="stat">📅 Última: <b>${bio.dia.split("-").reverse().join("/")}</b></span></div>`;
+
+  if(!dias){ box.innerHTML=bioCard; return; }
   const ult=PESOS.length?PESOS[PESOS.length-1].dia:null;
   if(!ult){
     box.innerHTML=`<div class="card" style="border-color:var(--accent)">⚖️ <b>Registre sua primeira pesagem</b>
-      <div class="hint">É a partir dela que o gráfico e a evolução começam a existir.</div></div>`;
+      <div class="hint">É a partir dela que o gráfico e a evolução começam a existir — e é ela que corrige
+      a sua meta de calorias. Aproveite e passe a fita no pescoço, cintura e quadril.</div></div>`+bioCard;
     return;
   }
   const passou=Math.floor((new Date(hojeISO()+"T12:00:00")-new Date(ult+"T12:00:00"))/864e5);
   const falta=dias-passou;
+  // a fita vence junto com a pesagem: são os números que alimentam o cálculo de gordura
+  const fitaVenc=!fita||fita.dias>=dias;
+  const nota=fitaVenc
+    ? `<div class="hint" style="margin-top:6px">📏 Aproveite e atualize também <b>pescoço, cintura e quadril</b> —
+        ${fita?"a última medida foi há "+fita.dias+" dia(s)":"você ainda não registrou nenhuma"}.
+        É daí que sai a estimativa de gordura quando não há bioimpedância recente.</div>`
+    : `<div class="hint" style="margin-top:6px">📏 Circunferências atualizadas há ${fita.dias} dia(s) — essas estão em dia.</div>`;
   if(falta<=0){
     box.innerHTML=`<div class="card" style="border-color:var(--neg)">⚖️ <b>Hora de pesar</b>
-      <div class="hint">Sua última pesagem foi há ${passou} dia(s), e você pediu para ser lembrado a cada ${dias}.</div></div>`;
+      <div class="hint">Sua última pesagem foi há ${passou} dia(s), e você pediu para ser lembrado a cada ${dias}.</div>
+      ${nota}</div>`+bioCard;
   } else {
     box.innerHTML=`<div class="card"><span class="stat">⚖️ Próxima pesagem em <b>${falta}</b> dia(s)</span>
-      <span class="stat">📅 Última pesagem: <b>${ult.split("-").reverse().join("/")}</b></span></div>`;
+      <span class="stat">📅 Última pesagem: <b>${ult.split("-").reverse().join("/")}</b></span>
+      ${nota}</div>`+bioCard;
   }
 }
 
@@ -1534,6 +1774,10 @@ function renderRefeicoes(){
     acoes.push(`<button class="btn sec sm" onclick="abrirBusca('${k}')">➕ Adicionar alimento</button>`);
     if(prev && !prev.livre)
       acoes.push(`<button class="btn sec sm" onclick="abrirDetalheRef('${k}')">👀 Ver o prato</button>`);
+    if(prev)
+      acoes.push(`<button class="btn sec sm" onclick="trocarPratoHoje('${k}')" title="${
+        itens.length?"Troca o prato e refaz o lançamento no diário":"Escolhe outro prato para essa refeição"
+        }">↻ ${prev.livre?"Quero um prato aqui":"Trocar prato"}</button>`);
     return `<div class="meal" ${skip?'style="border-color:var(--neg)"':(feita?'style="border-color:var(--pos)"':"")}>
       <h3><span>${nome}${skip?' <span class="tag" style="background:var(--neg);color:#fff">pulada</span>':""}</span>
         <span>${n0(itens.length?kc:(prev?prev.k:0))} kcal
@@ -1561,9 +1805,9 @@ async function usarRefeicaoPlano(ref,silencioso){
     quantidade_g:(prev.it||[]).reduce((s,x)=>s+(+x.g||0),0),
     kcal:prev.k,prot_g:prev.pr,carb_g:prev.cb,gord_g:prev.gd,
     fibra_g:prev.fb,sodio_mg:prev.sd,fonte:"cardapio",ref_id:prev.p};
-  const {error}=await _sb.from("saude_registro").insert(row);
+  const {data,error}=await _sb.from("saude_registro").insert(row).select().maybeSingle();
   if(error){ if(!silencioso) alert("Erro: "+error.message); return; }
-  REGS.push({...row,id:"tmp"+Date.now()});
+  REGS.push(data||{...row,id:"tmp"+Date.now()});
   if(!silencioso){ renderResumo(); renderRefeicoes(); }
 }
 async function usarPlanoDoDia(){
@@ -1571,6 +1815,25 @@ async function usarPlanoDoDia(){
   const refs=Object.keys(plano).filter(k=>!plano[k].livre&&!REGS.some(r=>r.refeicao===k));
   if(!refs.length){ alert("As refeições desse dia já estão no diário."); return; }
   for(const k of refs) await usarRefeicaoPlano(k,true);
+  renderResumo(); renderRefeicoes();
+}
+// troca do prato direto pela aba Hoje: abre a mesma tela de troca do cardápio
+// e, se a refeição já tinha sido lançada no diário, refaz o lançamento
+function trocarPratoHoje(ref){
+  const dia=diaSel();
+  if(!(window.__plano||{})[dia]){ alert("Esse dia não está no seu cardápio, então não tenho de onde tirar sugestões de prato."); return; }
+  window.__trocaVoltaHoje=true;
+  abrirTroca(dia,ref);
+}
+async function resyncRefeicaoDiario(dia,ref){
+  if(dia!==diaSel()) return;
+  const antigos=REGS.filter(r=>r.refeicao===ref&&r.fonte==="cardapio");
+  if(antigos.length){
+    const ids=antigos.map(r=>r.id).filter(id=>id&&!String(id).startsWith("tmp"));
+    if(ids.length) await _sb.from("saude_registro").delete().in("id",ids);
+    REGS=REGS.filter(r=>!(r.refeicao===ref&&r.fonte==="cardapio"));
+    await usarRefeicaoPlano(ref,true);
+  }
   renderResumo(); renderRefeicoes();
 }
 function abrirDetalheRef(ref){
@@ -1897,7 +2160,7 @@ function iniciaLembreteLocal(){
 }
 
 // =========================== CARDÁPIO ===========================
-const DADOS_V="50";   // troque junto com a versão do sw.js para furar o cache
+const DADOS_V="52";   // troque junto com a versão do sw.js para furar o cache
 let PREPS=null, PRECOS={}, PRECO_USR={}, BASE_REF="", PLANOCFG=null, PLANO_ID=null, FAVS=[];
 const PESO_REF={cafe:.22,lanche1:.10,almoco:.32,lanche2:.10,jantar:.22,ceia:.04};
 const TIPO_DE={cafe:"cafe",lanche1:"lanche",almoco:"almoco",lanche2:"lanche",jantar:"jantar",ceia:"ceia"};
@@ -2540,8 +2803,9 @@ function itemLivre(){
 function gerarPlano(cfg){
   const pool=PREPS.concat(cfg.usar_receitas?receitasComoPreps():[]);
   const c0=calcula();
-  const metaK=PERFIL.meta_kcal||c0.meta||2000;
-  const metaP=PERFIL.meta_prot_g||c0.prot||120;
+  const metaK=c0.meta||PERFIL.meta_kcal||2000;
+  const metaP=c0.prot||PERFIL.meta_prot_g||120;
+  cfg.meta_ref=Math.round(metaK);          // guarda a meta que gerou este cardápio
   const soma=cfg.refeicoes.reduce((s,r)=>s+PESO_REF[r],0)||1;
   const alvoK={}, alvoP={};
   cfg.refeicoes.forEach(r=>{ alvoK[r]=metaK*PESO_REF[r]/soma; alvoP[r]=metaP*PESO_REF[r]/soma; });
@@ -3101,18 +3365,70 @@ async function fazTroca(dia,ref,pid,esc){
   window.__plano[dia][ref]=montaItem(p,esc,PLANOCFG||{});
   document.getElementById("dlgTroca").close();
   renderPlano(); await salvarPlano();
+  if(window.__trocaVoltaHoje){ window.__trocaVoltaHoje=false; await resyncRefeicaoDiario(dia,ref); }
+}
+// ---- lança o cardápio inteiro no diário, cada dia na sua data ----
+async function jogarPlanoTodo(){
+  const plano=window.__plano||{}, todos=Object.keys(plano).sort();
+  if(!todos.length){ alert("Monte um cardápio primeiro."); return; }
+  const hoje=new Date().toISOString().slice(0,10);
+  let dias=todos.filter(d=>d>=hoje);
+  let passado=false;
+  if(!dias.length){
+    if(!confirm("Todos os dias desse cardápio já passaram.\n\nQuer lançá-los mesmo assim nas datas em que estavam?")) return;
+    dias=todos; passado=true;
+  }
+  // dias que já têm alguma refeição no diário não são tocados
+  let ocupados=new Set();
+  try{
+    const {data}=await _sb.from("saude_registro").select("dia").eq("user_id",USER.id)
+      .gte("dia",dias[0]).lte("dia",dias[dias.length-1]);
+    (data||[]).forEach(r=>ocupados.add(r.dia));
+  }catch(e){ console.warn("checar diário",e); }
+  const alvo=dias.filter(d=>!ocupados.has(d));
+  const pulados=dias.length-alvo.length;
+  const rows=[];
+  alvo.forEach(d=>Object.entries(plano[d]).forEach(([ref,i])=>{ if(i.livre) return;
+    rows.push({user_id:USER.id,dia:d,refeicao:ref,alimento:i.n,
+      quantidade_g:(i.it||[]).reduce((s,x)=>s+num(x.g),0),
+      kcal:i.k,prot_g:i.pr,carb_g:i.cb,gord_g:i.gd,fibra_g:i.fb,sodio_mg:i.sd,
+      fonte:"cardapio",ref_id:i.p});}));
+  if(!rows.length){
+    alert(pulados?("Nada a lançar: os "+pulados+" dia(s) do cardápio já têm refeições no diário.\n\n"+
+      "Se quiser refazer um deles, apague as refeições daquele dia na aba Hoje e lance de novo.")
+      :"Esse cardápio só tem refeições livres.");
+    return;
+  }
+  if(!confirm("Vou lançar "+rows.length+" refeição(ões) em "+alvo.length+" dia(s), de "+
+      alvo[0].split("-").reverse().slice(0,2).join("/")+" a "+
+      alvo[alvo.length-1].split("-").reverse().slice(0,2).join("/")+".\n\n"+
+      (pulados?pulados+" dia(s) foram pulados porque já têm refeições no diário.\n\n":"")+
+      "Cada dia cai na sua própria data — depois é só abrir a aba Hoje e ir marcando o que comeu. Confirma?")) return;
+  // insere em lotes para não estourar o tamanho da requisição
+  for(let i=0;i<rows.length;i+=150){
+    const {error}=await _sb.from("saude_registro").insert(rows.slice(i,i+150));
+    if(error){ alert("Erro ao lançar: "+error.message+"\n\nO que já entrou foi mantido."); return; }
+  }
+  alert("Pronto! "+rows.length+" refeição(ões) lançadas em "+alvo.length+" dia(s)"+
+    (passado?"":"")+".\n\nAbra a aba Hoje para acompanhar.");
+  setTab("hoje"); carregaDia();
 }
 async function jogarDia(dia){
   const refs=(window.__plano||{})[dia]; if(!refs) return;
   const rows=[];
   Object.entries(refs).forEach(([ref,i])=>{ if(i.livre) return;
-    rows.push({user_id:USER.id,dia:diaSel(),refeicao:ref,alimento:i.n,
+    rows.push({user_id:USER.id,dia:dia,refeicao:ref,alimento:i.n,
       quantidade_g:(i.it||[]).reduce((s,x)=>s+num(x.g),0),
       kcal:i.k,prot_g:i.pr,carb_g:i.cb,gord_g:i.gd,fibra_g:i.fb,sodio_mg:i.sd,
       fonte:"cardapio",ref_id:i.p});});
   if(!rows.length){ alert("Esse dia só tem refeição livre."); return; }
+  try{
+    const {data}=await _sb.from("saude_registro").select("id").eq("user_id",USER.id).eq("dia",dia).limit(1);
+    if((data||[]).length && !confirm("Esse dia já tem refeições no diário.\n\nLançar o cardápio por cima? As refeições atuais continuam lá.")) return;
+  }catch(e){}
   const {error}=await _sb.from("saude_registro").insert(rows);
   if(error){ alert("Erro: "+error.message); return; }
+  const inp=document.getElementById("dia"); if(inp) inp.value=dia;
   setTab("hoje"); carregaDia();
 }
 
