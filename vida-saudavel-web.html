@@ -176,7 +176,13 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
           <h2 style="margin:0 0 4px">🍽️ Cardápio</h2>
           <div class="hint" id="planoResumo">Nenhum cardápio montado ainda.</div>
         </div>
-        <button class="btn" onclick="abrirWizard()">✨ Montar cardápio</button>
+        <div class="row" style="gap:6px;justify-content:flex-end">
+          <button class="btn" onclick="abrirWizard()">✨ Montar cardápio</button>
+          <button class="btn sec sm" onclick="regerarPlano()" title="Mesmas respostas, outro sorteio">🎲 Outra variação</button>
+          <button class="btn sec sm" onclick="salvarFavorito()">⭐ Salvar favorito</button>
+          <button class="btn sec sm" onclick="abrirFavoritos()">📂 Favoritos</button>
+          <button class="btn sec sm" onclick="excluirPlano()">🗑️ Excluir cardápio</button>
+        </div>
       </div>
       <div class="tabs" style="margin:14px 0 0">
         <span class="tab act" data-s="plano"    onclick="setSub('plano')">📅 Plano</span>
@@ -475,44 +481,105 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
     <h2 style="font-size:17px;margin:0" id="wizTit">Montar cardápio</h2>
     <span class="tag" id="wizPasso">1 / 8</span>
   </div>
-  <div class="bar" style="margin:8px 0 16px"><i id="wizBar" style="background:var(--accent);width:12%"></i></div>
+  <div class="bar" style="margin:8px 0 6px"><i id="wizBar" style="background:var(--accent);width:12%"></i></div>
+  <div class="wh" id="wizSecao" style="margin-bottom:14px">Objetivo e período</div>
 
-  <!-- 1 --------------------------------------------------------- -->
-  <div class="wstep" data-w="1">
-    <div class="wq">Por quanto tempo você quer esse cardápio?</div>
+  <!-- 1 · objetivo e período ------------------------------------- -->
+  <div class="wstep" data-w="1" data-sec="Objetivo e período">
+    <div class="wq">O que você quer alcançar com esse cardápio?</div>
+    <div class="fld"><select id="wObj">
+      <option value="perder">Emagrecer</option>
+      <option value="manter">Manter o peso e comer melhor</option>
+      <option value="ganhar">Ganhar massa muscular</option>
+    </select></div>
+    <div class="wq">Por quanto tempo?</div>
     <div class="fld"><select id="wDur">
       <option value="1">1 semana</option><option value="2">2 semanas</option>
-      <option value="4" selected>4 semanas (1 mês)</option><option value="8">8 semanas (2 meses)</option>
+      <option value="4" selected>4 semanas (1 mês)</option><option value="8">8 semanas</option>
       <option value="12">12 semanas (3 meses)</option>
     </select></div>
-    <div class="wq">Quais dias da semana entram?</div>
+    <div class="wq">Quais dias entram no plano?</div>
     <div class="fld"><select id="wDias">
-      <option value="7">Segunda a domingo — todos os dias</option>
+      <option value="7">Segunda a domingo</option>
       <option value="5">Segunda a sexta — no fim de semana eu me viro</option>
     </select></div>
     <div class="wq">Começando quando?</div>
     <div class="fld"><input id="wInicio" type="date"></div>
   </div>
 
-  <!-- 2 --------------------------------------------------------- -->
-  <div class="wstep" data-w="2" style="display:none">
-    <div class="wq">Quantas refeições você faz por dia?</div>
+  <!-- 2 · rotina ------------------------------------------------- -->
+  <div class="wstep" data-w="2" data-sec="Sua rotina" style="display:none">
+    <div class="wq">Quais refeições você faz por dia?</div>
     <div id="wRefs" class="wchk"></div>
     <div class="wh">Sua meta de calorias é dividida só entre as refeições marcadas.</div>
-    <div class="wq" style="margin-top:16px">O jantar pode ser a sobra do almoço?</div>
-    <div class="fld"><select id="wJantarIgual">
-      <option value="0">Não, quero pratos diferentes</option>
-      <option value="1">Pode sim — cozinho uma vez e como duas</option>
+    <div class="wq" style="margin-top:16px">Como costuma ser seu almoço em dia de semana?</div>
+    <div class="fld"><select id="wAlmoco">
+      <option value="casa" selected>Como em casa, feito na hora</option>
+      <option value="marmita">Levo marmita — cozinho antes e esquento</option>
+      <option value="fora">Como fora (restaurante, refeitório)</option>
+    </select>
+    <div class="wh">Marmita faz eu preferir pratos que aguentam reaquecer. "Como fora" tira o almoço do plano e redistribui as calorias.</div></div>
+    <div class="wq">Quanto tempo você tem para cozinhar em dia de semana?</div>
+    <div class="fld"><select id="wTempoSem">
+      <option value="15">Até 15 minutos</option><option value="30">Até 30 minutos</option>
+      <option value="45" selected>Até 45 minutos</option><option value="999">Sem pressa</option>
+    </select></div>
+    <div class="wq">E no fim de semana?</div>
+    <div class="fld"><select id="wTempoFds">
+      <option value="15">Até 15 minutos</option><option value="30">Até 30 minutos</option>
+      <option value="45">Até 45 minutos</option><option value="999" selected>Sem pressa, gosto de cozinhar</option>
     </select></div>
   </div>
 
-  <!-- 3 --------------------------------------------------------- -->
-  <div class="wstep" data-w="3" style="display:none">
+  <!-- 3 · saúde -------------------------------------------------- -->
+  <div class="wstep" data-w="3" data-sec="Restrições de saúde" style="display:none">
+    <div class="wq">Você tem alergia ou intolerância a alguma coisa?</div>
+    <div id="wAlerg" class="wchk"></div>
+    <div class="wq" style="margin-top:16px">Alguma condição que o cardápio deva levar em conta?</div>
+    <div id="wCond" class="wchk"></div>
+    <div class="wh">Isso ajusta sódio, carboidrato, gordura saturada e ferro do plano.
+      Não substitui acompanhamento médico ou de nutricionista — se você trata alguma dessas condições,
+      leve o cardápio para o seu profissional revisar.</div>
+  </div>
+
+  <!-- 4 · preferências ------------------------------------------- -->
+  <div class="wstep" data-w="4" data-sec="Preferências" style="display:none">
+    <div class="wq">Tem algum grupo que você não come por escolha?</div>
+    <div id="wNao" class="wchk"></div>
+    <div class="wq" style="margin-top:16px">Quais proteínas você gosta de ver com mais frequência?</div>
+    <div id="wProt" class="wchk"></div>
+    <div class="wq" style="margin-top:16px">Tem algum alimento que você não suporta?</div>
+    <div class="fld"><input id="wOdeio" placeholder="ex: fígado, quiabo, berinjela">
+      <div class="wh">Separe por vírgula. Qualquer prato com esses itens fica de fora.</div></div>
+  </div>
+
+  <!-- 5 · frequências -------------------------------------------- -->
+  <div class="wstep" data-w="5" data-sec="Frequência dos alimentos" style="display:none">
+    <div class="wq">Quantas vezes por semana você quer peixe?</div>
+    <div class="fld"><select id="wPeixe">
+      <option value="-1">Tanto faz</option><option value="0">Nenhuma</option>
+      <option value="1">1x</option><option value="2" selected>2x</option>
+      <option value="3">3x</option><option value="4">4x ou mais</option></select></div>
+    <div class="wq">E carne vermelha?</div>
+    <div class="fld"><select id="wVermelha">
+      <option value="-1">Tanto faz</option><option value="0">Nenhuma</option>
+      <option value="1">1x</option><option value="2">2x</option>
+      <option value="3" selected>3x</option><option value="5">5x ou mais</option></select></div>
+    <div class="wq">Quantas refeições livres por semana?</div>
+    <div class="fld"><select id="wLivre">
+      <option value="0">Nenhuma, quero o plano fechado</option>
+      <option value="1" selected>1 por semana</option>
+      <option value="2">2 por semana</option></select>
+      <div class="wh">Uma refeição sem regra, para comer fora ou matar a vontade. Plano nenhum sobrevive sem isso.</div></div>
+  </div>
+
+  <!-- 6 · orçamento ---------------------------------------------- -->
+  <div class="wstep" data-w="6" data-sec="Orçamento e compras" style="display:none">
     <div class="wq">Qual seu orçamento para a alimentação?</div>
     <div class="fld"><select id="wOrcModo" onchange="wizOrcModo()">
       <option value="faixa">Prefiro escolher uma faixa</option>
       <option value="valor">Tenho um valor por mês</option>
-      <option value="livre">Sem limite de orçamento</option>
+      <option value="livre">Sem limite</option>
     </select></div>
     <div class="fld" id="wOrcFaixaBox"><select id="wOrcFaixa">
       <option value="1">Econômico — arroz, feijão, ovo, frango, legumes da estação</option>
@@ -522,106 +589,51 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
     <div class="fld" id="wOrcValorBox" style="display:none">
       <label class="lb">Quanto por mês, só com a sua comida? (R$)</label>
       <input id="wOrcValor" type="number" step="10" placeholder="ex: 800">
-      <div class="wh">Conto só as refeições que você marcou, para uma pessoa. Se estourar, eu troco os pratos mais caros por equivalentes até caber.</div>
+      <div class="wh">Conto só as refeições marcadas, para uma pessoa. Se estourar, troco os pratos mais caros por equivalentes até caber.</div>
     </div>
-    <div class="wq" style="margin-top:16px">Com que frequência você vai ao mercado?</div>
+    <div class="wq">Com que frequência você vai ao mercado?</div>
     <div class="fld"><select id="wCompras">
-      <option value="7">Uma vez por semana</option>
+      <option value="7" selected>Uma vez por semana</option>
       <option value="3">Duas vezes por semana</option>
-      <option value="30">Uma vez por mês (com feira no meio)</option>
-    </select></div>
+      <option value="30">Uma vez por mês, com feira no meio</option></select></div>
   </div>
 
-  <!-- 4 --------------------------------------------------------- -->
-  <div class="wstep" data-w="4" style="display:none">
-    <div class="wq">Você tem alguma alergia ou intolerância?</div>
-    <div id="wAlerg" class="wchk"></div>
-    <div class="wh">Marcando aqui, nenhum prato com esse ingrediente entra no cardápio.</div>
-    <div class="wq" style="margin-top:16px">Tem algo que você simplesmente não come?</div>
-    <div id="wNao" class="wchk"></div>
-  </div>
-
-  <!-- 5 --------------------------------------------------------- -->
-  <div class="wstep" data-w="5" style="display:none">
-    <div class="wq">Quais proteínas você prefere ver com mais frequência?</div>
-    <div id="wProt" class="wchk"></div>
-    <div class="wq" style="margin-top:16px">Quantas vezes por semana você quer peixe?</div>
-    <div class="fld"><select id="wPeixe">
-      <option value="-1">Tanto faz</option><option value="0">Nenhuma</option>
-      <option value="1">1x</option><option value="2" selected>2x</option>
-      <option value="3">3x</option><option value="4">4x ou mais</option>
-    </select></div>
-    <div class="wq">E carne vermelha?</div>
-    <div class="fld"><select id="wVermelha">
-      <option value="-1">Tanto faz</option><option value="0">Nenhuma</option>
-      <option value="1">1x</option><option value="2">2x</option>
-      <option value="3" selected>3x</option><option value="5">5x ou mais</option>
-    </select></div>
-  </div>
-
-  <!-- 6 --------------------------------------------------------- -->
-  <div class="wstep" data-w="6" style="display:none">
-    <div class="wq">Quanto tempo você tem para cozinhar em dia de semana?</div>
-    <div class="fld"><select id="wTempoSem">
-      <option value="15">Até 15 minutos — preciso de coisa rápida</option>
-      <option value="30">Até 30 minutos</option>
-      <option value="45" selected>Até 45 minutos</option>
-      <option value="999">Sem pressa</option>
-    </select></div>
-    <div class="wq">E no fim de semana?</div>
-    <div class="fld"><select id="wTempoFds">
-      <option value="15">Até 15 minutos</option><option value="30">Até 30 minutos</option>
-      <option value="45">Até 45 minutos</option><option value="999" selected>Sem pressa, gosto de cozinhar</option>
-    </select></div>
-    <div class="wq">Você cozinha em lote e come o mesmo almoço alguns dias?</div>
-    <div class="fld"><select id="wBatch">
-      <option value="1" selected>Não, almoço diferente todo dia</option>
-      <option value="2">Sim, o mesmo por 2 dias</option>
-      <option value="3">Sim, o mesmo por 3 dias</option>
-      <option value="5">Sim, cozinho domingo e como a semana toda</option>
-    </select></div>
-    <div class="wq">Quantos dias no mínimo antes de um prato repetir?</div>
-    <div class="fld"><select id="wVar">
-      <option value="2">2 dias</option><option value="3" selected>3 dias</option>
-      <option value="5">5 dias</option><option value="7">7 dias</option></select></div>
-  </div>
-
-  <!-- 7 --------------------------------------------------------- -->
-  <div class="wstep" data-w="7" style="display:none">
-    <div class="wq">Qual seu objetivo agora?</div>
-    <div class="fld"><select id="wObj">
-      <option value="perder">Emagrecer</option><option value="manter">Manter o peso</option>
-      <option value="ganhar">Ganhar massa</option></select></div>
+  <!-- 7 · metas -------------------------------------------------- -->
+  <div class="wstep" data-w="7" data-sec="Ajustes nutricionais" style="display:none">
     <div class="wq">Quanta proteína por quilo de peso?</div>
     <div class="fld"><select id="wProtKg">
       <option value="1.2">1,2 g/kg — sedentário</option>
       <option value="1.6">1,6 g/kg — treino leve</option>
-      <option value="2" selected>2,0 g/kg — treino regular (mais comum)</option>
+      <option value="2" selected>2,0 g/kg — treino regular</option>
       <option value="2.4">2,4 g/kg — ganho de massa / atleta</option>
     </select></div>
     <div class="wq">Quer porção reforçada de verduras e legumes?</div>
     <div class="fld"><select id="wVeg">
       <option value="0" selected>Porção padrão</option>
-      <option value="1">Reforçada (+35% de vegetais no prato)</option>
-    </select></div>
-    <div class="wq">Precisa segurar o sódio?</div>
-    <div class="fld"><select id="wSodio">
-      <option value="0" selected>Não</option>
-      <option value="2300">Sim, até 2.300 mg por dia (recomendação geral)</option>
-      <option value="1500">Sim, até 1.500 mg por dia (pressão alta)</option>
-    </select></div>
+      <option value="1">Reforçada — 35% a mais de vegetais no prato</option></select></div>
+    <div class="wq">Quantos dias no mínimo antes de um prato repetir?</div>
+    <div class="fld"><select id="wVar">
+      <option value="3">3 dias</option><option value="5">5 dias</option>
+      <option value="7" selected>7 dias — bem variado</option>
+      <option value="10">10 dias — variedade máxima</option></select></div>
   </div>
 
-  <!-- 8 --------------------------------------------------------- -->
-  <div class="wstep" data-w="8" style="display:none">
-    <div class="wq">Tem algum alimento que você não suporta?</div>
-    <div class="fld"><input id="wOdeio" placeholder="ex: fígado, quiabo, berinjela">
-      <div class="wh">Separe por vírgula. Qualquer prato que use esses itens fica de fora.</div></div>
+  <!-- 8 · praticidade -------------------------------------------- -->
+  <div class="wstep" data-w="8" data-sec="Praticidade" style="display:none">
+    <div class="wq">Você cozinha em lote e come o mesmo almoço alguns dias?</div>
+    <div class="fld"><select id="wBatch">
+      <option value="1" selected>Não, almoço diferente todo dia</option>
+      <option value="2">Sim, o mesmo por 2 dias</option>
+      <option value="3">Sim, o mesmo por 3 dias</option>
+      <option value="5">Sim, cozinho no domingo e como a semana toda</option></select></div>
+    <div class="wq">O jantar pode ser a sobra do almoço?</div>
+    <div class="fld"><select id="wJantarIgual">
+      <option value="0" selected>Não, quero pratos diferentes</option>
+      <option value="1">Pode — cozinho uma vez e como duas</option></select></div>
     <div class="wq">Uso suas receitas salvas no sorteio?</div>
     <div class="fld"><select id="wReceitas">
-      <option value="1" selected>Sim, entram junto com as do app</option>
-      <option value="0">Não, só as preparações do app</option>
-    </select></div>
+      <option value="1" selected>Sim, junto com as do app</option>
+      <option value="0">Não, só as preparações do app</option></select></div>
     <div class="wq">Onde eu procuro a receita quando você clicar em "Ver receita"?</div>
     <div class="fld"><select id="wSite">
       <option value="">Busca aberta no Google</option>
@@ -648,6 +660,18 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
   <div class="sub" id="trocaInfo">—</div>
   <div id="trocaLista" style="max-height:52vh;overflow:auto"></div>
   <div class="row" style="margin-top:12px"><button class="btn sec" onclick="document.getElementById('dlgTroca').close()">Fechar</button></div>
+</dialog>
+
+<!-- ====================== favoritos ====================== -->
+<dialog id="dlgFav">
+  <h2 style="font-size:16px;margin-bottom:4px">⭐ Cardápios favoritos</h2>
+  <div class="sub">Aplique um favorito a partir da data que quiser — as datas são recalculadas, o conteúdo é o mesmo.</div>
+  <div class="row" style="margin:10px 0">
+    <label class="lb" style="margin:0">Aplicar a partir de</label>
+    <input id="favData" type="date" style="width:auto">
+  </div>
+  <div id="favLista"></div>
+  <div class="row" style="margin-top:12px"><button class="btn sec" onclick="document.getElementById('dlgFav').close()">Fechar</button></div>
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1387,7 +1411,8 @@ function iniciaLembreteLocal(){
 }
 
 // =========================== CARDÁPIO ===========================
-let PREPS=null, PRECOS={}, PRECO_USR={}, BASE_REF="", PLANOCFG=null, PLANO_ID=null;
+const DADOS_V="41";   // troque junto com a versão do sw.js para furar o cache
+let PREPS=null, PRECOS={}, PRECO_USR={}, BASE_REF="", PLANOCFG=null, PLANO_ID=null, FAVS=[];
 const PESO_REF={cafe:.22,lanche1:.10,almoco:.32,lanche2:.10,jantar:.22,ceia:.04};
 const TIPO_DE={cafe:"cafe",lanche1:"lanche",almoco:"almoco",lanche2:"lanche",jantar:"jantar",ceia:"ceia"};
 const ALERGIAS=[["lactose","Leite e derivados (lactose)"],["gluten","Glúten (trigo, aveia, cevada)"],
@@ -1397,13 +1422,17 @@ const NAOCOME=[["boi","Carne bovina"],["porco","Carne suína"],["frango","Frango
   ["peixe","Peixe"],["frutos_mar","Frutos do mar"],["ovo","Ovo"],["lactose","Laticínios"]];
 const PROTS=[["frango","Frango e aves"],["boi","Carne bovina"],["peixe","Peixe"],
   ["ovo","Ovo"],["porco","Carne suína"],["vegetal","Vegetal (feijão, lentilha, grão-de-bico, tofu)"]];
+const CONDICOES=[["pressao","Pressão alta — segurar o sódio"],
+  ["glicemia","Diabetes ou resistência à insulina — controlar carboidrato e reforçar fibra"],
+  ["colesterol","Colesterol alto — reduzir gordura saturada"],
+  ["anemia","Anemia ou ferro baixo — priorizar alimentos ricos em ferro"]];
 
 async function carregaBase(){
   if(PREPS) return;
   try{
     const [a,b]=await Promise.all([
-      fetch("preparacoes.json").then(r=>r.json()),
-      fetch("precos-alimentos.json").then(r=>r.json())]);
+      fetch("preparacoes.json?v="+DADOS_V).then(r=>r.json()),
+      fetch("precos-alimentos.json?v="+DADOS_V).then(r=>r.json())]);
     PREPS=a.itens; BASE_REF=b.data_ref||"";
     b.itens.forEach(i=>PRECOS[i.slug]=i);
   }catch(e){ PREPS=[]; console.warn("base do cardápio",e); }
@@ -1415,19 +1444,32 @@ async function carregaBase(){
 function precoKg(slug){ const u=PRECO_USR[slug]; return u!=null?u:((PRECOS[slug]||{}).rs_kg||0); }
 function rendOf(slug){ return (PRECOS[slug]||{}).rend||1; }
 function ehVeg(slug){ return !!(PRECOS[slug]||{}).veg; }
+const num=v=>{ const x=+v; return isFinite(x)?x:0; };
 
-// nutrição e custo calculados ingrediente a ingrediente (permite escalar só os vegetais)
+// nutrição e custo ingrediente a ingrediente (permite escalar só os vegetais)
 function nutriDeItens(itens,esc,vegMult){
-  const t={k:0,p:0,b:0,g:0,f:0,s:0,custo:0};
-  itens.forEach(i=>{
+  const t={k:0,p:0,b:0,g:0,f:0,s:0,sa:0,fe:0,custo:0}; let ok=false;
+  (itens||[]).forEach(i=>{
     const P=PRECOS[i.slug];
-    const g=i.g*(esc||1)*(vegMult&&ehVeg(i.slug)?vegMult:1);
-    if(P){ const f=g/100;
-      t.k+=P.k*f; t.p+=P.p*f; t.b+=P.b*f; t.g+=P.g*f; t.f+=P.f*f; t.s+=P.s*f;
-      t.custo+=g*P.rend*precoKg(i.slug)/1000;
-    } else if(i.kcal100!=null){ const f=g/100; t.k+=i.kcal100*f; }
+    const g=num(i.g)*(esc||1)*(vegMult&&ehVeg(i.slug)?vegMult:1);
+    if(P && P.k!=null){ const f=g/100; ok=true;
+      t.k+=num(P.k)*f; t.p+=num(P.p)*f; t.b+=num(P.b)*f; t.g+=num(P.g)*f;
+      t.f+=num(P.f)*f; t.s+=num(P.s)*f; t.sa+=num(P.sa)*f; t.fe+=num(P.fe)*f;
+    }
+    if(P) t.custo+=g*num(P.rend||1)*precoKg(i.slug)/1000;
   });
+  t.ok=ok;
   return t;
+}
+// se a base de preços vier sem nutrição (cache velho), cai para os valores
+// já calculados dentro de preparacoes.json — nunca devolve NaN
+function nutriDePrep(p,esc,vegMult){
+  const n=nutriDeItens(p.itens,esc,vegMult);
+  if(n.ok && n.k>0) return n;
+  const e=esc||1;
+  return {k:num(p.kcal)*e, p:num(p.prot)*e, b:num(p.carb)*e, g:num(p.gord)*e,
+          f:num(p.fibra)*e, s:num(p.sodio)*e, sa:0, fe:0,
+          custo:n.custo||num(p.custo)*e, ok:false};
 }
 function custoItens(itens,esc){ return nutriDeItens(itens,esc,0).custo; }
 function tacoParaSlug(){
@@ -1439,13 +1481,12 @@ function receitasComoPreps(){
   const t2s=tacoParaSlug();
   return RECEITAS.map(r=>{
     const por=r.porcoes||1, ing=r.ingredientes||[];
-    const itens=ing.map(i=>({slug:t2s[parseInt(i.ref_id,10)]||null,g:(+i.g||0)/por,
-      nome:i.nome, kcal100:(+i.g?((+i.kcal||0)/(+i.g))*100:0)}));
-    const k=ing.reduce((s,i)=>s+(+i.kcal||0),0)/por;
+    const itens=ing.map(i=>({slug:t2s[parseInt(i.ref_id,10)]||null,g:num(i.g)/por,nome:i.nome}));
+    const k=ing.reduce((s,i)=>s+num(i.kcal),0)/por;
     return {id:"rec_"+r.id, nome:r.nome+" (sua receita)", tipos:["almoco","jantar"], itens,
-      kcal:k, prot:ing.reduce((s,i)=>s+(+i.prot_g||0),0)/por,
-      carb:ing.reduce((s,i)=>s+(+i.carb_g||0),0)/por,
-      gord:ing.reduce((s,i)=>s+(+i.gord_g||0),0)/por,
+      kcal:k, prot:ing.reduce((s,i)=>s+num(i.prot_g),0)/por,
+      carb:ing.reduce((s,i)=>s+num(i.carb_g),0)/por,
+      gord:ing.reduce((s,i)=>s+num(i.gord_g),0)/por,
       fibra:0, sodio:0, alerg:[], prot_tipos:[], vegetariano:false, vegano:false,
       custo:custoItens(itens,1), faixa:2, preparo:r.preparo||"", tempo:30,
       url:r.url_fonte||null, minha:true};
@@ -1459,23 +1500,26 @@ function chkList(box,lista,marcados){
     `<label class="wopt"><input type="checkbox" value="${k}" ${(marcados||[]).includes(k)?"checked":""}>${rot}</label>`).join("");
 }
 function chkVals(box){ return [...document.querySelectorAll("#"+box+" input:checked")].map(x=>x.value); }
+function val(id){ return (document.getElementById(id)||{}).value; }
 async function abrirWizard(){
   await carregaBase();
   if(!PREPS.length){ alert("Não consegui carregar preparacoes.json. Confira se o arquivo está na raiz do site."); return; }
   const c=PLANOCFG||{};
   const set=(id,v)=>{ const e=document.getElementById(id); if(e&&v!=null) e.value=v; };
   set("wInicio",c.inicio||hojeISO()); set("wDur",c.semanas||4); set("wDias",c.dias_semana||7);
-  set("wVar",c.variedade||3); set("wJantarIgual",c.jantar_igual?1:0); set("wCompras",c.compras_dias||7);
+  set("wVar",c.variedade||7); set("wJantarIgual",c.jantar_igual?1:0); set("wCompras",c.compras_dias||7);
   set("wPeixe",c.peixe_semana!=null?c.peixe_semana:2); set("wVermelha",c.vermelha_semana!=null?c.vermelha_semana:3);
   set("wTempoSem",c.tempo_semana||45); set("wTempoFds",c.tempo_fds||999); set("wBatch",c.batch||1);
   set("wObj",c.objetivo||PERFIL.objetivo||"manter"); set("wProtKg",c.prot_g_kg||PERFIL.prot_g_kg||2);
-  set("wVeg",c.veg_extra?1:0); set("wSodio",c.sodio_max||0);
+  set("wVeg",c.veg_extra?1:0); set("wLivre",c.livre_semana!=null?c.livre_semana:1);
+  set("wAlmoco",c.almoco_tipo||"casa");
   set("wOdeio",(c.odeio||[]).join(", ")); set("wReceitas",c.usar_receitas===false?0:1);
   set("wSite",c.site_receita!=null?c.site_receita:"tudogostoso.com.br");
   chkList("wRefs",REFS,c.refeicoes||["cafe","lanche1","almoco","lanche2","jantar"]);
   chkList("wAlerg",ALERGIAS,c.alergias||[]);
   chkList("wNao",NAOCOME,c.nao_come||[]);
   chkList("wProt",PROTS,c.proteinas||[]);
+  chkList("wCond",CONDICOES,c.condicoes||[]);
   if(c.orcamento_mes){ set("wOrcModo","valor"); set("wOrcValor",c.orcamento_mes); }
   else if(c.faixa_max===9){ set("wOrcModo","livre"); }
   else { set("wOrcModo","faixa"); set("wOrcFaixa",c.faixa_max||2); }
@@ -1483,8 +1527,12 @@ async function abrirWizard(){
   document.getElementById("dlgWiz").showModal();
 }
 function wizMostra(){
-  document.querySelectorAll(".wstep").forEach(s=>s.style.display=(+s.dataset.w===WIZ)?"block":"none");
+  let sec="";
+  document.querySelectorAll(".wstep").forEach(s=>{
+    const on=+s.dataset.w===WIZ; s.style.display=on?"block":"none"; if(on) sec=s.dataset.sec||"";
+  });
   document.getElementById("wizPasso").textContent=WIZ+" / "+WIZ_TOTAL;
+  document.getElementById("wizSecao").textContent=sec;
   document.getElementById("wizBar").style.width=Math.round(WIZ/WIZ_TOTAL*100)+"%";
   document.getElementById("wizBtnVolta").style.visibility=WIZ===1?"hidden":"visible";
   document.getElementById("wizBtnNext").textContent=WIZ===WIZ_TOTAL?"✨ Gerar cardápio":"Próximo →";
@@ -1498,26 +1546,30 @@ function wizProximo(){
   WIZ++; wizMostra();
 }
 function wizOrcModo(){
-  const m=document.getElementById("wOrcModo").value;
+  const m=val("wOrcModo");
   document.getElementById("wOrcFaixaBox").style.display=m==="faixa"?"block":"none";
   document.getElementById("wOrcValorBox").style.display=m==="valor"?"block":"none";
 }
-function val(id){ return (document.getElementById(id)||{}).value; }
 function coletaCfg(){
   const modo=val("wOrcModo");
+  const almoco=val("wAlmoco");
+  let refs=REFS.map(([k])=>k).filter(k=>chkVals("wRefs").includes(k));
+  if(almoco==="fora") refs=refs.filter(k=>k!=="almoco");   // come fora: sai do plano
+  const cond=chkVals("wCond");
   return {
     inicio:val("wInicio")||hojeISO(),
     semanas:parseInt(val("wDur"),10), dias_semana:parseInt(val("wDias"),10),
-    variedade:parseInt(val("wVar"),10),
-    refeicoes:REFS.map(([k])=>k).filter(k=>chkVals("wRefs").includes(k)),
-    jantar_igual:val("wJantarIgual")==="1",
-    compras_dias:parseInt(val("wCompras"),10),
+    variedade:parseInt(val("wVar"),10), refeicoes:refs, almoco_tipo:almoco,
+    jantar_igual:val("wJantarIgual")==="1", compras_dias:parseInt(val("wCompras"),10),
     alergias:chkVals("wAlerg"), nao_come:chkVals("wNao"), proteinas:chkVals("wProt"),
+    condicoes:cond,
     peixe_semana:parseInt(val("wPeixe"),10), vermelha_semana:parseInt(val("wVermelha"),10),
+    livre_semana:parseInt(val("wLivre"),10)||0,
     tempo_semana:parseInt(val("wTempoSem"),10), tempo_fds:parseInt(val("wTempoFds"),10),
-    batch:parseInt(val("wBatch"),10),
+    batch: almoco==="marmita"?Math.max(2,parseInt(val("wBatch"),10)):parseInt(val("wBatch"),10),
     objetivo:val("wObj"), prot_g_kg:parseFloat(val("wProtKg")),
-    veg_extra:val("wVeg")==="1", sodio_max:parseInt(val("wSodio"),10)||0,
+    veg_extra:val("wVeg")==="1",
+    sodio_max: cond.includes("pressao")?1500:0,
     odeio:(val("wOdeio")||"").split(",").map(x=>chave(x.trim())).filter(Boolean),
     usar_receitas:val("wReceitas")==="1", site_receita:val("wSite"),
     orcamento_mes: modo==="valor"?(parseFloat(val("wOrcValor"))||null):null,
@@ -1538,7 +1590,7 @@ function diasDoPlano(cfg){
 function ehFds(dia){ const w=new Date(dia+"T12:00:00").getDay(); return w===0||w===6; }
 function odiado(p,cfg){
   if(!cfg.odeio||!cfg.odeio.length) return false;
-  const alvo=chave(p.nome)+" "+p.itens.map(i=>chave((PRECOS[i.slug]||{}).nome||i.nome||"")).join(" ");
+  const alvo=chave(p.nome)+" "+(p.itens||[]).map(i=>chave((PRECOS[i.slug]||{}).nome||i.nome||"")).join(" ");
   return cfg.odeio.some(t=>t&&alvo.includes(t));
 }
 function candidatos(ref,cfg,pool,dia){
@@ -1546,7 +1598,7 @@ function candidatos(ref,cfg,pool,dia){
   const limite=dia?(ehFds(dia)?cfg.tempo_fds:cfg.tempo_semana):999;
   return pool.filter(p=>{
     if(!p.tipos.includes(tipo)) return false;
-    if((p.alerg||[]).some(a=>cfg.alergias.includes(a)||cfg.nao_come.includes(a))) return false;
+    if((p.alerg||[]).some(a=>(cfg.alergias||[]).includes(a)||(cfg.nao_come||[]).includes(a))) return false;
     if(cfg.faixa_max<9 && (p.faixa||1)>cfg.faixa_max) return false;
     if(limite<999 && (p.tempo||0)>limite) return false;
     if(odiado(p,cfg)) return false;
@@ -1555,96 +1607,121 @@ function candidatos(ref,cfg,pool,dia){
 }
 function montaItem(p,esc,cfg){
   const vm=cfg&&cfg.veg_extra?1.35:1;
-  const n=nutriDeItens(p.itens,esc,vm);
+  const n=nutriDePrep(p,esc,vm);
   return {p:p.id,n:p.nome,e:+esc.toFixed(2),
     k:+n.k.toFixed(1), pr:+n.p.toFixed(1), cb:+n.b.toFixed(1), gd:+n.g.toFixed(1),
     fb:+n.f.toFixed(1), sd:+n.s.toFixed(0), c:+n.custo.toFixed(2),
-    it:p.itens.map(i=>({s:i.slug,g:+(i.g*esc*(vm&&ehVeg(i.slug)?vm:1)).toFixed(0),n:i.nome||null})),
+    it:(p.itens||[]).map(i=>({s:i.slug,g:+(num(i.g)*esc*(vm&&ehVeg(i.slug)?vm:1)).toFixed(0),n:i.nome||null})),
     tx:p.preparo||"", tm:p.tempo||null, url:p.url||null};
+}
+function itemLivre(){
+  return {p:"__livre",n:"Refeição livre",e:1,k:0,pr:0,cb:0,gd:0,fb:0,sd:0,c:0,it:[],
+    tx:"Coma o que você quiser. Não entra na conta do dia.",tm:null,url:null,livre:true};
 }
 function gerarPlano(cfg){
   const pool=PREPS.concat(cfg.usar_receitas?receitasComoPreps():[]);
   const c0=calcula();
   const metaK=PERFIL.meta_kcal||c0.meta||2000;
   const metaP=PERFIL.meta_prot_g||c0.prot||120;
-  const soma=cfg.refeicoes.reduce((s,r)=>s+PESO_REF[r],0);
+  const soma=cfg.refeicoes.reduce((s,r)=>s+PESO_REF[r],0)||1;
   const alvoK={}, alvoP={};
   cfg.refeicoes.forEach(r=>{ alvoK[r]=metaK*PESO_REF[r]/soma; alvoP[r]=metaP*PESO_REF[r]/soma; });
   const dias=diasDoPlano(cfg);
   const orcDia=cfg.orcamento_mes?cfg.orcamento_mes*12/365:null;
-  const usada={}, plano={}, faltou=new Set();
+  const usada={}, usos={}, plano={}, faltou=new Set();
+  const porSem=cfg.dias_semana===7?7:5;
   let semana=-1, cota={peixe:0,boi:0};
 
   dias.forEach((dia,di)=>{
-    const sem=Math.floor(di/(cfg.dias_semana===7?7:5));
+    const sem=Math.floor(di/porSem);
     if(sem!==semana){ semana=sem; cota={peixe:0,boi:0}; }
     plano[dia]={};
     const usadoHoje=new Set();
+    const contaCota=id=>{ const p=pool.find(x=>x.id===id), t=(p&&p.prot_tipos)||[];
+      if(t.includes("peixe")) cota.peixe++; if(t.includes("boi")) cota.boi++; };
 
     cfg.refeicoes.forEach(ref=>{
-      // jantar como sobra do almoço
       if(ref==="jantar" && cfg.jantar_igual && plano[dia].almoco){
-        const a=plano[dia].almoco;
-        const p=pool.find(x=>x.id===a.p);
+        const p=pool.find(x=>x.id===plano[dia].almoco.p);
         if(p){ plano[dia].jantar=montaItem(p,Math.max(.6,Math.min(1.6,alvoK.jantar/(p.kcal||1))),cfg); return; }
       }
-      // cozinhar em lote: repete o almoço dos dias anteriores
       if(ref==="almoco" && cfg.batch>1 && di%cfg.batch!==0){
         const ant=plano[dias[di-1]] && plano[dias[di-1]].almoco;
-        if(ant){
-          plano[dia].almoco=JSON.parse(JSON.stringify(ant)); usadoHoje.add(ant.p);
-          const pa=pool.find(x=>x.id===ant.p), tp=(pa&&pa.prot_tipos)||[];
-          if(tp.includes("peixe")) cota.peixe++;
-          if(tp.includes("boi")) cota.boi++;
-          return;
-        }
+        if(ant){ plano[dia].almoco=JSON.parse(JSON.stringify(ant)); usadoHoje.add(ant.p); contaCota(ant.p); return; }
       }
       let cands=candidatos(ref,cfg,pool,dia).filter(p=>!usadoHoje.has(p.id));
-      if(!cands.length){ // afrouxa tempo, depois faixa de preço
+      if(!cands.length){
         cands=candidatos(ref,{...cfg,tempo_semana:999,tempo_fds:999},pool).filter(p=>!usadoHoje.has(p.id));
         if(cands.length) faltou.add(ref);
       }
-      if(!cands.length){
-        cands=candidatos(ref,{...cfg,tempo_semana:999,tempo_fds:999,faixa_max:9},pool);
-        faltou.add(ref);
-      }
+      if(!cands.length){ cands=candidatos(ref,{...cfg,tempo_semana:999,tempo_fds:999,faixa_max:9},pool); faltou.add(ref); }
       if(!cands.length) return;
+      // espaçamento como regra dura, desde que sobrem alternativas de verdade
+      const espacados=cands.filter(p=>usada[p.id]==null||di-usada[p.id]>=cfg.variedade);
+      if(espacados.length>=3) cands=espacados;
 
       let best=null;
       cands.forEach(p=>{
-        const esc=Math.max(.6,Math.min(1.6,alvoK[ref]/(p.kcal||1)));
-        const n=nutriDeItens(p.itens,esc,cfg.veg_extra?1.35:1);
+        const base=num(p.kcal)||1;
+        const esc=Math.max(.6,Math.min(1.6,alvoK[ref]/base));
+        const n=nutriDePrep(p,esc,cfg.veg_extra?1.35:1);
         const erroK=Math.abs(n.k-alvoK[ref])/alvoK[ref];
         const gap=usada[p.id]==null?99:di-usada[p.id];
-        const penRep=gap>=cfg.variedade?0:(cfg.variedade-gap)*0.40;
+        const penRep=gap>=cfg.variedade?0:(cfg.variedade-gap)*0.45;
+        const penUso=(usos[p.id]||0)*0.14;            // espalha o uso por todo o banco
         const alvoCusto=orcDia?orcDia*PESO_REF[ref]/soma:null;
         const penC=alvoCusto?Math.max(0,(n.custo-alvoCusto)/alvoCusto)*0.5:0;
         const penP=alvoP[ref]?Math.max(0,(alvoP[ref]-n.p)/alvoP[ref])*0.55:0;
-        const penS=cfg.sodio_max?Math.max(0,(n.s-cfg.sodio_max*PESO_REF[ref]/soma)/(cfg.sodio_max))*0.8:0;
-        const bonus=(cfg.proteinas.length&&(p.prot_tipos||[]).some(x=>cfg.proteinas.includes(x)))?-0.30:0;
-        // cotas semanais de peixe e carne vermelha
-        let penQ=0;
-        const tipos=p.prot_tipos||[];
-        if(cfg.peixe_semana>=0 && tipos.includes("peixe"))
-          penQ+= cota.peixe>=cfg.peixe_semana?3.0:-0.35;
-        if(cfg.vermelha_semana>=0 && tipos.includes("boi"))
-          penQ+= cota.boi>=cfg.vermelha_semana?3.0:-0.35;
+        const penS=cfg.sodio_max?Math.max(0,(n.s-cfg.sodio_max*PESO_REF[ref]/soma)/cfg.sodio_max)*0.8:0;
+        // condições de saúde
+        let penH=0;
+        const cond=cfg.condicoes||[];
+        if(cond.includes("glicemia")){
+          const carbPct=n.k>0?(n.b*4)/n.k:0;
+          penH+=Math.max(0,carbPct-0.45)*1.6 - Math.min(n.f,12)*0.02;
+        }
+        if(cond.includes("colesterol")) penH+=Math.max(0,n.sa-6)*0.06;
+        if(cond.includes("anemia"))     penH-=Math.min(n.fe,6)*0.05;
+        const bonus=((cfg.proteinas||[]).length&&(p.prot_tipos||[]).some(x=>cfg.proteinas.includes(x)))?-0.30:0;
+        let penQ=0; const tipos=p.prot_tipos||[];
+        if(cfg.peixe_semana>=0 && tipos.includes("peixe"))     penQ+= cota.peixe>=cfg.peixe_semana?3:-0.35;
+        if(cfg.vermelha_semana>=0 && tipos.includes("boi"))    penQ+= cota.boi>=cfg.vermelha_semana?3:-0.35;
+        // marmita: salada crua não sobrevive ao reaquecimento
+        if(cfg.almoco_tipo==="marmita" && ref==="almoco" &&
+           (p.itens||[]).some(i=>["alface","rucula","pepino"].includes(i.slug))) penQ+=0.5;
         const mine=p.minha?-0.15:0;
-        const sc=erroK+penRep+penC+penP+penS+penQ+bonus+mine+Math.random()*0.12;
+        const sc=erroK+penRep+penUso+penC+penP+penS+penH+penQ+bonus+mine+Math.random()*0.22;
+        if(!isFinite(sc)) return;
         if(!best||sc<best.sc) best={sc,p,esc};
       });
-      usada[best.p.id]=di; usadoHoje.add(best.p.id);
-      const tp=best.p.prot_tipos||[];
-      if(tp.includes("peixe")) cota.peixe++;
-      if(tp.includes("boi")) cota.boi++;
+      if(!best) return;
+      usada[best.p.id]=di; usos[best.p.id]=(usos[best.p.id]||0)+1; usadoHoje.add(best.p.id);
+      contaCota(best.p.id);
       plano[dia][ref]=montaItem(best.p,best.esc,cfg);
     });
   });
   if(orcDia) ajustaOrcamento(plano,cfg,pool,alvoK,orcDia*dias.length);
-  return {plano,dias,faltou:[...faltou]};
+  aplicaLivres(plano,dias,cfg);
+  return {plano,dias,faltou:[...faltou],
+          pratos:new Set(Object.values(plano).flatMap(d=>Object.values(d).map(i=>i.p))).size};
+}
+// refeições livres: uma por semana, de preferência no jantar de sexta ou sábado
+function aplicaLivres(plano,dias,cfg){
+  if(!cfg.livre_semana) return;
+  const porSem=cfg.dias_semana===7?7:5;
+  for(let s=0;s*porSem<dias.length;s++){
+    const bloco=dias.slice(s*porSem,(s+1)*porSem);
+    const pref=bloco.filter(d=>[5,6].includes(new Date(d+"T12:00:00").getDay()));
+    const alvo=(pref.length?pref:bloco).slice();
+    for(let i=0;i<cfg.livre_semana && alvo.length;i++){
+      const d=alvo.splice(Math.floor(Math.random()*alvo.length),1)[0];
+      const ref=plano[d].jantar?"jantar":(plano[d].almoco?"almoco":Object.keys(plano[d])[0]);
+      if(ref) plano[d][ref]=itemLivre();
+    }
+  }
 }
 function ajustaOrcamento(plano,cfg,pool,alvoK,tetoTotal){
-  const total=()=>Object.values(plano).reduce((s,d)=>s+Object.values(d).reduce((x,i)=>x+i.c,0),0);
+  const total=()=>Object.values(plano).reduce((s,d)=>s+Object.values(d).reduce((x,i)=>x+num(i.c),0),0);
   let voltas=0;
   while(total()>tetoTotal*1.02 && voltas++<500){
     let alvo=null;
@@ -1657,8 +1734,8 @@ function ajustaOrcamento(plano,cfg,pool,alvoK,tetoTotal){
     let melhor=null;
     candidatos(ref,cfg,pool,dia).forEach(p=>{
       if(usadoHoje.has(p.id)) return;
-      const esc=Math.max(.6,Math.min(1.6,alvoK[ref]/(p.kcal||1)));
-      const n=nutriDeItens(p.itens,esc,cfg.veg_extra?1.35:1);
+      const esc=Math.max(.6,Math.min(1.6,alvoK[ref]/(num(p.kcal)||1)));
+      const n=nutriDePrep(p,esc,cfg.veg_extra?1.35:1);
       if(Math.abs(n.k-alvoK[ref])/alvoK[ref]>0.35) return;
       if(n.custo>=it.c*0.97) return;
       const sc=n.custo+Math.abs(n.k-alvoK[ref])/alvoK[ref]*3;
@@ -1671,27 +1748,48 @@ function ajustaOrcamento(plano,cfg,pool,alvoK,tetoTotal){
 
 async function gerarCardapio(){
   const cfg=coletaCfg();
+  if(!cfg.refeicoes.length){ msg("wizMsg","Sem refeições no plano. Volte ao passo 2."); return; }
   if(!(PERFIL.meta_kcal||calcula().meta)){
     msg("wizMsg","Preencha altura, peso, nascimento e sexo na aba Corpo & IMC — sem isso não tenho sua meta de calorias.");
     return;
   }
   msg("wizMsg","Montando…",true);
   await new Promise(r=>setTimeout(r,30));
-  // o questionário também atualiza o perfil (objetivo e proteína por kg)
   const selObj=document.getElementById("pObj"); if(selObj) selObj.value=cfg.objetivo;
   PERFIL.prot_g_kg=cfg.prot_g_kg;
-  const {plano,dias,faltou}=gerarPlano(cfg);
-  PLANOCFG=cfg; window.__plano=plano; window.__dias=dias;
+  const {plano,dias,faltou,pratos}=gerarPlano(cfg);
+  PLANOCFG=cfg; window.__plano=plano; window.__dias=dias; PLANO_ID=null;  // sempre um plano novo
   await salvarPerfil(); await salvarPlano();
   document.getElementById("dlgWiz").close();
   setSub("plano"); renderPlano(); renderCompras();
   if(faltou.length) setTimeout(()=>alert(
     "Aviso: com as restrições que você marcou sobraram poucas opções para "+
-    faltou.map(r=>REFS.find(x=>x[0]===r)[1]).join(", ")+
+    faltou.map(r=>(REFS.find(x=>x[0]===r)||[,r])[1]).join(", ")+
     ". Usei o que havia, afrouxando o tempo de preparo e a faixa de preço quando precisou."),300);
+  else console.log("cardápio gerado com",pratos,"pratos diferentes");
+}
+// gera outra variação com as MESMAS respostas
+async function regerarPlano(){
+  if(!PLANOCFG){ alert("Monte um cardápio primeiro — aí eu consigo gerar variações das mesmas respostas."); return; }
+  if(!confirm("Gerar outra variação com as mesmas respostas?\n\nO cardápio atual será substituído. Se quiser guardá-lo, salve como favorito antes.")) return;
+  await carregaBase();
+  const {plano,dias,faltou,pratos}=gerarPlano(PLANOCFG);
+  window.__plano=plano; window.__dias=dias;
+  await salvarPlano(); renderPlano(); renderCompras();
+  alert("Nova variação pronta: "+pratos+" pratos diferentes em "+dias.length+" dias.");
+}
+async function excluirPlano(){
+  if(!window.__plano||!Object.keys(window.__plano).length){ alert("Não há cardápio para excluir."); return; }
+  if(!confirm("Excluir o cardápio atual?\n\nEle sai da tela e o próximo será montado do zero, sem nada por cima. Favoritos salvos não são afetados.")) return;
+  if(PLANO_ID) await _sb.from("saude_plano").delete().eq("id",PLANO_ID).eq("user_id",USER.id);
+  PLANO_ID=null; window.__plano={}; window.__dias=[];
+  document.getElementById("planoDias").innerHTML=
+    '<div class="empty">Cardápio excluído. Clique em <b>Montar cardápio</b> para começar de novo.</div>';
+  document.getElementById("planoResumo").textContent="Nenhum cardápio montado ainda.";
+  renderCompras();
 }
 async function salvarPlano(){
-  const row={user_id:USER.id,ativo:true,cfg:PLANOCFG,plano:window.__plano,
+  const row={user_id:USER.id,ativo:true,favorito:false,cfg:PLANOCFG,plano:window.__plano,
              inicio:PLANOCFG.inicio,semanas:PLANOCFG.semanas,
              custo_total:+custoTotal().toFixed(2),updated_at:new Date().toISOString()};
   if(PLANO_ID) row.id=PLANO_ID;
@@ -1709,7 +1807,69 @@ async function carregaPlano(){
 }
 function custoTotal(){
   const p=window.__plano||{};
-  return Object.values(p).reduce((s,d)=>s+Object.values(d).reduce((x,i)=>x+(+i.c||0),0),0);
+  return Object.values(p).reduce((s,d)=>s+Object.values(d).reduce((x,i)=>x+num(i.c),0),0);
+}
+
+// ---------------------------- favoritos ----------------------------
+async function salvarFavorito(){
+  if(!window.__plano||!Object.keys(window.__plano).length){ alert("Monte um cardápio antes de favoritar."); return; }
+  const nome=prompt("Nome do favorito:", "Cardápio de "+new Date().toLocaleDateString("pt-BR",{month:"long"}));
+  if(!nome) return;
+  const {error}=await _sb.from("saude_plano").insert({
+    user_id:USER.id,ativo:false,favorito:true,nome,cfg:PLANOCFG,plano:window.__plano,
+    inicio:PLANOCFG?PLANOCFG.inicio:hojeISO(),semanas:PLANOCFG?PLANOCFG.semanas:null,
+    custo_total:+custoTotal().toFixed(2)});
+  if(error){ alert("Erro ao salvar: "+error.message); return; }
+  await carregaFavoritos();
+  alert('Salvo como favorito: "'+nome+'". Você pode reaplicá-lo em qualquer data pelo botão Favoritos.');
+}
+async function carregaFavoritos(){
+  try{
+    const {data}=await _sb.from("saude_plano").select("id,nome,plano,cfg,custo_total,created_at")
+      .eq("user_id",USER.id).eq("favorito",true).order("created_at",{ascending:false});
+    FAVS=data||[];
+  }catch(e){ FAVS=[]; }
+}
+async function abrirFavoritos(){
+  await carregaFavoritos();
+  document.getElementById("favData").value=hojeISO();
+  const box=document.getElementById("favLista");
+  box.innerHTML=FAVS.length?`<div style="overflow-x:auto"><table>
+    <tr><th>Favorito</th><th class="n">Dias</th><th class="n">Custo</th><th></th></tr>`+
+    FAVS.map(f=>{
+      const dias=Object.keys(f.plano||{}).length;
+      return `<tr><td>${esc(f.nome||"sem nome")}
+        <div class="hint">salvo em ${new Date(f.created_at).toLocaleDateString("pt-BR")}</div></td>
+        <td class="n">${dias}</td><td class="n">R$ ${n0(f.custo_total||0)}</td>
+        <td class="n"><button class="btn sm" onclick="aplicarFavorito('${f.id}')">Aplicar</button>
+          <button class="btn sec sm" onclick="excluirFavorito('${f.id}')">🗑️</button></td></tr>`;
+    }).join("")+`</table></div>`
+    :'<div class="empty">Nenhum favorito ainda. Monte um cardápio que você gostou e clique em ⭐ Salvar favorito.</div>';
+  document.getElementById("dlgFav").showModal();
+}
+async function aplicarFavorito(id){
+  const f=FAVS.find(x=>x.id===id); if(!f) return;
+  const inicio=document.getElementById("favData").value||hojeISO();
+  const antigos=Object.keys(f.plano||{}).sort();
+  if(!antigos.length){ alert("Esse favorito está vazio."); return; }
+  // recalcula as datas mantendo o intervalo entre os dias originais
+  const base=new Date(antigos[0]+"T12:00:00").getTime();
+  const novo={};
+  antigos.forEach(d=>{
+    const off=Math.round((new Date(d+"T12:00:00").getTime()-base)/864e5);
+    const nd=new Date(inicio+"T12:00:00"); nd.setDate(nd.getDate()+off);
+    novo[nd.toISOString().slice(0,10)]=JSON.parse(JSON.stringify(f.plano[d]));
+  });
+  PLANOCFG={...(f.cfg||{}),inicio};
+  window.__plano=novo; window.__dias=Object.keys(novo).sort(); PLANO_ID=null;
+  await salvarPlano();
+  document.getElementById("dlgFav").close();
+  setSub("plano"); renderPlano(); renderCompras();
+}
+async function excluirFavorito(id){
+  if(!confirm("Excluir esse favorito?")) return;
+  await _sb.from("saude_plano").delete().eq("id",id).eq("user_id",USER.id);
+  await carregaFavoritos(); abrirFavoritos();
 }
 
 // ----------------------------- telas -----------------------------
@@ -1732,21 +1892,28 @@ function renderPlano(){
   const res=document.getElementById("planoResumo");
   if(!dias.length){ res.textContent="Nenhum cardápio montado ainda."; return; }
   const custo=custoTotal(), mes=custo/dias.length*30;
-  const kcalMed=dias.reduce((s,d)=>s+Object.values(plano[d]).reduce((x,i)=>x+i.k,0),0)/dias.length;
-  res.innerHTML=`<b>${dias.length} dias</b> · média de <b>${n0(kcalMed)} kcal por dia</b> ·
+  const kcalMed=dias.reduce((s,d)=>s+Object.values(plano[d]).reduce((x,i)=>x+num(i.k),0),0)/dias.length;
+  const pratos=new Set(dias.flatMap(d=>Object.values(plano[d]).map(i=>i.p))).size;
+  res.innerHTML=`<b>${dias.length} dias</b> · <b>${pratos} pratos diferentes</b> ·
+    média de <b>${n0(kcalMed)} kcal por dia</b> ·
     custo estimado de <b>R$ ${n0(custo)}</b> no período, cerca de <b>R$ ${n0(mes)} por mês</b>`;
   const hoje=hojeISO();
   box.innerHTML=dias.map(d=>{
     const refs=plano[d];
-    const tot=Object.values(refs).reduce((a,i)=>({k:a.k+i.k,pr:a.pr+i.pr,cb:a.cb+i.cb,gd:a.gd+i.gd,fb:a.fb+(i.fb||0),sd:a.sd+(i.sd||0),c:a.c+i.c}),{k:0,pr:0,cb:0,gd:0,fb:0,sd:0,c:0});
+    const tot=Object.values(refs).reduce((a,i)=>({k:a.k+num(i.k),pr:a.pr+num(i.pr),cb:a.cb+num(i.cb),
+      gd:a.gd+num(i.gd),fb:a.fb+num(i.fb),sd:a.sd+num(i.sd),c:a.c+num(i.c)}),{k:0,pr:0,cb:0,gd:0,fb:0,sd:0,c:0});
     const dt=new Date(d+"T12:00:00");
     const nome=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"][dt.getDay()];
     const linhas=REFS.filter(([k])=>refs[k]).map(([k,rot])=>{
       const i=refs[k];
+      if(i.livre) return `<div class="ref"><div class="rt">${rot}</div>
+        <div class="rn">🎉 Refeição livre</div>
+        <div class="ri">Coma o que você quiser — não entra na conta do dia.</div>
+        <div class="rk"><button class="btn sec sm" onclick="abrirTroca('${d}','${k}')">↻ Quero um prato aqui</button></div></div>`;
       return `<div class="ref">
         <div class="rt">${rot}</div>
         <div class="rn">${esc(i.n)}</div>
-        <div class="ri">${i.it.filter(x=>x.g>0).map(x=>esc(nomeIng(x))+" — "+n0(x.g)+" g").join(" · ")}</div>
+        <div class="ri">${(i.it||[]).filter(x=>x.g>0).map(x=>esc(nomeIng(x))+" — "+n0(x.g)+" g").join(" · ")}</div>
         ${i.tx?`<div class="ri" style="opacity:.85">👩‍🍳 ${esc(i.tx)}${i.tm?" · leva cerca de "+i.tm+" min":""}</div>`:""}
         <div class="rk">
           <span class="stat sm2">${n0(i.k)} kcal</span>
@@ -1770,11 +1937,11 @@ function renderPlano(){
   }).join("");
   const sel=document.getElementById("cpSemana");
   if(sel){
-    const passo=PLANOCFG&&PLANOCFG.compras_dias?PLANOCFG.compras_dias:7;
+    const passo=(PLANOCFG&&PLANOCFG.compras_dias)||7;
     const blocos=Math.ceil(dias.length/passo);
     sel.innerHTML=`<option value="0">Período inteiro (${dias.length} dias)</option>`+
-      Array.from({length:blocos},(_,i)=>`<option value="${i+1}">Compra ${i+1} — ${
-        dias.slice(i*passo,(i+1)*passo)[0].split("-").reverse().slice(0,2).join("/")} em diante</option>`).join("");
+      Array.from({length:blocos},(_,i)=>`<option value="${i+1}">Compra ${i+1} — a partir de ${
+        dias.slice(i*passo,(i+1)*passo)[0].split("-").reverse().slice(0,2).join("/")}</option>`).join("");
   }
 }
 function nomeIng(x){ return x.s?((PRECOS[x.s]||{}).nome||x.s):(x.n||"item"); }
@@ -1783,15 +1950,15 @@ function abrirTroca(dia,ref){
   const cfg=PLANOCFG||{alergias:[],nao_come:[],faixa_max:9,proteinas:[],odeio:[],tempo_semana:999,tempo_fds:999};
   const pool=PREPS.concat(cfg.usar_receitas===false?[]:receitasComoPreps());
   const metaK=PERFIL.meta_kcal||calcula().meta||2000;
-  const soma=(cfg.refeicoes||REFS.map(([k])=>k)).reduce((s,r)=>s+PESO_REF[r],0);
+  const soma=(cfg.refeicoes||REFS.map(([k])=>k)).reduce((s,r)=>s+PESO_REF[r],0)||1;
   const alvo=metaK*PESO_REF[ref]/soma;
-  const atual=window.__plano[dia][ref];
+  const atual=window.__plano[dia][ref]||{};
   document.getElementById("trocaInfo").textContent=
-    REFS.find(x=>x[0]===ref)[1]+" de "+dia.split("-").reverse().join("/")+
+    (REFS.find(x=>x[0]===ref)||[,ref])[1]+" de "+dia.split("-").reverse().join("/")+
     " · procurando pratos perto de "+n0(alvo)+" kcal";
   const lista=candidatos(ref,{...cfg,tempo_semana:999,tempo_fds:999},pool).map(p=>{
-    const e=Math.max(.6,Math.min(1.6,alvo/(p.kcal||1)));
-    const n=nutriDeItens(p.itens,e,cfg.veg_extra?1.35:1);
+    const e=Math.max(.6,Math.min(1.6,alvo/(num(p.kcal)||1)));
+    const n=nutriDePrep(p,e,cfg.veg_extra?1.35:1);
     return {p,e,n,err:Math.abs(n.k-alvo)/alvo};
   }).sort((a,b)=>a.err-b.err).slice(0,40);
   document.getElementById("trocaLista").innerHTML=`<div style="overflow-x:auto"><table>
@@ -1815,10 +1982,12 @@ async function fazTroca(dia,ref,pid,esc){
 async function jogarDia(dia){
   const refs=(window.__plano||{})[dia]; if(!refs) return;
   const rows=[];
-  Object.entries(refs).forEach(([ref,i])=>rows.push({
-    user_id:USER.id,dia:diaSel(),refeicao:ref,alimento:i.n,quantidade_g:i.it.reduce((s,x)=>s+(+x.g||0),0),
-    kcal:i.k,prot_g:i.pr,carb_g:i.cb,gord_g:i.gd,fibra_g:i.fb,sodio_mg:i.sd,fonte:"cardapio",ref_id:i.p}));
-  if(!rows.length) return;
+  Object.entries(refs).forEach(([ref,i])=>{ if(i.livre) return;
+    rows.push({user_id:USER.id,dia:diaSel(),refeicao:ref,alimento:i.n,
+      quantidade_g:(i.it||[]).reduce((s,x)=>s+num(x.g),0),
+      kcal:i.k,prot_g:i.pr,carb_g:i.cb,gord_g:i.gd,fibra_g:i.fb,sodio_mg:i.sd,
+      fonte:"cardapio",ref_id:i.p});});
+  if(!rows.length){ alert("Esse dia só tem refeição livre."); return; }
   const {error}=await _sb.from("saude_registro").insert(rows);
   if(error){ alert("Erro: "+error.message); return; }
   setTab("hoje"); carregaDia();
@@ -1835,13 +2004,13 @@ function renderCompras(){
   const box=document.getElementById("comprasBox");
   if(!dias.length){ box.innerHTML='<div class="empty">Monte um cardápio primeiro.</div>'; return; }
   const bloco=parseInt((document.getElementById("cpSemana")||{}).value||"0",10);
-  const passo=PLANOCFG&&PLANOCFG.compras_dias?PLANOCFG.compras_dias:7;
+  const passo=(PLANOCFG&&PLANOCFG.compras_dias)||7;
   const alvo=bloco?dias.slice((bloco-1)*passo,bloco*passo):dias;
   const agg={};
-  alvo.forEach(d=>Object.values(plano[d]).forEach(i=>i.it.forEach(x=>{
+  alvo.forEach(d=>Object.values(plano[d]).forEach(i=>(i.it||[]).forEach(x=>{
     const key=x.s||("livre:"+(x.n||"item"));
     agg[key]=agg[key]||{g:0,slug:x.s,nome:x.s?((PRECOS[x.s]||{}).nome||x.s):(x.n||"item")};
-    agg[key].g+=+x.g||0;
+    agg[key].g+=num(x.g);
   })));
   const linhas=Object.values(agg).map(a=>{
     const rend=a.slug?rendOf(a.slug):1, kg=a.g*rend/1000;
@@ -1962,7 +2131,7 @@ async function boot(){
   document.getElementById("dia").value=hojeISO();
   await carregaPerfil();
   await Promise.all([carregaBase(),carregaReceitas()]);
-  await carregaPlano(); await carregaPesos(); await carregaMedidas();
+  await carregaPlano(); await carregaFavoritos(); await carregaPesos(); await carregaMedidas();
   document.getElementById("pesoData").value=hojeISO();
   document.getElementById("medData").value=hojeISO();
   document.getElementById("app").style.display="block";

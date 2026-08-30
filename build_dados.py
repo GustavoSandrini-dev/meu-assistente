@@ -383,6 +383,7 @@ for slug, (tid, nome, rs, rend, med, al) in ING.items():
                        # nutrição por 100 g, para o gerador escalar ingrediente a ingrediente
                        k=a.get("k") or 0, p=a.get("p") or 0, b=a.get("b") or 0,
                        g=a.get("g") or 0, f=a.get("f") or 0, s=a.get("s") or 0,
+                       sa=a.get("sa") or 0, co=a.get("co") or 0, fe=a.get("fe") or 0,
                        veg=a["c"] in ("Verduras, hortaliças e derivados","Frutas e derivados")))
 precos.sort(key=lambda x: x["slug"])
 
