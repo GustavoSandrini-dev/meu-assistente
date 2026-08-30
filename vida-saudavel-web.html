@@ -106,6 +106,11 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 .ingbt{font:inherit;font-size:12px;color:var(--muted);background:var(--row);border:1px solid var(--border);
   border-radius:7px;padding:3px 7px;margin:2px 3px 2px 0;cursor:pointer}
 .ingbt:hover{border-color:var(--accent);color:var(--text)}
+.chk{font:inherit;font-size:16px;line-height:1;background:var(--card);border:1.5px solid var(--border);
+  border-radius:50%;width:30px;height:30px;margin-left:8px;cursor:pointer;color:var(--muted);vertical-align:middle}
+.chk:hover{border-color:var(--accent)}
+.chk.on{border-color:var(--pos);background:var(--row)}
+.meal h3{align-items:center}
 .hint{font-size:11px;color:var(--muted);line-height:1.5}
 </style>
 </head>
@@ -146,6 +151,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
         <input id="dia" type="date" onchange="carregaDia()">
         <button class="btn sec sm" onclick="mudaDia(1)">▶</button>
         <button class="btn sec sm" onclick="hojeDia()">Hoje</button>
+        <div style="margin-left:auto" id="btnPlanoDia"></div>
       </div>
       <div class="ringwrap">
         <div class="ring">
@@ -168,7 +174,66 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
         </div>
       </div>
     </div>
+
+    <!-- ------------------- como foi o dia ------------------- -->
+    <div class="grid2">
+      <div class="card">
+        <h2>🏋️ Treino de hoje</h2>
+        <div class="row" style="margin-bottom:10px">
+          <button class="btn sm" id="btnTreinou" onclick="marcaTreino(true)">Treinei</button>
+          <button class="btn sec sm" id="btnFolga" onclick="marcaTreino(false)">Dia de folga</button>
+        </div>
+        <div id="treinoDet" style="display:none">
+          <div class="row">
+            <select id="treinoTipo" onchange="salvaDia()" style="width:auto">
+              <option value="musculacao">🏋️ Musculação</option>
+              <option value="corrida">🏃 Corrida / caminhada</option>
+              <option value="natacao">🏊 Natação</option>
+              <option value="bike">🚴 Bicicleta</option>
+              <option value="outro">🤸 Outro</option>
+            </select>
+            <input id="treinoMin" type="number" step="5" placeholder="min" style="width:90px" onchange="salvaDia()">
+          </div>
+        </div>
+        <div id="treinoResumo" class="hint" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <h2>🔥 Sequência</h2>
+        <div id="streakBox"></div>
+      </div>
+    </div>
+
+    <!-- ------------------- meta de peso ------------------- -->
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <h2 style="margin:0">🎯 Objetivo</h2>
+        <div class="row">
+          <label class="lb" style="margin:0">Peso que quero atingir</label>
+          <input id="pesoMeta" type="number" step="0.1" style="width:90px" onchange="salvarMetaPeso()">
+          <span class="hint">kg até</span>
+          <input id="pesoMetaPrazo" type="date" style="width:auto" onchange="salvarMetaPeso()">
+        </div>
+      </div>
+      <div id="objetivoBox"></div>
+    </div>
+
+    <!-- ------------------- refeições do dia ------------------- -->
     <div id="refeicoes"></div>
+
+    <!-- ------------------- adesão ------------------- -->
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <h2 style="margin:0">📊 Como você tem seguido</h2>
+        <select id="adesaoPer" onchange="renderAdesao()" style="width:auto">
+          <option value="14">Últimos 14 dias</option>
+          <option value="30" selected>Últimos 30 dias</option>
+          <option value="60">Últimos 60 dias</option>
+        </select>
+      </div>
+      <div id="adesaoBox"></div>
+      <div id="adesaoStats" style="margin-top:10px"></div>
+    </div>
   </div>
 
   <!-- ========================== CARDÁPIO ========================== -->
@@ -695,6 +760,16 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
   <div class="row" style="margin-top:12px"><button class="btn sec" onclick="document.getElementById('dlgTroca').close()">Fechar</button></div>
 </dialog>
 
+<!-- =============== detalhe da refeição do dia =============== -->
+<dialog id="dlgPrato">
+  <h2 style="font-size:17px;margin-bottom:2px" id="drTit">Prato</h2>
+  <div class="sub" id="drSub">—</div>
+  <div id="drCorpo" style="max-height:52vh;overflow:auto;margin-top:10px"></div>
+  <div class="row" style="margin-top:14px" id="drAcoes"></div>
+  <div class="row" style="margin-top:8px">
+    <button class="btn sec" onclick="document.getElementById('dlgPrato').close()">Fechar</button></div>
+</dialog>
+
 <!-- ================= trocar um ingrediente ================= -->
 <dialog id="dlgIng">
   <h2 style="font-size:16px;margin-bottom:4px">⇄ Trocar um item do prato</h2>
@@ -774,6 +849,7 @@ function setTab(t){
   ["hoje","cardapio","alimentos","agua","corpo"].forEach(k=>{
     document.getElementById("view-"+k).style.display = k===t?"block":"none";
   });
+  if(t==="hoje"){ renderResumo(); renderRefeicoes(); renderStreak(); renderObjetivo(); renderAdesao(); }
   if(t==="cardapio"){ renderPlano(); renderReceitas(); }
   if(t==="agua"){ renderAgua(); renderAguaHist(); }
   if(t==="corpo"){ calcComposicao(); renderPesoHist(); renderMedHist(); renderGrafico(); avisoPesagem(); }
@@ -795,6 +871,8 @@ async function carregaPerfil(){
   document.getElementById("copoSel").value=PERFIL.copo_ml??250;
   document.getElementById("lembInt").value=PERFIL.lembrete_agua_min??60;
   document.getElementById("somSel").value=PERFIL.lembrete_som||"silencioso";
+  if(PERFIL.peso_meta!=null) document.getElementById("pesoMeta").value=PERFIL.peso_meta;
+  if(PERFIL.peso_meta_prazo) document.getElementById("pesoMetaPrazo").value=PERFIL.peso_meta_prazo;
   const ini=document.getElementById("lembIni"), fim=document.getElementById("lembFim");
   ini.innerHTML=fim.innerHTML="";
   for(let h=0;h<24;h++){
@@ -823,6 +901,8 @@ async function salvarPerfil(avisa){
     copo_ml:parseInt(val("copoSel"),10)||250,
     lembrete_agua_min:parseInt(val("lembInt"),10)||60,
     lembrete_som:val("somSel")||"silencioso",
+    peso_meta:PERFIL.peso_meta??null, peso_meta_prazo:PERFIL.peso_meta_prazo??null,
+    peso_inicial:PERFIL.peso_inicial??null,
     prot_g_kg:PERFIL.prot_g_kg||2,
     lembrete_agua:document.getElementById("lembOn").checked,
     lembrete_ini:parseInt(document.getElementById("lembIni").value,10),
@@ -1056,7 +1136,7 @@ async function registrarPeso(){
   if(dia>=hojeISO()) document.getElementById("pPeso").value=peso;
   msg("pMsg","Pesagem registrada ✓",true);
   await salvarPerfil();
-  await carregaPesos(); renderPesoHist(); renderGrafico(); avisoPesagem();
+  await carregaPesos(); renderPesoHist(); renderGrafico(); avisoPesagem(); renderObjetivo();
 }
 async function editarPeso(dia,atual){
   const v=prompt("Peso em "+dia.split("-").reverse().join("/")+" (kg):",atual);
@@ -1174,20 +1254,207 @@ function avisoPesagem(){
 }
 
 // ============================ DIÁRIO ============================
+let DIA={}, HIST=[];
+// até que horas ainda dá para dizer que a refeição não foi pulada
+const LIMITE={cafe:10.5,lanche1:12,almoco:15.5,lanche2:18.5,jantar:22,ceia:23.9};
+const REF_EMOJI={cafe:"☕",lanche1:"🍎",almoco:"🍛",lanche2:"🥪",jantar:"🍲",ceia:"🌙"};
+
 function diaSel(){ return document.getElementById("dia").value||hojeISO(); }
 function mudaDia(d){ const x=new Date(diaSel()+"T12:00:00"); x.setDate(x.getDate()+d);
   document.getElementById("dia").value=x.toISOString().slice(0,10); carregaDia(); }
 function hojeDia(){ document.getElementById("dia").value=hojeISO(); carregaDia(); }
+function ehHoje(){ return diaSel()===hojeISO(); }
 
 async function carregaDia(){
   const dia=diaSel();
-  const [{data:regs},{data:ag}]=await Promise.all([
+  const [{data:regs},{data:ag},{data:d1}]=await Promise.all([
     _sb.from("saude_registro").select("*").eq("user_id",USER.id).eq("dia",dia).order("created_at"),
-    _sb.from("saude_agua").select("*").eq("user_id",USER.id).eq("dia",dia)
+    _sb.from("saude_agua").select("*").eq("user_id",USER.id).eq("dia",dia),
+    _sb.from("saude_dia").select("*").eq("user_id",USER.id).eq("dia",dia).maybeSingle()
   ]);
-  REGS=regs||[]; AGUA=ag||[];
+  REGS=regs||[]; AGUA=ag||[]; DIA=d1||{dia,feitas:{}};
+  if(!DIA.feitas) DIA.feitas={};
+  await carregaHistorico();
   renderResumo(); renderRefeicoes(); renderAgua();
+  renderTreino(); renderStreak(); renderObjetivo(); renderAdesao();
 }
+async function carregaHistorico(){
+  const de=new Date(); de.setDate(de.getDate()-90);
+  const {data}=await _sb.from("saude_dia").select("dia,feitas,treinou,treino,treino_min")
+    .eq("user_id",USER.id).gte("dia",de.toISOString().slice(0,10)).order("dia");
+  HIST=data||[];
+}
+async function salvaDia(){
+  const row={user_id:USER.id,dia:diaSel(),feitas:DIA.feitas||{},
+    treinou:DIA.treinou??null, treino:val("treinoTipo")||null,
+    treino_min:parseInt(val("treinoMin"),10)||null, updated_at:new Date().toISOString()};
+  DIA={...DIA,...row};
+  const {error}=await _sb.from("saude_dia").upsert(row,{onConflict:"user_id,dia"});
+  if(error) console.warn("salvaDia",error);
+  const i=HIST.findIndex(h=>h.dia===row.dia);
+  if(i>=0) HIST[i]={...HIST[i],...row}; else HIST.push({...row});
+  renderTreino(); renderStreak(); renderAdesao();
+}
+
+// ------------------------------ treino ------------------------------
+function marcaTreino(v){
+  DIA.treinou = DIA.treinou===v ? null : v;   // clicar de novo desmarca
+  salvaDia();
+}
+function renderTreino(){
+  const on=DIA.treinou===true, off=DIA.treinou===false;
+  const b1=document.getElementById("btnTreinou"), b2=document.getElementById("btnFolga");
+  if(!b1) return;
+  b1.className="btn sm"+(on?"":" sec"); b1.textContent=on?"✅ Treinei":"Treinei";
+  b2.className="btn sm"+(off?"":" sec"); b2.textContent=off?"✅ Dia de folga":"Dia de folga";
+  document.getElementById("treinoDet").style.display=on?"block":"none";
+  if(on){
+    if(DIA.treino) document.getElementById("treinoTipo").value=DIA.treino;
+    if(DIA.treino_min) document.getElementById("treinoMin").value=DIA.treino_min;
+  }
+  const sem=HIST.filter(h=>h.treinou&&h.dia>=novoDia(-6)).length;
+  const mes=HIST.filter(h=>h.treinou&&h.dia>=novoDia(-29)).length;
+  document.getElementById("treinoResumo").innerHTML=
+    `<b>${sem}</b> treino(s) nos últimos 7 dias · <b>${mes}</b> nos últimos 30 dias`;
+}
+function novoDia(off){ const d=new Date(); d.setDate(d.getDate()+off); return d.toISOString().slice(0,10); }
+
+// ----------------------------- sequência -----------------------------
+function refsDoDia(dia){
+  const cfg=PLANOCFG||{};
+  const plano=(window.__plano||{})[dia];
+  if(plano) return Object.keys(plano);
+  if(cfg.refeicoes&&cfg.refeicoes.length) return cfg.refeicoes;
+  return ["cafe","almoco","jantar"];
+}
+function adesaoDoDia(h){
+  const refs=refsDoDia(h.dia);
+  if(!refs.length) return null;
+  const f=h.feitas||{};
+  const feitas=refs.filter(r=>f[r]).length;
+  return feitas/refs.length;
+}
+function calculaStreak(){
+  const por={}; HIST.forEach(h=>por[h.dia]=h);
+  let streak=0, d=new Date(hojeISO()+"T12:00:00");
+  // o dia de hoje só quebra a sequência depois que ele acaba
+  const hoje=hojeISO();
+  for(let i=0;i<400;i++){
+    const iso=d.toISOString().slice(0,10);
+    const h=por[iso];
+    const a=h?adesaoDoDia(h):0;
+    if(a>=0.7) streak++;
+    else if(iso===hoje) { /* dia em andamento não quebra */ }
+    else break;
+    d.setDate(d.getDate()-1);
+  }
+  return streak;
+}
+function renderStreak(){
+  const box=document.getElementById("streakBox"); if(!box) return;
+  const s=calculaStreak();
+  const melhor=melhorStreak();
+  const hojeA=adesaoDoDia(HIST.find(h=>h.dia===hojeISO())||{dia:hojeISO(),feitas:DIA.feitas});
+  const refs=refsDoDia(diaSel());
+  const feitasHoje=refs.filter(r=>(DIA.feitas||{})[r]).length;
+  box.innerHTML=`<div style="font-size:40px;font-weight:800;line-height:1;color:${s>0?"var(--accent)":"var(--muted)"}">
+      ${s}<span style="font-size:15px;font-weight:600;color:var(--muted)"> dia(s) seguidos</span></div>
+    <div class="hint" style="margin-top:8px">
+      ${s===0?"Marque as refeições de hoje para começar a contar."
+             :(s===1?"Primeiro dia. Amanhã vira dois.":"Continue assim — recorde: "+melhor+" dias.")}
+    </div>
+    <div class="row" style="margin-top:12px">
+      <span class="stat">✅ Hoje: <b>${feitasHoje}/${refs.length}</b> refeições</span>
+      <span class="stat">🏆 Recorde: <b>${melhor}</b> dias</span>
+    </div>
+    <div class="hint" style="margin-top:8px">Conta como dia seguido quando você marca pelo menos
+      70% das refeições planejadas.</div>`;
+}
+function melhorStreak(){
+  const por={}; HIST.forEach(h=>por[h.dia]=h);
+  const dias=Object.keys(por).sort();
+  let best=0, cur=0, ant=null;
+  dias.forEach(d=>{
+    const seq = ant && (new Date(d)-new Date(ant))/864e5===1;
+    cur = (adesaoDoDia(por[d])>=0.7) ? (seq?cur+1:1) : 0;
+    best=Math.max(best,cur); ant=d;
+  });
+  return best;
+}
+
+// ----------------------------- objetivo -----------------------------
+async function salvarMetaPeso(){
+  PERFIL.peso_meta=parseFloat(val("pesoMeta"))||null;
+  PERFIL.peso_meta_prazo=val("pesoMetaPrazo")||null;
+  if(!PERFIL.peso_inicial && PESOS.length) PERFIL.peso_inicial=PESOS[0].kg;
+  await _sb.from("saude_perfil").upsert({user_id:USER.id,peso_meta:PERFIL.peso_meta,
+    peso_meta_prazo:PERFIL.peso_meta_prazo,peso_inicial:PERFIL.peso_inicial||null,
+    updated_at:new Date().toISOString()},{onConflict:"user_id"});
+  renderObjetivo();
+}
+function renderObjetivo(){
+  const box=document.getElementById("objetivoBox"); if(!box) return;
+  const el=document.getElementById("pesoMeta"), pz=document.getElementById("pesoMetaPrazo");
+  if(el&&PERFIL.peso_meta!=null&&el.value==="") el.value=PERFIL.peso_meta;
+  if(pz&&PERFIL.peso_meta_prazo&&pz.value==="") pz.value=PERFIL.peso_meta_prazo;
+  const c=calcula();
+  const atual=PESOS.length?PESOS[PESOS.length-1].kg:parseFloat(val("pPeso"))||PERFIL.peso_kg;
+  const meta=PERFIL.peso_meta;
+  // ritmo esperado pelo déficit calórico: 7700 kcal ≈ 1 kg
+  const deficit=(c.get&&c.meta)?(c.get-c.meta):0;
+  const kgSem=deficit*7/7700;
+  if(!atual){ box.innerHTML='<div class="empty">Registre seu peso na aba Corpo & IMC para eu acompanhar o objetivo.</div>'; return; }
+  if(!meta){
+    box.innerHTML=`<div class="hint">Defina o peso que você quer atingir no campo acima.
+      Com a meta de <b>${n0(c.meta||0)} kcal</b> por dia contra um gasto de <b>${n0(c.get||0)} kcal</b>,
+      o ritmo esperado é de <b>${n1(Math.abs(kgSem))} kg por semana</b> ${kgSem>0?"de perda":"de ganho"}.</div>`;
+    return;
+  }
+  const inicial=PERFIL.peso_inicial||(PESOS.length?PESOS[0].kg:atual);
+  const total=inicial-meta, andado=inicial-atual;
+  const pct=total!==0?Math.max(0,Math.min(100,andado/total*100)):0;
+  const falta=atual-meta;
+  const semanas=kgSem!==0?Math.abs(falta/kgSem):null;
+  const previsao=semanas?new Date(Date.now()+semanas*7*864e5).toLocaleDateString("pt-BR"):null;
+  // ritmo real medido nas últimas 4 semanas
+  const corte=novoDia(-28);
+  const recentes=PESOS.filter(p=>p.dia>=corte);
+  let real=null;
+  if(recentes.length>=2){
+    const dias=(new Date(recentes[recentes.length-1].dia)-new Date(recentes[0].dia))/864e5;
+    if(dias>=7) real=(recentes[recentes.length-1].kg-recentes[0].kg)/(dias/7);
+  }
+  const noPrazo = PERFIL.peso_meta_prazo ?
+    ((new Date(PERFIL.peso_meta_prazo)-new Date())/864e5)/7 : null;
+  box.innerHTML=`
+    <div class="row" style="justify-content:space-between;font-size:13px;margin-bottom:4px">
+      <span>Início: <b>${n1(inicial)} kg</b></span>
+      <span>Agora: <b style="color:var(--accent)">${n1(atual)} kg</b></span>
+      <span>Meta: <b>${n1(meta)} kg</b></span></div>
+    <div class="bar" style="height:12px"><i style="width:${pct}%;background:var(--accent)"></i></div>
+    <div class="hint" style="margin-top:5px">${n0(pct)}% do caminho · faltam <b>${n1(Math.abs(falta))} kg</b></div>
+    <div class="comps" style="margin-top:14px">
+      <div class="comp"><div class="ct">Ritmo esperado</div>
+        <div class="cv">${kgSem>0?"−":"+"}${n1(Math.abs(kgSem))} kg<span style="font-size:13px">/semana</span></div>
+        <div class="cd">Pelo déficit de ${n0(Math.abs(deficit))} kcal por dia entre o seu gasto e a sua meta.
+          A conta usa a referência de 7.700 kcal por quilo de gordura.</div></div>
+      <div class="comp"><div class="ct">Ritmo real medido</div>
+        <div class="cv" style="color:${real==null?"var(--muted)":(real<0?"var(--pos)":"var(--neg)")}">${
+          real==null?"—":(real>0?"+":"")+n1(real)+" kg"}<span style="font-size:13px">${real==null?"":"/semana"}</span></div>
+        <div class="cd">${real==null?"Preciso de pelo menos duas pesagens separadas por uma semana."
+          :"Medido nas suas pesagens dos últimos 28 dias."}</div></div>
+      <div class="comp"><div class="ct">Previsão</div>
+        <div class="cv" style="font-size:20px">${previsao||"—"}</div>
+        <div class="cd">${semanas?"Cerca de "+n0(semanas)+" semana(s) no ritmo esperado.":"Defina uma meta de calorias na aba Corpo & IMC."}
+        ${noPrazo!=null&&semanas?(semanas<=noPrazo
+            ?"<br><b style='color:var(--pos)'>Dentro do prazo que você marcou.</b>"
+            :"<br><b style='color:var(--neg)'>O prazo que você marcou é mais curto que esse ritmo.</b>"):""}</div></div>
+    </div>
+    <div class="hint" style="margin-top:10px">Perda saudável costuma ficar entre 0,5 e 1 kg por semana.
+      Ritmo muito acima disso normalmente vem acompanhado de perda de massa magra.</div>`;
+}
+
+// ---------------------------- refeições ----------------------------
 function totais(){
   const t={kcal:0,prot:0,carb:0,gord:0,fibra:0,sodio:0};
   REGS.forEach(r=>{ t.kcal+=+r.kcal||0; t.prot+=+r.prot_g||0; t.carb+=+r.carb_g||0;
@@ -1203,7 +1470,8 @@ function renderResumo(){
   arc.setAttribute("stroke",t.kcal>meta?"var(--neg)":"var(--accent)");
   document.getElementById("ringKcal").textContent=n0(t.kcal);
   document.getElementById("ringMeta").textContent="de "+n0(meta)+" kcal";
-  const mp=PERFIL.meta_prot_g||calcula().prot||120, mc=PERFIL.meta_carb_g||calcula().carb||220, mg=PERFIL.meta_gord_g||calcula().gord||60;
+  const c=calcula();
+  const mp=PERFIL.meta_prot_g||c.prot||120, mc=PERFIL.meta_carb_g||c.carb||220, mg=PERFIL.meta_gord_g||c.gord||60;
   const set=(id,v,m)=>{ document.getElementById(id).style.width=Math.min(100,(v/m)*100)+"%"; };
   set("mProt",t.prot,mp); set("mCarb",t.carb,mc); set("mGord",t.gord,mg);
   document.getElementById("mProtT").textContent=n0(t.prot)+" / "+n0(mp)+" g";
@@ -1213,25 +1481,172 @@ function renderResumo(){
   document.getElementById("sSodio").textContent=n0(t.sodio);
   document.getElementById("sAgua").textContent=n0(AGUA.reduce((s,a)=>s+(+a.ml||0),0));
 }
+function planoDoDia(dia){ return (window.__plano||{})[dia||diaSel()]||null; }
+function pulou(ref){
+  if(!ehHoje()) return false;
+  const h=new Date().getHours()+new Date().getMinutes()/60;
+  return h>(LIMITE[ref]||24) && !(DIA.feitas||{})[ref] && !REGS.some(r=>r.refeicao===ref);
+}
 function renderRefeicoes(){
   const box=document.getElementById("refeicoes");
-  box.innerHTML=REFS.map(([k,nome])=>{
+  const plano=planoDoDia();
+  const dia=diaSel();
+  // botão de trazer o cardápio inteiro
+  const bt=document.getElementById("btnPlanoDia");
+  if(bt) bt.innerHTML = plano
+    ? `<button class="btn" onclick="usarPlanoDoDia()">📥 Trazer o cardápio de ${ehHoje()?"hoje":"esse dia"}</button>`
+    : (window.__plano&&Object.keys(window.__plano).length
+        ? `<span class="hint">Seu cardápio não cobre esse dia.</span>`
+        : `<button class="btn sec sm" onclick="setTab('cardapio')">🍽️ Montar um cardápio</button>`);
+
+  // só as refeições que a pessoa faz: as do plano, as do questionário e as já registradas
+  const doPlano=plano?Object.keys(plano):[];
+  const doCfg=(PLANOCFG&&PLANOCFG.refeicoes)||[];
+  const comReg=[...new Set(REGS.map(r=>r.refeicao))];
+  const usar=new Set([...doPlano,...doCfg,...comReg,...Object.keys(DIA.feitas||{})]);
+  const refs=usar.size?REFS.filter(([k])=>usar.has(k)):REFS;
+  box.innerHTML=refs.map(([k,nome])=>{
     const itens=REGS.filter(r=>r.refeicao===k);
+    const prev=plano?plano[k]:null;
+    const feita=!!(DIA.feitas||{})[k];
     const kc=itens.reduce((s,r)=>s+(+r.kcal||0),0);
-    const linhas=itens.length?itens.map(r=>`<div class="it">
+    const skip=pulou(k);
+    let corpo;
+    if(itens.length){
+      corpo=itens.map(r=>`<div class="it">
         <span class="nm">${esc(r.alimento)} <span class="tag">${n0(r.quantidade_g)} g</span></span>
         <span class="kc">${n0(r.kcal)} kcal · P ${n1(r.prot_g)} · C ${n1(r.carb_g)} · G ${n1(r.gord_g)}</span>
-        <button class="x" onclick="delReg('${r.id}')">✕</button></div>`).join("")
-      :'<div class="it" style="color:var(--muted)">Nada registrado</div>';
-    return `<div class="meal"><h3>${nome} <span>${n0(kc)} kcal</span></h3>${linhas}
-      <div class="row" style="margin-top:8px"><button class="btn sec sm" onclick="abrirBusca('${k}')">➕ Adicionar alimento</button></div></div>`;
+        <button class="x" onclick="delReg('${r.id}')">✕</button></div>`).join("");
+    } else if(prev && !prev.livre){
+      corpo=`<div class="it" style="cursor:pointer" onclick="abrirDetalheRef('${k}')">
+        <span class="nm"><b>${esc(prev.n)}</b>
+          <div class="hint">${(prev.it||[]).filter(x=>x.g>0).slice(0,4).map(x=>esc(nomeIng(x))).join(" · ")}
+            ${(prev.it||[]).length>4?" · …":""}</div></span>
+        <span class="kc">${n0(prev.k)} kcal<br>planejado</span></div>`;
+    } else if(prev && prev.livre){
+      corpo=`<div class="it"><span class="nm">🎉 Refeição livre — coma o que quiser</span></div>`;
+    } else {
+      corpo=`<div class="it" style="color:var(--muted)">Nada registrado</div>`;
+    }
+    const acoes=[];
+    if(prev && !itens.length && !prev.livre)
+      acoes.push(`<button class="btn sec sm" onclick="usarRefeicaoPlano('${k}')">📥 Usar esse prato</button>`);
+    acoes.push(`<button class="btn sec sm" onclick="abrirBusca('${k}')">➕ Adicionar alimento</button>`);
+    if(prev && !prev.livre)
+      acoes.push(`<button class="btn sec sm" onclick="abrirDetalheRef('${k}')">👀 Ver o prato</button>`);
+    return `<div class="meal" ${skip?'style="border-color:var(--neg)"':(feita?'style="border-color:var(--pos)"':"")}>
+      <h3><span>${nome}${skip?' <span class="tag" style="background:var(--neg);color:#fff">pulada</span>':""}</span>
+        <span>${n0(itens.length?kc:(prev?prev.k:0))} kcal
+          <button class="chk ${feita?"on":""}" title="${feita?"Feita":"Marcar como feita"}"
+                  onclick="marcaFeita('${k}')">${feita?"✅":"○"}</button></span></h3>
+      ${corpo}
+      <div class="row" style="margin-top:8px">${acoes.join("")}</div></div>`;
   }).join("");
+}
+async function marcaFeita(ref){
+  DIA.feitas=DIA.feitas||{};
+  const virou=!DIA.feitas[ref];
+  DIA.feitas[ref]=virou;
+  if(!virou) delete DIA.feitas[ref];
+  // marcar como feita traz o prato planejado para o diário, se ainda não veio
+  const prev=(planoDoDia()||{})[ref];
+  if(virou && prev && !prev.livre && !REGS.some(r=>r.refeicao===ref)) await usarRefeicaoPlano(ref,true);
+  await salvaDia();
+  renderRefeicoes();
+}
+async function usarRefeicaoPlano(ref,silencioso){
+  const prev=(planoDoDia()||{})[ref];
+  if(!prev||prev.livre) return;
+  const row={user_id:USER.id,dia:diaSel(),refeicao:ref,alimento:prev.n,
+    quantidade_g:(prev.it||[]).reduce((s,x)=>s+(+x.g||0),0),
+    kcal:prev.k,prot_g:prev.pr,carb_g:prev.cb,gord_g:prev.gd,
+    fibra_g:prev.fb,sodio_mg:prev.sd,fonte:"cardapio",ref_id:prev.p};
+  const {error}=await _sb.from("saude_registro").insert(row);
+  if(error){ if(!silencioso) alert("Erro: "+error.message); return; }
+  REGS.push({...row,id:"tmp"+Date.now()});
+  if(!silencioso){ renderResumo(); renderRefeicoes(); }
+}
+async function usarPlanoDoDia(){
+  const plano=planoDoDia(); if(!plano) return;
+  const refs=Object.keys(plano).filter(k=>!plano[k].livre&&!REGS.some(r=>r.refeicao===k));
+  if(!refs.length){ alert("As refeições desse dia já estão no diário."); return; }
+  for(const k of refs) await usarRefeicaoPlano(k,true);
+  renderResumo(); renderRefeicoes();
+}
+function abrirDetalheRef(ref){
+  const prev=(planoDoDia()||{})[ref]; if(!prev) return;
+  const feita=!!(DIA.feitas||{})[ref];
+  document.getElementById("drTit").textContent=prev.n;
+  document.getElementById("drSub").textContent=
+    (REFS.find(x=>x[0]===ref)||[,ref])[1]+" · "+diaSel().split("-").reverse().join("/")+
+    (prev.tm?" · leva cerca de "+prev.tm+" min":"");
+  document.getElementById("drCorpo").innerHTML=`
+    <div class="row" style="margin-bottom:10px">
+      <span class="stat">${n0(prev.k)} kcal</span>
+      <span class="stat">Proteína ${n1(prev.pr)} g</span>
+      <span class="stat">Carboidrato ${n1(prev.cb)} g</span>
+      <span class="stat">Gordura ${n1(prev.gd)} g</span>
+      <span class="stat">R$ ${n1(prev.c)}</span></div>
+    <div style="font-size:12px;font-weight:800;color:var(--label);margin-bottom:6px">O QUE VAI NO PRATO</div>
+    <div style="overflow-x:auto"><table>${(prev.it||[]).filter(x=>x.g>0).map(x=>
+      `<tr><td>${esc(nomeIng(x))}</td><td class="n">${n0(x.g)} g</td></tr>`).join("")}</table></div>
+    ${prev.tx?`<div style="font-size:12px;font-weight:800;color:var(--label);margin:12px 0 6px">COMO FAZER</div>
+      <div class="hint" style="font-size:13px">👩‍🍳 ${esc(prev.tx)}</div>`:""}
+    ${prev.trocas&&prev.trocas.length?`<div class="hint" style="margin-top:8px">🔁 ${
+      prev.trocas.map(t=>esc(t.de)+" → "+esc(t.para)).join(" · ")}</div>`:""}`;
+  document.getElementById("drAcoes").innerHTML=`
+    <button class="btn" onclick="marcaFeita('${ref}');document.getElementById('dlgPrato').close()">
+      ${feita?"↩️ Desmarcar":"✅ Marcar como feita"}</button>
+    <a class="btn sec" style="text-decoration:none" target="_blank" rel="noopener"
+       href="${prev.url?esc(prev.url):linkReceita(prev.n)}">🔎 Ver a receita</a>
+    <button class="btn sec" onclick="document.getElementById('dlgPrato').close();setTab('cardapio')">🍽️ Abrir o cardápio</button>`;
+  document.getElementById("dlgPrato").showModal();
 }
 async function delReg(id){
   await _sb.from("saude_registro").delete().eq("id",id);
   REGS=REGS.filter(r=>r.id!==id); renderResumo(); renderRefeicoes();
 }
 function abrirBusca(ref){ window.__ref=ref; setTab("alimentos"); document.getElementById("fBusca").focus(); }
+
+// ------------------------------ adesão ------------------------------
+function renderAdesao(){
+  const box=document.getElementById("adesaoBox"), st=document.getElementById("adesaoStats");
+  if(!box) return;
+  const per=parseInt(val("adesaoPer")||"30",10);
+  const dias=[];
+  for(let i=per-1;i>=0;i--) dias.push(novoDia(-i));
+  const por={}; HIST.forEach(h=>por[h.dia]=h);
+  const vals=dias.map(d=>{
+    const h=por[d]; const a=h?adesaoDoDia(h):0;
+    return {dia:d,a:a==null?0:a,treino:!!(h&&h.treinou)};
+  });
+  const W=760,H=140,ml=26,mr=8,mt=10,mb=26;
+  const lg=(W-ml-mr)/vals.length;
+  const barras=vals.map((v,i)=>{
+    const h=(H-mt-mb)*v.a, x=ml+i*lg+1, y=H-mb-h;
+    const cor=v.a>=0.999?"var(--pos)":(v.a>=0.7?"var(--accent)":(v.a>0?"#f5b301":"var(--row)"));
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(lg-2).toFixed(1)}" height="${Math.max(2,h).toFixed(1)}"
+      rx="2" fill="${cor}"><title>${v.dia.split("-").reverse().slice(0,2).join("/")} — ${
+      Math.round(v.a*100)}% das refeições${v.treino?" · treinou":""}</title></rect>
+      ${v.treino?`<circle cx="${(x+lg/2-1).toFixed(1)}" cy="${(H-mb+8).toFixed(1)}" r="2.6" fill="#f59e0b"><title>treino</title></circle>`:""}`;
+  }).join("");
+  box.innerHTML=`<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:420px;height:auto">
+    <line x1="${ml}" y1="${H-mb}" x2="${W-mr}" y2="${H-mb}" stroke="var(--border)"></line>
+    <line x1="${ml}" y1="${mt}" x2="${W-mr}" y2="${mt}" stroke="var(--border)" stroke-dasharray="3 3"></line>
+    <text x="${ml-4}" y="${mt+4}" text-anchor="end" font-size="9" fill="var(--muted)">100%</text>
+    ${barras}
+    <text x="${ml}" y="${H-4}" font-size="9" fill="var(--muted)">${vals[0].dia.split("-").reverse().slice(0,2).join("/")}</text>
+    <text x="${W-mr}" y="${H-4}" text-anchor="end" font-size="9" fill="var(--muted)">hoje</text>
+  </svg></div>
+  <div class="hint" style="margin-top:4px">🟠 ponto embaixo da barra = dia com treino</div>`;
+  const media=vals.reduce((s,v)=>s+v.a,0)/vals.length;
+  const cheios=vals.filter(v=>v.a>=0.999).length;
+  const treinos=vals.filter(v=>v.treino).length;
+  st.innerHTML=`<span class="stat">📈 Adesão média: <b>${n0(media*100)}%</b></span>
+    <span class="stat">💯 Dias completos: <b>${cheios}</b></span>
+    <span class="stat">🏋️ Treinos: <b>${treinos}</b></span>
+    <span class="stat">🔥 Sequência atual: <b>${calculaStreak()}</b></span>`;
+}
 
 // =========================== ALIMENTOS ===========================
 async function carregaTaco(){
@@ -1482,7 +1897,7 @@ function iniciaLembreteLocal(){
 }
 
 // =========================== CARDÁPIO ===========================
-const DADOS_V="48";   // troque junto com a versão do sw.js para furar o cache
+const DADOS_V="49";   // troque junto com a versão do sw.js para furar o cache
 let PREPS=null, PRECOS={}, PRECO_USR={}, BASE_REF="", PLANOCFG=null, PLANO_ID=null, FAVS=[];
 const PESO_REF={cafe:.22,lanche1:.10,almoco:.32,lanche2:.10,jantar:.22,ceia:.04};
 const TIPO_DE={cafe:"cafe",lanche1:"lanche",almoco:"almoco",lanche2:"lanche",jantar:"jantar",ceia:"ceia"};
@@ -2629,6 +3044,7 @@ async function boot(){
   await carregaPerfil();
   await Promise.all([carregaBase(),carregaReceitas()]);
   await carregaPlano(); await carregaFavoritos(); await carregaPesos(); await carregaMedidas();
+  await carregaHistorico();
   document.getElementById("pesoData").value=hojeISO();
   document.getElementById("medData").value=hojeISO();
   document.getElementById("app").style.display="block";
