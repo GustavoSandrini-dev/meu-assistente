@@ -1897,7 +1897,7 @@ function iniciaLembreteLocal(){
 }
 
 // =========================== CARDÁPIO ===========================
-const DADOS_V="49";   // troque junto com a versão do sw.js para furar o cache
+const DADOS_V="50";   // troque junto com a versão do sw.js para furar o cache
 let PREPS=null, PRECOS={}, PRECO_USR={}, BASE_REF="", PLANOCFG=null, PLANO_ID=null, FAVS=[];
 const PESO_REF={cafe:.22,lanche1:.10,almoco:.32,lanche2:.10,jantar:.22,ceia:.04};
 const TIPO_DE={cafe:"cafe",lanche1:"lanche",almoco:"almoco",lanche2:"lanche",jantar:"jantar",ceia:"ceia"};
@@ -2261,6 +2261,207 @@ function coletaCfg(){
   };
 }
 
+// ==================== pratos montados na hora ====================
+// Além das preparações escritas à mão, o app compõe pratos a partir de moldes:
+// proteína + base + leguminosa + vegetal, vitamina = líquido + fruta + cereal, etc.
+// Isso multiplica a variedade sem inchar o arquivo de dados.
+function cap(t){ return (t||"").charAt(0).toUpperCase()+(t||"").slice(1); }
+function low(t){ return (t||"").charAt(0).toLowerCase()+(t||"").slice(1); }
+// grupos curados na mão: categoria da TACO sozinha juntaria alho com legume
+// de guarnição e prato pronto com bife.
+const G_DEF={
+ prot_pf:["frango_peito","frango_coxa","frango_sobrecoxa","frango_desfiado","frango_assado",
+   "frango_caipira","frango_milanesa","coracao_frango","peru","linguica_frango","patinho",
+   "acem_moido","musculo","coxao_mole","coxao_duro","contra_file","alcatra","maminha","lagarto",
+   "cupim","figado","carne_seca","hamburguer","porco_lombo","porco_bisteca","pernil","quibe",
+   "merluza","pintado","abadejo","cacao","corvina","sardinha_fresca","salmao","camarao","bacalhau",
+   "file_mignon","ovo_frito","ovo_cozido"],
+ prot_veg:["tofu","grao_de_bico","lentilha","feijao_fradinho","feijao_roxo","tremoco","ovo_cozido"],
+ base:["arroz_branco","arroz_integral","macarrao","macarrao_ovos","batata","batata_doce","mandioca",
+   "polenta","cuscuz_milho","inhame","cara","batata_baroa","nhoque"],
+ leguminosa:["feijao_carioca","feijao_preto","feijao_fradinho","feijao_roxo","lentilha","grao_de_bico","ervilha"],
+ guarnicao:["abobrinha","brocolis","couve","cenoura","chuchu","vagem","abobora","berinjela","couve_flor",
+   "quiabo","espinafre","beterraba","jilo","maxixe","nabo","repolho_roxo","almeirao","catalonha",
+   "taioba","seleta","ervilha_vagem","broto_feijao"],
+ folha:["alface","rucula","agriao","acelga","repolho","espinafre_cru","mostarda_folha","chicoria"],
+ crua:["tomate","pepino","cenoura_crua","beterraba","rabanete","milho_verde","palmito"],
+ gordura:["azeite","oleo"],
+ sopa_base:["batata","abobora","batata_baroa","inhame","cara","mandioca","cenoura","chuchu",
+   "couve_flor","lentilha","feijao_carioca","ervilha"],
+ sopa_prot:["frango_desfiado","frango_assado","musculo","coxao_duro","acem_moido","carne_seca","lagarto"],
+ pao:["pao_frances","pao_integral","pao_aveia","pao_milho","pao_soja","pao_sovado","torrada",
+   "cream_cracker","biscoito_arroz","tapioca","pao_queijo","cuscuz_milho"],
+ pao_sand:["pao_frances","pao_integral","pao_aveia","pao_milho","pao_soja","pao_sovado","tapioca"],
+ recheio:["ovo_cozido","ovo_pronto","ovo_frito","frango_desfiado","frango_conserva","atum_lata",
+   "atum_sache","sardinha_lata","peru","presunto","queijo_minas","queijo_prato","mussarela","ricota",
+   "requeijao","minas_meia_cura","queijo_porcao","pasta_amendoim","abacate","tofu"],
+ iogurte:["iogurte","iogurte_desnatado","iog_grego","iog_proteico","leite_fermentado"],
+ liquido:["leite","leite_desnatado","leite_soja","leite_coco","agua_coco","suco_laranja",
+   "bebida_prot","iogurte","iog_grego"],
+ cereal:["aveia","granola_pct","flocos_milho"],
+ oleaginosa:["castanha_caju","castanha_para","amendoa","amendoim","mix_pct","coco","linhaca",
+   "gergelim","pasta_amendoim"],
+ extra_doce:["mel","cacau","uva_passa","banana_passa","damasco","whey"],
+ queijo:["queijo_minas","queijo_prato","mussarela","ricota","requeijao","minas_meia_cura","queijo_porcao"],
+};
+function GRUPOS(){
+  if(window.__grupos) return window.__grupos;
+  const g={};
+  for(const k in G_DEF) g[k]=G_DEF[k].filter(s=>PRECOS[s]);
+  g.fruta=Object.values(PRECOS).filter(i=>i.cat==="Frutas e derivados"&&i.k<160
+    &&!["limao","acai"].includes(i.slug)).map(i=>i.slug);
+  return (window.__grupos=g);
+}
+function MOLDES(){
+  if(window.__moldes) return window.__moldes;
+  const M=[
+   {id:"pf", tipos:["almoco","jantar"], tempo:35,
+    slots:[["prot","prot_pf",110,150,1],["base","base",120,170,1],
+           ["leg","leguminosa",100,140,.7],["veg","guarnicao",70,110,1],["gord","gordura",5,10,.5]],
+    nome:s=>cap(s.prot)+" com "+low(s.base)+(s.leg?", "+low(s.leg):"")+" e "+low(s.veg),
+    preparo:s=>"Prepare "+low(s.prot)+" e sirva com "+low(s.base)+(s.leg?", "+low(s.leg):"")+" e "+low(s.veg)+"."},
+   {id:"pfv", tipos:["almoco","jantar"], tempo:35,
+    slots:[["prot","prot_veg",120,170,1],["base","base",120,170,1],
+           ["veg","guarnicao",80,120,1],["gord","gordura",6,10,.6]],
+    nome:s=>cap(s.prot)+" com "+low(s.base)+" e "+low(s.veg),
+    preparo:s=>"Sem carne: "+low(s.prot)+" bem temperado com alho e cebola, "+low(s.base)+" e "+low(s.veg)+"."},
+   {id:"saladao", tipos:["almoco","jantar"], tempo:15, port:true,
+    slots:[["prot","recheio",90,130,1],["leg","leguminosa",90,130,.8],
+           ["folha","folha",40,60,1],["crua","crua",50,80,1],["gord","gordura",8,12,1]],
+    nome:s=>"Salada de "+low(s.folha)+" com "+low(s.prot)+(s.leg?" e "+low(s.leg):""),
+    preparo:s=>"Marmita fria: "+low(s.folha)+", "+low(s.crua)+(s.leg?", "+low(s.leg):"")+" e "+low(s.prot)+". Azeite e limão na hora."},
+   {id:"sopa", tipos:["jantar"], tempo:40,
+    slots:[["base","sopa_base",160,230,1],["prot","sopa_prot",90,120,.8],
+           ["veg","guarnicao",60,100,1],["gord","gordura",5,8,.5]],
+    nome:s=>"Sopa de "+low(s.base)+(s.prot?" com "+low(s.prot):""),
+    preparo:s=>"Cozinhe "+low(s.base)+" até desmanchar, junte "+low(s.veg)+(s.prot?" e "+low(s.prot):"")+" e amasse parte para engrossar."},
+   {id:"cafe_salgado", tipos:["cafe"], tempo:12,
+    slots:[["pao","pao",40,60,1],["prot","recheio",45,80,1],["fruta","fruta",100,160,.6]],
+    nome:s=>cap(s.pao)+" com "+low(s.prot),
+    preparo:s=>"Monte "+low(s.pao)+" com "+low(s.prot)+(s.fruta?" e sirva com "+low(s.fruta):"")+"."},
+   {id:"vitamina", tipos:["cafe","lanche"], tempo:5, port:true,
+    slots:[["liq","liquido",200,260,1],["fruta","fruta",80,130,1],
+           ["cer","cereal",25,40,.8],["ex","extra_doce",8,20,.4]],
+    nome:s=>"Vitamina de "+low(s.fruta)+" com "+low(s.liq),
+    preparo:s=>"Bata "+low(s.liq)+" com "+low(s.fruta)+(s.cer?" e "+low(s.cer):"")+". Leve na garrafa gelada."},
+   {id:"pote", tipos:["cafe","lanche","ceia"], tempo:5, port:true,
+    slots:[["lat","iogurte",150,200,1],["fruta","fruta",80,120,1],
+           ["cer","cereal",25,35,.7],["ole","oleaginosa",12,20,.5]],
+    nome:s=>"Pote de "+low(s.lat)+" com "+low(s.fruta),
+    preparo:s=>"Monte no pote na véspera: "+low(s.lat)+", "+low(s.fruta)+(s.cer?" e "+low(s.cer)+" por último":"")+"."},
+   {id:"sanduiche", tipos:["lanche","cafe"], tempo:8, port:true,
+    slots:[["pao","pao_sand",40,60,1],["prot","recheio",50,90,1],
+           ["crua","crua",30,60,.8],["folha","folha",15,25,.5]],
+    nome:s=>"Sanduíche de "+low(s.prot)+" no "+low(s.pao),
+    preparo:s=>"Monte "+low(s.pao)+" com "+low(s.prot)+(s.crua?", "+low(s.crua):"")+" e embrulhe para levar."},
+   {id:"fruta_ole", tipos:["lanche","ceia"], tempo:2, port:true, seco:true,
+    slots:[["fruta","fruta",110,170,1],["ole","oleaginosa",15,25,1]],
+    nome:s=>cap(s.fruta)+" com "+low(s.ole),
+    preparo:s=>"Sem preparo: "+low(s.fruta)+" e um punhado de "+low(s.ole)+"."},
+   {id:"lanche_prot", tipos:["lanche"], tempo:3, port:true,
+    slots:[["prot","recheio",60,110,1],["crua","crua",50,90,.7],["pao","pao",25,40,.6]],
+    nome:s=>cap(s.prot)+(s.crua?" com "+low(s.crua):(s.pao?" com "+low(s.pao):" em pote")),
+    preparo:s=>"Pote com "+low(s.prot)+(s.crua?" e "+low(s.crua):"")+". Pronto em minutos."},
+   {id:"ceia_leve", tipos:["ceia"], tempo:3, port:true,
+    slots:[["lat","iogurte",150,200,1],["ex","extra_doce",8,15,.5]],
+    nome:s=>cap(s.lat)+(s.ex?" com "+low(s.ex):""),
+    preparo:s=>"Leve, para não pesar antes de dormir."},
+   {id:"queijo_fruta", tipos:["lanche","ceia"], tempo:2, port:true,
+    slots:[["q","queijo",40,70,1],["fruta","fruta",100,150,1]],
+    nome:s=>cap(s.q)+" com "+low(s.fruta),
+    preparo:s=>"Doce com salgado: "+low(s.q)+" e "+low(s.fruta)+"."},
+  ];
+  return (window.__moldes=M);
+}
+
+// monta UM prato a partir de um molde, sorteando os ingredientes permitidos
+function comporPrato(molde,cfg,permitido){
+  const G=GRUPOS(), esc={}, itens=[];
+  for(const [k,grupo,gmin,gmax,prob] of molde.slots){
+    if(prob<1 && Math.random()>prob) continue;
+    const ops=(G[grupo]||[]).filter(permitido);
+    if(!ops.length){ if(prob>=1) return null; else continue; }
+    const slug=ops[Math.floor(Math.random()*ops.length)];
+    const g=Math.round((gmin+Math.random()*(gmax-gmin))/5)*5;
+    esc[k]=(PRECOS[slug]||{}).nome||slug;
+    itens.push({slug,g});
+  }
+  if(!itens.length) return null;
+  const n=nutriDeItens(itens,1,1);
+  if(!(n.k>60)) return null;
+  const alerg=[...new Set(itens.flatMap(i=>(PRECOS[i.slug]||{}).alerg||[]))];
+  const prots=[...new Set(itens.map(i=>(PRECOS[i.slug]||{}).prot_tipo).filter(Boolean))];
+  const animal=alerg.some(a=>["frango","boi","porco","peixe","frutos_mar"].includes(a));
+  return {
+    id:"cb_"+molde.id+"_"+itens.map(i=>i.slug).join("-"),
+    nome:molde.nome(esc), tipos:molde.tipos, itens,
+    kcal:n.k, prot:n.p, carb:n.b, gord:n.g, fibra:n.f, sodio:n.s,
+    alerg, prot_tipos:prots, vegetariano:!animal,
+    vegano:!animal&&!alerg.includes("lactose")&&!alerg.includes("ovo"),
+    custo:n.custo, faixa:n.custo<=6?1:(n.custo<=12?2:3),
+    preparo:molde.preparo(esc), tempo:molde.tempo,
+    port:!!molde.port, port_seco:!!molde.seco, composto:true
+  };
+}
+// reconstrói um prato composto a partir do id (para plano salvo e conferências)
+function prepCombinado(id){
+  const partes=String(id).split("_");
+  const molde=MOLDES().find(m=>m.id===partes[1]);
+  const slugs=partes.slice(2).join("_").split("-").filter(s=>PRECOS[s]);
+  if(!molde||!slugs.length) return null;
+  const alerg=[...new Set(slugs.flatMap(s=>(PRECOS[s]||{}).alerg||[]))];
+  const prots=[...new Set(slugs.map(s=>(PRECOS[s]||{}).prot_tipo).filter(Boolean))];
+  return {id,nome:"",tipos:molde.tipos,itens:slugs.map(s=>({slug:s,g:100})),
+          alerg,prot_tipos:prots,tempo:molde.tempo,faixa:1,
+          port:!!molde.port,port_seco:!!molde.seco,composto:true};
+}
+// sorteia N pratos compostos válidos para uma refeição
+function sorteiaCombinados(ref,cfg,dia,n){
+  const tipo=TIPO_DE[ref];
+  const moldes=MOLDES().filter(m=>m.tipos.includes(tipo));
+  if(!moldes.length) return [];
+  const lanche=tipo==="lanche";
+  const fds=dia?ehFds(dia):false;
+  const semFogao=lanche&&cfg.lanche_preparo==="levar"&&!fds;
+  const semGeladeira=lanche&&cfg.lanche_preparo==="levar_seco"&&!fds;
+  const limite=dia?(fds?cfg.tempo_fds:cfg.tempo_semana):999;
+  const okSlug=slug=>{
+    const P=PRECOS[slug]; if(!P) return false;
+    if((cfg.odeio_slugs||[]).includes(slug)) return false;
+    if((P.alerg||[]).some(a=>(cfg.alergias||[]).includes(a))) return false;
+    const isento=(cfg.aceito_slugs||[]).includes(slug);
+    if(!isento&&(P.alerg||[]).some(a=>(cfg.nao_come||[]).includes(a))) return false;
+    if(!isento&&P.prot_tipo&&proteinaForaDoCombinado({itens:[{slug}]},cfg)) return false;
+    if(cfg.faixa_max<9&&(P.faixa||1)>cfg.faixa_max) return false;
+    return true;
+  };
+  const out=[], vistos=new Set();
+  for(let i=0;i<n*4&&out.length<n;i++){
+    const m=moldes[Math.floor(Math.random()*moldes.length)];
+    if(limite<999&&m.tempo>limite) continue;
+    if(semGeladeira&&!m.seco) continue;
+    if(semFogao&&!m.port) continue;
+    const p=comporPrato(m,cfg,okSlug);
+    if(!p||vistos.has(p.id)) continue;
+    if(odiado(p,cfg)) continue;
+    vistos.add(p.id); out.push(p);
+  }
+  return out;
+}
+// quantas combinações cada molde consegue produzir (para mostrar ao usuário)
+function totalCombinacoes(){
+  const G=GRUPOS(), por={};
+  MOLDES().forEach(m=>{
+    let n=1;
+    m.slots.forEach(([,grupo,,,prob])=>{
+      const q=(G[grupo]||[]).length||1;
+      n*= prob>=1 ? q : (q+1);
+    });
+    m.tipos.forEach(t=>por[t]=(por[t]||0)+n);
+  });
+  return por;
+}
+
 // ---------------------------- o algoritmo ----------------------------
 function diasDoPlano(cfg){
   const out=[], d=new Date(cfg.inicio+"T12:00:00"), total=cfg.semanas*7;
@@ -2303,7 +2504,7 @@ function proteinaForaDoCombinado(p,cfg){
     return t && !permitidas.has(t);
   });
 }
-function candidatos(ref,cfg,pool,dia){
+function candidatos(ref,cfg,pool,dia,semCombinar){
   const tipo=TIPO_DE[ref];
   const limite=dia?(ehFds(dia)?cfg.tempo_fds:cfg.tempo_semana):999;
   // lanche no trabalho: só o que dá para preparar antes e levar
@@ -2321,7 +2522,7 @@ function candidatos(ref,cfg,pool,dia){
     if(limite<999 && (p.tempo||0)>limite) return false;
     if(odiado(p,cfg)) return false;
     return true;
-  });
+  }).concat(semCombinar?[]:sorteiaCombinados(ref,cfg,dia,45));
 }
 function montaItem(p,esc,cfg){
   const vm=cfg&&cfg.veg_extra?1.35:1;
@@ -2604,7 +2805,10 @@ async function excluirFavorito(id){
 }
 
 // ------------------- conferência contra as regras -------------------
-function prepPorId(id){ return PREPS.concat(receitasComoPreps()).find(x=>x.id===id); }
+function prepPorId(id){
+  if(String(id).startsWith("cb_")) return prepCombinado(id);
+  return PREPS.concat(receitasComoPreps()).find(x=>x.id===id);
+}
 function violacoesPlano(){
   const cfg=PLANOCFG; if(!cfg||!window.__plano) return [];
   const out=[];
@@ -2792,9 +2996,14 @@ function renderPlano(){
   const custo=custoTotal(), mes=custo/dias.length*30;
   const kcalMed=dias.reduce((s,d)=>s+Object.values(plano[d]).reduce((x,i)=>x+num(i.k),0),0)/dias.length;
   const pratos=new Set(dias.flatMap(d=>Object.values(plano[d]).map(i=>i.p))).size;
+  const tc=totalCombinacoes();
   res.innerHTML=`<b>${dias.length} dias</b> · <b>${pratos} pratos diferentes</b> ·
     média de <b>${n0(kcalMed)} kcal por dia</b> ·
-    custo estimado de <b>R$ ${n0(custo)}</b> no período, cerca de <b>R$ ${n0(mes)} por mês</b>`;
+    custo estimado de <b>R$ ${n0(custo)}</b> no período, cerca de <b>R$ ${n0(mes)} por mês</b>
+    <div class="hint" style="margin-top:4px">Sorteados de <b>${
+      n0(Object.values(tc).reduce((a,b)=>a+b,0))}</b> combinações possíveis
+      (${REFS.filter(([k])=>tc[TIPO_DE[k]]).map(([k,r])=>r.replace(/^[^ ]+ /,"")+": "+n0(tc[TIPO_DE[k]])).join(" · ")})
+      mais ${PREPS.length} receitas escritas à mão.</div>`;
   const hoje=hojeISO();
   const viol=violacoesPlano();
   const aviso=viol.length?`<div class="card" style="border-color:var(--neg)">
@@ -2873,6 +3082,7 @@ function abrirTroca(dia,ref){
     const n=nutriDePrep(p,e,cfg.veg_extra?1.35:1);
     return {p,e,n,err:Math.abs(n.k-alvo)/alvo};
   }).sort((a,b)=>a.err-b.err).slice(0,40);
+  window.__trocaOpcoes={}; lista.forEach(x=>window.__trocaOpcoes[x.p.id]=x.p);
   document.getElementById("trocaLista").innerHTML=`<div style="overflow-x:auto"><table>
     <tr><th>Prato</th><th class="n">Calorias</th><th class="n">Proteína</th><th class="n">Custo</th><th></th></tr>`+
     lista.map(x=>`<tr class="${x.p.id===atual.p?"":"pick"}">
@@ -2885,8 +3095,9 @@ function abrirTroca(dia,ref){
   document.getElementById("dlgTroca").showModal();
 }
 async function fazTroca(dia,ref,pid,esc){
-  const pool=PREPS.concat(receitasComoPreps());
-  const p=pool.find(x=>x.id===pid); if(!p) return;
+  const p=(window.__trocaOpcoes||{})[pid]
+       || PREPS.concat(receitasComoPreps()).find(x=>x.id===pid);
+  if(!p) return;
   window.__plano[dia][ref]=montaItem(p,esc,PLANOCFG||{});
   document.getElementById("dlgTroca").close();
   renderPlano(); await salvarPlano();
