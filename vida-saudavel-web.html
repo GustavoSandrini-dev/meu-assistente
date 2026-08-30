@@ -1425,7 +1425,7 @@ function iniciaLembreteLocal(){
 }
 
 // =========================== CARDÁPIO ===========================
-const DADOS_V="44";   // troque junto com a versão do sw.js para furar o cache
+const DADOS_V="45";   // troque junto com a versão do sw.js para furar o cache
 let PREPS=null, PRECOS={}, PRECO_USR={}, BASE_REF="", PLANOCFG=null, PLANO_ID=null, FAVS=[];
 const PESO_REF={cafe:.22,lanche1:.10,almoco:.32,lanche2:.10,jantar:.22,ceia:.04};
 const TIPO_DE={cafe:"cafe",lanche1:"lanche",almoco:"almoco",lanche2:"lanche",jantar:"jantar",ceia:"ceia"};
@@ -1524,39 +1524,57 @@ function distEdicao(a,b){                     // Levenshtein com corte rápido
   return d[n];
 }
 function semPlural(w){ return w.length>4&&w.endsWith("s")?w.slice(0,-1):w; }
-// vocabulário: palavra significativa -> slugs de ingrediente que a contêm
+// vocabulário: cada ingrediente vira um texto normalizado e pesquisável
 function vocabIngredientes(){
   if(window.__vocab) return window.__vocab;
-  const v={};
-  Object.values(PRECOS).forEach(i=>{
-    const palavras=new Set();
-    (chave(i.nome)+" "+chave(i.taco_nome||"")).split(/[^a-z0-9]+/).forEach(w=>{
-      w=semPlural(w);
-      if(w.length>=4 && !["cozido","cozida","assado","assada","grelhado","grelhada","cru","crua",
-        "refogado","refogada","fresco","fresca","conserva","natural","integral","forma","tipo",
-        "pele","sem","com","doce","branco","branca","frito","frita","pronto","pronta"].includes(w))
-        palavras.add(w);
-    });
-    palavras.forEach(w=>{ (v[w]=v[w]||new Set()).add(i.slug); });
-  });
-  return (window.__vocab=v);
+  const norm=t=>" "+chave(t).replace(/[-_/(),.]/g," ").split(/\s+/)
+    .filter(Boolean).map(semPlural).join(" ")+" ";
+  const itens=Object.values(PRECOS).map(i=>({
+    slug:i.slug,
+    curto:norm(i.nome).trim(),                       // "batata doce cozida"
+    txt:norm(i.nome+" "+(i.taco_nome||""))           // tudo que dá para procurar
+  }));
+  const palavras=new Set();
+  itens.forEach(i=>i.txt.trim().split(" ").forEach(w=>{ if(w.length>=4) palavras.add(w); }));
+  return (window.__vocab={itens,palavras:[...palavras]});
 }
 // devolve {slugs, livres, mapa} a partir do texto digitado pelo usuário
 function interpretaOdeio(texto){
-  const vocab=vocabIngredientes(), chaves=Object.keys(vocab);
+  const V=vocabIngredientes();
   const slugs=new Set(), livres=[], mapa=[];
-  (texto||"").split(",").map(x=>chave(x.trim())).filter(Boolean).forEach(termo=>{
-    const t=semPlural(termo.replace(/\s+/g," ").trim());
-    if(vocab[t]){ vocab[t].forEach(x=>slugs.add(x)); mapa.push({de:termo,para:t,exato:true}); return; }
-    // erro de digitação: aceita 1 erro até 6 letras, 2 acima disso
-    let melhor=null;
-    chaves.forEach(w=>{
-      const lim=w.length<=6?1:2;
-      const d=distEdicao(t,w);
-      if(d<=lim && (!melhor||d<melhor.d)) melhor={w,d};
+  (texto||"").split(",").map(x=>x.trim()).filter(Boolean).forEach(raw=>{
+    const bruto=chave(raw);
+    const palavras=bruto.replace(/[-_/(),.]/g," ").split(/\s+/).filter(Boolean)
+      .map(semPlural).filter(w=>w.length>=3 && !["com","sem","dos","das"].includes(w));
+    if(!palavras.length){ livres.push(bruto); mapa.push({de:raw,para:null}); return; }
+
+    // corrige cada palavra que não existe em ingrediente nenhum
+    let corrigiu=false;
+    const alvo=palavras.map(w=>{
+      if(V.itens.some(i=>i.txt.includes(" "+w+" "))) return w;
+      let m=null;
+      V.palavras.forEach(k=>{
+        const lim=k.length<=6?1:2, d=distEdicao(w,k);
+        if(d<=lim && (!m||d<m.d)) m={k,d};
+      });
+      if(m){ corrigiu=true; return m.k; }
+      return w;
     });
-    if(melhor){ vocab[melhor.w].forEach(x=>slugs.add(x)); mapa.push({de:termo,para:melhor.w}); return; }
-    livres.push(termo); mapa.push({de:termo,para:null});
+
+    // o ingrediente tem que conter TODAS as palavras
+    const achados=V.itens.filter(i=>alvo.every(w=>i.txt.includes(" "+w+" ")));
+    if(achados.length){
+      // se alguma bater pelo nome exato, fica só com ela (evita pegar parentes)
+      const exatos=achados.filter(i=>i.curto===alvo.join(" "));
+      const usados=exatos.length?exatos:achados;
+      usados.forEach(i=>slugs.add(i.slug));
+      // no eco: se acertou de primeira mostra o que a pessoa escreveu;
+      // se corrigiu, mostra o nome do ingrediente que eu entendi
+      mapa.push({de:raw, exato:!corrigiu,
+                 para: corrigiu ? ((PRECOS[usados[0].slug]||{}).nome||alvo.join(" ")) : raw});
+      return;
+    }
+    livres.push(bruto); mapa.push({de:raw,para:null});
   });
   return {slugs:[...slugs], livres, mapa};
 }
@@ -1565,11 +1583,14 @@ function ecoOdeio(){
   const txt=val("wOdeio");
   if(!txt||!txt.trim()){ el.innerHTML=""; return; }
   const r=interpretaOdeio(txt);
-  el.innerHTML=r.mapa.map(m=>{
-    if(m.exato) return `✅ <b>${esc(m.para)}</b>`;
-    if(m.para)  return `✅ "${esc(m.de)}" → entendi <b>${esc(m.para)}</b>`;
-    return `⚠️ "${esc(m.de)}" — não reconheci como ingrediente, vou usar como busca no nome do prato`;
-  }).join("<br>");
+  const ok=r.mapa.filter(m=>m.para).map(m=>
+    m.exato?`<b>${esc(m.para)}</b>`
+           :`<b>${esc(m.para)}</b> <span style="opacity:.7">(você escreveu "${esc(m.de)}")</span>`);
+  const nao=r.mapa.filter(m=>!m.para).map(m=>`"${esc(m.de)}"`);
+  el.innerHTML=[
+    ok.length?`✅ Vou tirar: ${ok.join(", ")}`:"",
+    nao.length?`⚠️ Não reconheci ${nao.join(", ")} — vou usar como busca no nome do prato`:""
+  ].filter(Boolean).join(" · ");
 }
 
 // --------------------------- questionário ---------------------------
