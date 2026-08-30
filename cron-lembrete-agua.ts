@@ -1,25 +1,26 @@
 // =====================================================================
 //  Edge Function: cron-lembrete-agua
 //  Roda de hora em hora e manda Web Push SILENCIOSO para:
-//    1) beber água   — quem ligou o lembrete e ainda não bateu a meta
-//    2) se pesar     — quem passou do intervalo escolhido (1/7/15/30/60/90 dias)
+//    1) beber água — quem ligou o lembrete e ainda não bateu a meta do dia
+//    2) se pesar   — quem passou do intervalo escolhido (1/7/15/30/60/90 dias)
+//
+//  Usa @negrel/webpush (nativa de Deno, sem depender de shims do Node).
 //
 //  Deploy:
 //    supabase functions deploy cron-lembrete-agua --no-verify-jwt
 //
-//  Secrets (supabase secrets set ...):
-//    VAPID_PUBLIC_KEY   chave pública  (a mesma que vai no vida-saudavel-web.html)
-//    VAPID_PRIVATE_KEY  chave privada  (NUNCA vai pro git / pro HTML)
-//    VAPID_SUBJECT      mailto:sandrinigustavo@gmail.com
+//  Secrets:
+//    VAPID_KEYS     JSON {"publicKey":{...},"privateKey":{...}} do gerar-vapid.js
+//    VAPID_SUBJECT  mailto:sandrinigustavo@gmail.com
 //  SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já existem por padrão.
 //
-//  Agendamento: veja o rodapé de vida_saudavel_v2.sql.
+//  Agendamento do cron: rodapé de vida_saudavel_v2.sql.
 // =====================================================================
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import webpush from "npm:web-push@3.6.7";
+import * as webpush from "jsr:@negrel/webpush@0.5";
 
 const TZ = "America/Sao_Paulo";
-const HORA_PESAGEM = 9; // manda o lembrete de pesagem uma vez por dia, às 9h
+const HORA_PESAGEM = 9; // lembrete de pesagem sai uma vez por dia, às 9h
 
 function agoraBrasilia() {
   const f = new Intl.DateTimeFormat("en-CA", {
@@ -32,19 +33,21 @@ function agoraBrasilia() {
 
 type Sub = { id: string; endpoint: string; p256dh: string; auth: string };
 
+// as chaves são carregadas uma vez, no boot da função
+const vapidKeys = await webpush.importVapidKeys(JSON.parse(Deno.env.get("VAPID_KEYS")!));
+const appServer = await webpush.ApplicationServer.new({
+  contactInformation: Deno.env.get("VAPID_SUBJECT") ?? "mailto:sandrinigustavo@gmail.com",
+  vapidKeys,
+});
+
 Deno.serve(async () => {
   const sb = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
-  webpush.setVapidDetails(
-    Deno.env.get("VAPID_SUBJECT") ?? "mailto:sandrinigustavo@gmail.com",
-    Deno.env.get("VAPID_PUBLIC_KEY")!,
-    Deno.env.get("VAPID_PRIVATE_KEY")!,
-  );
 
   const { dia, hora } = agoraBrasilia();
-  let enviados = 0, removidos = 0;
+  let enviados = 0, removidos = 0, pesagens = 0;
 
   const subsDe = async (uid: string): Promise<Sub[]> => {
     const { data } = await sb.from("push_subs")
@@ -53,21 +56,23 @@ Deno.serve(async () => {
   };
 
   const mandar = async (subs: Sub[], payload: unknown) => {
+    const txt = JSON.stringify(payload);
     for (const s of subs) {
       try {
-        await webpush.sendNotification(
-          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          JSON.stringify(payload),
-          { TTL: 1800, urgency: "low" },
-        );
+        const alvo = appServer.subscribe({
+          endpoint: s.endpoint,
+          keys: { p256dh: s.p256dh, auth: s.auth },
+        });
+        await alvo.pushTextMessage(txt, { ttl: 1800 });
         enviados++;
       } catch (e) {
-        const code = (e as { statusCode?: number }).statusCode;
-        if (code === 404 || code === 410) {
+        const gone = e instanceof webpush.PushMessageError &&
+          (e.isGone() || e.response.status === 404);
+        if (gone) {                       // inscrição morta: limpa
           await sb.from("push_subs").delete().eq("id", s.id);
           removidos++;
         } else {
-          console.error("push falhou", s.endpoint, code, String(e));
+          console.error("push falhou", s.endpoint.slice(0, 60), String(e));
         }
       }
     }
@@ -87,7 +92,7 @@ Deno.serve(async () => {
       .from("saude_agua").select("ml").eq("user_id", p.user_id).eq("dia", dia);
     const tot = (goles ?? []).reduce((s, g) => s + (Number(g.ml) || 0), 0);
     const meta = p.meta_agua_ml ?? 2000;
-    if (tot >= meta) continue;
+    if (tot >= meta) continue;            // já bateu a meta, não incomoda
     const subs = await subsDe(p.user_id);
     if (!subs.length) continue;
     await mandar(subs, {
@@ -99,7 +104,6 @@ Deno.serve(async () => {
   }
 
   // --------------------------------------------------------- pesagem
-  let pesagens = 0;
   if (hora === HORA_PESAGEM) {
     const { data: perfisPeso } = await sb
       .from("saude_perfil")
@@ -107,12 +111,12 @@ Deno.serve(async () => {
       .gt("lembrete_peso_dias", 0);
 
     for (const p of perfisPeso ?? []) {
-      if (p.ultimo_push_peso === dia) continue; // já avisei hoje
+      if (p.ultimo_push_peso === dia) continue;   // já avisei hoje
       const { data: ult } = await sb
         .from("saude_peso").select("dia").eq("user_id", p.user_id)
         .order("dia", { ascending: false }).limit(1).maybeSingle();
 
-      let venceu = true, passou = 0;
+      let passou = 0, venceu = true;
       if (ult?.dia) {
         passou = Math.floor(
           (Date.parse(dia + "T12:00:00Z") - Date.parse(ult.dia + "T12:00:00Z")) / 86400000,
