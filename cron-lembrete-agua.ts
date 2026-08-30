@@ -1,6 +1,7 @@
 // =====================================================================
 //  Edge Function: cron-lembrete-agua
-//  Roda de hora em hora e manda Web Push SILENCIOSO para:
+//  Roda de 30 em 30 min e manda Web Push (silencioso, com som ou com
+//  som e vibração, conforme a preferência de cada usuário) para:
 //    1) beber água — quem ligou o lembrete e ainda não bateu a meta do dia
 //    2) se pesar   — quem passou do intervalo escolhido (1/7/15/30/60/90 dias)
 //
@@ -35,6 +36,14 @@ function agoraBrasilia() {
 }
 
 type Sub = { id: string; endpoint: string; p256dh: string; auth: string };
+
+// Como o aviso chega no aparelho. A web não permite som personalizado:
+// silent=false apenas libera o som padrão do canal de notificação do sistema.
+function alerta(modo: string | null) {
+  if (modo === "vibrar") return { silent: false, vibrate: [300, 150, 300] };
+  if (modo === "som") return { silent: false };
+  return { silent: true };
+}
 
 // as chaves são carregadas uma vez, no boot da função
 const vapidKeys = await webpush.importVapidKeys(JSON.parse(Deno.env.get("VAPID_KEYS")!));
@@ -84,7 +93,7 @@ Deno.serve(async () => {
   // ------------------------------------------------------------ água
   const { data: perfisAgua, error } = await sb
     .from("saude_perfil")
-    .select("user_id, meta_agua_ml, copo_ml, lembrete_ini, lembrete_fim, lembrete_agua_min, ultimo_push_agua")
+    .select("user_id, meta_agua_ml, copo_ml, lembrete_ini, lembrete_fim, lembrete_agua_min, ultimo_push_agua, lembrete_som")
     .eq("lembrete_agua", true)
     .lte("lembrete_ini", hora)
     .gte("lembrete_fim", hora);
@@ -112,6 +121,7 @@ Deno.serve(async () => {
       body: `Você está em ${tot} ml de ${meta} ml. Um copo de ${copo} ml agora — faltam ${meta - tot} ml hoje.`,
       tag: "agua",
       url: `./vida-saudavel-web.html?agua=${copo}`,
+      ...alerta(p.lembrete_som),
     });
     await sb.from("saude_perfil")
       .update({ ultimo_push_agua: new Date().toISOString() }).eq("user_id", p.user_id);
@@ -121,7 +131,7 @@ Deno.serve(async () => {
   if (hora === HORA_PESAGEM) {
     const { data: perfisPeso } = await sb
       .from("saude_perfil")
-      .select("user_id, lembrete_peso_dias, ultimo_push_peso")
+      .select("user_id, lembrete_peso_dias, ultimo_push_peso, lembrete_som")
       .gt("lembrete_peso_dias", 0);
 
     for (const p of perfisPeso ?? []) {
@@ -148,6 +158,7 @@ Deno.serve(async () => {
           : "Registre sua primeira pesagem e comece a acompanhar sua evolução.",
         tag: "peso",
         url: "./vida-saudavel-web.html?aba=corpo",
+        ...alerta(p.lembrete_som),
       });
       await sb.from("saude_perfil").update({ ultimo_push_peso: dia }).eq("user_id", p.user_id);
       pesagens++;

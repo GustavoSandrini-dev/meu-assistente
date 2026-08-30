@@ -288,6 +288,16 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
             <option value="500">Garrafinha — 500 ml</option>
             <option value="750">Garrafa — 750 ml</option>
           </select></div>
+        <div class="fld"><label class="lb">Como o aviso deve chegar?</label>
+          <select id="somSel" onchange="salvarPerfil()">
+            <option value="silencioso">Silencioso — só aparece na tela</option>
+            <option value="som">Com o som padrão de notificação</option>
+            <option value="vibrar">Com som e vibração</option>
+          </select>
+          <div class="hint" style="margin-top:6px">Só dá para usar o som padrão do sistema: nenhum site
+            pode escolher o próprio toque. Para <b>vibrar sem tocar</b>, escolha "com som e vibração" aqui
+            e depois silencie o canal no Android: Configurações → Apps → Chrome → Notificações →
+            o canal deste site → Silencioso.</div></div>
         <div class="fld"><label class="lb">De quanto em quanto tempo?</label>
           <select id="lembInt" onchange="salvarPerfil()">
             <option value="30">A cada 30 minutos</option>
@@ -312,12 +322,12 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
         <div id="ritmoBox" style="margin-top:12px"></div>
         <div class="row" style="margin-top:12px">
           <button class="btn sm" onclick="ativarPush()">📲 Ativar notificação no celular</button>
-          <button class="btn sec sm" onclick="testarNotificacao()">🔕 Testar (sem som)</button>
+          <button class="btn sec sm" onclick="testarNotificacao()">🔔 Testar agora</button>
         </div>
         <div class="msg" id="pushMsg"></div>
         <div class="hint" style="margin-top:10px">
-          A notificação é <b>silenciosa</b>: aparece na tela, não toca som nem vibra. Para chegar com o app
-          fechado, instale o Meu Assistente na tela inicial do celular e ative aqui uma vez.
+          Para o aviso chegar com o app fechado, instale o Meu Assistente na tela inicial do celular
+          e ative aqui uma vez. No iPhone a vibração não é controlada pelo site — vale o modo do aparelho.
           Se você já bateu a meta do dia, o lembrete não incomoda mais até o dia seguinte.
         </div>
       </div>
@@ -784,6 +794,7 @@ async function carregaPerfil(){
   document.getElementById("pLembPeso").value=PERFIL.lembrete_peso_dias??0;
   document.getElementById("copoSel").value=PERFIL.copo_ml??250;
   document.getElementById("lembInt").value=PERFIL.lembrete_agua_min??60;
+  document.getElementById("somSel").value=PERFIL.lembrete_som||"silencioso";
   const ini=document.getElementById("lembIni"), fim=document.getElementById("lembFim");
   ini.innerHTML=fim.innerHTML="";
   for(let h=0;h<24;h++){
@@ -811,6 +822,7 @@ async function salvarPerfil(avisa){
     meta_agua_ml:calc.agua?Math.round(calc.agua):(PERFIL.meta_agua_ml||2000),
     copo_ml:parseInt(val("copoSel"),10)||250,
     lembrete_agua_min:parseInt(val("lembInt"),10)||60,
+    lembrete_som:val("somSel")||"silencioso",
     prot_g_kg:PERFIL.prot_g_kg||2,
     lembrete_agua:document.getElementById("lembOn").checked,
     lembrete_ini:parseInt(document.getElementById("lembIni").value,10),
@@ -1428,14 +1440,27 @@ async function ativarPush(){
     msg("pushMsg",error?("Erro ao salvar inscrição: "+error.message):"Notificação ativada neste aparelho ✓",!error);
   }catch(e){ msg("pushMsg","Não deu para ativar o push: "+e.message); }
 }
+// silent:true = nem som nem vibração. Som personalizado não existe na web:
+// quem escolhe o toque é o canal de notificação do sistema.
+function opcoesAlerta(){
+  const modo=PERFIL.lembrete_som||"silencioso";
+  if(modo==="vibrar") return {silent:false, vibrate:[300,150,300]};
+  if(modo==="som")    return {silent:false};
+  return {silent:true};
+}
 async function notificar(titulo,corpo){
   if(Notification.permission!=="granted") return;
-  const opts={body:corpo,icon:"icon-192.png",badge:"icon-192.png",silent:true,tag:"agua",
-              data:{url:"vida-saudavel-web.html?agua="+copoMl()}};
+  const opts={body:corpo,icon:"icon-192.png",badge:"icon-192.png",tag:"agua",
+              data:{url:"vida-saudavel-web.html?agua="+copoMl()},...opcoesAlerta()};
   try{ const reg=await navigator.serviceWorker.ready; await reg.showNotification(titulo,opts); }
   catch(e){ new Notification(titulo,opts); }
 }
-function testarNotificacao(){ notificar("💧 Hora de beber água","Teste do lembrete — sem som, só o aviso na tela."); }
+function testarNotificacao(){
+  const modo=PERFIL.lembrete_som||"silencioso";
+  const como={silencioso:"sem som e sem vibração",som:"com o som padrão do sistema",
+              vibrar:"com som e vibração"}[modo];
+  notificar("💧 Hora de beber água","Teste do lembrete — "+como+".");
+}
 let _lembT=null;
 function iniciaLembreteLocal(){
   clearInterval(_lembT);
@@ -1457,7 +1482,7 @@ function iniciaLembreteLocal(){
 }
 
 // =========================== CARDÁPIO ===========================
-const DADOS_V="47";   // troque junto com a versão do sw.js para furar o cache
+const DADOS_V="48";   // troque junto com a versão do sw.js para furar o cache
 let PREPS=null, PRECOS={}, PRECO_USR={}, BASE_REF="", PLANOCFG=null, PLANO_ID=null, FAVS=[];
 const PESO_REF={cafe:.22,lanche1:.10,almoco:.32,lanche2:.10,jantar:.22,ceia:.04};
 const TIPO_DE={cafe:"cafe",lanche1:"lanche",almoco:"almoco",lanche2:"lanche",jantar:"jantar",ceia:"ceia"};
