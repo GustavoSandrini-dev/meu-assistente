@@ -140,6 +140,10 @@ try:
     ING.update(EXTRA_ING)
 except ImportError:
     EXTRA_P = []
+try:
+    from dados_lanches import LANCHES, PORT_SECO
+except ImportError:
+    LANCHES, PORT_SECO = [], set()
 
 PROTEINA = {  # de qual proteína a preparação "é"
  "frango": ["frango_peito","frango_coxa","frango_sobrecoxa","frango_desfiado","linguica_frango","peru",
@@ -399,7 +403,7 @@ for slug, (tid, nome, rs, rend, med, al) in ING.items():
                        veg=a["c"] in ("Verduras, hortaliças e derivados","Frutas e derivados")))
 precos.sort(key=lambda x: x["slug"])
 
-P = P + EXTRA_P
+P = P + EXTRA_P + LANCHES
 preps, erros = [], []
 for pid, nome, tipos, itens, prep, tempo in P:
     for slug, _g in itens:
@@ -413,7 +417,9 @@ for pid, nome, tipos, itens, prep, tempo in P:
     vegetariano = not animal
     vegano = vegetariano and "lactose" not in al and "ovo" not in al
     custo = n.pop("custo")
+    port = pid.startswith("lv_")
     preps.append(dict(id=pid, nome=nome, tipos=tipos,
+                      port=port, port_seco=pid in PORT_SECO,
                       itens=[dict(slug=s, g=g) for s, g in itens],
                       preparo=prep, tempo=tempo, alerg=al, prot_tipos=prots,
                       vegetariano=vegetariano, vegano=vegano,

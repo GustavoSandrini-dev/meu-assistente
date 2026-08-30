@@ -519,6 +519,14 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
       <option value="fora">Como fora (restaurante, refeitório)</option>
     </select>
     <div class="wh">Marmita faz eu preferir pratos que aguentam reaquecer. "Como fora" tira o almoço do plano e redistribui as calorias.</div></div>
+    <div class="wq">Onde você prepara seus lanches (manhã e tarde)?</div>
+    <div class="fld"><select id="wLanchePrep">
+      <option value="casa" selected>Em casa, na hora — tenho fogão e geladeira</option>
+      <option value="levar">No trabalho — preciso levar pronto de casa</option>
+      <option value="levar_seco">No trabalho, sem geladeira nem micro-ondas</option>
+    </select>
+    <div class="wh">Se você não consegue preparar na hora, eu só sugiro lanches que dá para
+      fazer antes e levar — e na terceira opção, só os que aguentam o dia inteiro fora da geladeira.</div></div>
     <div class="wq">Quanto tempo você tem para cozinhar em dia de semana?</div>
     <div class="fld"><select id="wTempoSem">
       <option value="15">Até 15 minutos</option><option value="30">Até 30 minutos</option>
@@ -549,22 +557,16 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
     <div class="wq" style="margin-top:16px">Quais proteínas você gosta de ver com mais frequência?</div>
     <div id="wProt" class="wchk"></div>
     <div class="wq" style="margin-top:16px">Tem algum alimento que você não suporta?</div>
-    <div class="fld"><input id="wOdeio" placeholder="ex: fígado, quiabo, berinjela">
-      <div class="wh">Separe por vírgula. Qualquer prato com esses itens fica de fora.</div></div>
+    <div class="fld"><input id="wOdeio" placeholder="ex: figado, quiabo, beringela" oninput="ecoOdeio()">
+      <div class="wh">Separe por vírgula. Pode escrever sem acento ou errar a grafia — eu entendo.</div>
+      <div class="wh" id="odeioEco" style="margin-top:6px"></div></div>
   </div>
 
   <!-- 5 · frequências -------------------------------------------- -->
   <div class="wstep" data-w="5" data-sec="Frequência dos alimentos" style="display:none">
-    <div class="wq">Quantas vezes por semana você quer peixe?</div>
-    <div class="fld"><select id="wPeixe">
-      <option value="-1">Tanto faz</option><option value="0">Nenhuma</option>
-      <option value="1">1x</option><option value="2" selected>2x</option>
-      <option value="3">3x</option><option value="4">4x ou mais</option></select></div>
-    <div class="wq">E carne vermelha?</div>
-    <div class="fld"><select id="wVermelha">
-      <option value="-1">Tanto faz</option><option value="0">Nenhuma</option>
-      <option value="1">1x</option><option value="2">2x</option>
-      <option value="3" selected>3x</option><option value="5">5x ou mais</option></select></div>
+    <div class="wq">Como você quer dividir as proteínas na semana?</div>
+    <div id="wDist"></div>
+    <div class="wh" id="wDistResumo" style="margin-top:8px"></div>
     <div class="wq">Quantas refeições livres por semana?</div>
     <div class="fld"><select id="wLivre">
       <option value="0">Nenhuma, quero o plano fechado</option>
@@ -1423,7 +1425,7 @@ function iniciaLembreteLocal(){
 }
 
 // =========================== CARDÁPIO ===========================
-const DADOS_V="43";   // troque junto com a versão do sw.js para furar o cache
+const DADOS_V="44";   // troque junto com a versão do sw.js para furar o cache
 let PREPS=null, PRECOS={}, PRECO_USR={}, BASE_REF="", PLANOCFG=null, PLANO_ID=null, FAVS=[];
 const PESO_REF={cafe:.22,lanche1:.10,almoco:.32,lanche2:.10,jantar:.22,ceia:.04};
 const TIPO_DE={cafe:"cafe",lanche1:"lanche",almoco:"almoco",lanche2:"lanche",jantar:"jantar",ceia:"ceia"};
@@ -1505,6 +1507,71 @@ function receitasComoPreps(){
   }).filter(p=>p.kcal>50);
 }
 
+// -------- entender alimento digitado sem acento ou com erro de grafia --------
+function distEdicao(a,b){                     // Levenshtein com corte rápido
+  if(a===b) return 0;
+  if(Math.abs(a.length-b.length)>3) return 9;
+  const m=a.length,n=b.length,d=new Array(n+1);
+  for(let j=0;j<=n;j++) d[j]=j;
+  for(let i=1;i<=m;i++){
+    let ant=d[0]; d[0]=i;
+    for(let j=1;j<=n;j++){
+      const tmp=d[j];
+      d[j]=Math.min(d[j]+1, d[j-1]+1, ant+(a[i-1]===b[j-1]?0:1));
+      ant=tmp;
+    }
+  }
+  return d[n];
+}
+function semPlural(w){ return w.length>4&&w.endsWith("s")?w.slice(0,-1):w; }
+// vocabulário: palavra significativa -> slugs de ingrediente que a contêm
+function vocabIngredientes(){
+  if(window.__vocab) return window.__vocab;
+  const v={};
+  Object.values(PRECOS).forEach(i=>{
+    const palavras=new Set();
+    (chave(i.nome)+" "+chave(i.taco_nome||"")).split(/[^a-z0-9]+/).forEach(w=>{
+      w=semPlural(w);
+      if(w.length>=4 && !["cozido","cozida","assado","assada","grelhado","grelhada","cru","crua",
+        "refogado","refogada","fresco","fresca","conserva","natural","integral","forma","tipo",
+        "pele","sem","com","doce","branco","branca","frito","frita","pronto","pronta"].includes(w))
+        palavras.add(w);
+    });
+    palavras.forEach(w=>{ (v[w]=v[w]||new Set()).add(i.slug); });
+  });
+  return (window.__vocab=v);
+}
+// devolve {slugs, livres, mapa} a partir do texto digitado pelo usuário
+function interpretaOdeio(texto){
+  const vocab=vocabIngredientes(), chaves=Object.keys(vocab);
+  const slugs=new Set(), livres=[], mapa=[];
+  (texto||"").split(",").map(x=>chave(x.trim())).filter(Boolean).forEach(termo=>{
+    const t=semPlural(termo.replace(/\s+/g," ").trim());
+    if(vocab[t]){ vocab[t].forEach(x=>slugs.add(x)); mapa.push({de:termo,para:t,exato:true}); return; }
+    // erro de digitação: aceita 1 erro até 6 letras, 2 acima disso
+    let melhor=null;
+    chaves.forEach(w=>{
+      const lim=w.length<=6?1:2;
+      const d=distEdicao(t,w);
+      if(d<=lim && (!melhor||d<melhor.d)) melhor={w,d};
+    });
+    if(melhor){ vocab[melhor.w].forEach(x=>slugs.add(x)); mapa.push({de:termo,para:melhor.w}); return; }
+    livres.push(termo); mapa.push({de:termo,para:null});
+  });
+  return {slugs:[...slugs], livres, mapa};
+}
+function ecoOdeio(){
+  const el=document.getElementById("odeioEco"); if(!el) return;
+  const txt=val("wOdeio");
+  if(!txt||!txt.trim()){ el.innerHTML=""; return; }
+  const r=interpretaOdeio(txt);
+  el.innerHTML=r.mapa.map(m=>{
+    if(m.exato) return `✅ <b>${esc(m.para)}</b>`;
+    if(m.para)  return `✅ "${esc(m.de)}" → entendi <b>${esc(m.para)}</b>`;
+    return `⚠️ "${esc(m.de)}" — não reconheci como ingrediente, vou usar como busca no nome do prato`;
+  }).join("<br>");
+}
+
 // --------------------------- questionário ---------------------------
 let WIZ=1; const WIZ_TOTAL=8;
 function chkList(box,lista,marcados){
@@ -1520,12 +1587,12 @@ async function abrirWizard(){
   const set=(id,v)=>{ const e=document.getElementById(id); if(e&&v!=null) e.value=v; };
   set("wInicio",c.inicio||hojeISO()); set("wDur",c.semanas||4); set("wDias",c.dias_semana||7);
   set("wVar",c.variedade||7); set("wJantarIgual",c.jantar_igual?1:0); set("wCompras",c.compras_dias||7);
-  set("wPeixe",c.peixe_semana!=null?c.peixe_semana:2); set("wVermelha",c.vermelha_semana!=null?c.vermelha_semana:3);
   set("wTempoSem",c.tempo_semana||45); set("wTempoFds",c.tempo_fds||999); set("wBatch",c.batch||1);
   set("wObj",c.objetivo||PERFIL.objetivo||"manter"); set("wProtKg",c.prot_g_kg||PERFIL.prot_g_kg||2);
   set("wVeg",c.veg_extra?1:0); set("wLivre",c.livre_semana!=null?c.livre_semana:1);
   set("wAlmoco",c.almoco_tipo||"casa");
-  set("wOdeio",(c.odeio||[]).join(", ")); set("wReceitas",c.usar_receitas===false?0:1);
+  set("wOdeio",c.odeio_texto!=null?c.odeio_texto:(c.odeio||[]).join(", "));
+  set("wLanchePrep",c.lanche_preparo||"casa"); set("wReceitas",c.usar_receitas===false?0:1);
   set("wSite",c.site_receita!=null?c.site_receita:"tudogostoso.com.br");
   chkList("wRefs",REFS,c.refeicoes||["cafe","lanche1","almoco","lanche2","jantar"]);
   chkList("wAlerg",ALERGIAS,c.alergias||[]);
@@ -1548,8 +1615,55 @@ function wizMostra(){
   document.getElementById("wizBar").style.width=Math.round(WIZ/WIZ_TOTAL*100)+"%";
   document.getElementById("wizBtnVolta").style.visibility=WIZ===1?"hidden":"visible";
   document.getElementById("wizBtnNext").textContent=WIZ===WIZ_TOTAL?"✨ Gerar cardápio":"Próximo →";
+  if(WIZ===5) montaDistribuicao();
+  if(WIZ===4) ecoOdeio();
   const d=document.getElementById("dlgWiz"); if(d) d.scrollTop=0;
   msg("wizMsg","");
+}
+// monta os seletores de dias por proteína escolhida no passo anterior
+function montaDistribuicao(){
+  const box=document.getElementById("wDist"); if(!box) return;
+  const escolhidas=chkVals("wProt");
+  const dias=parseInt(val("wDias"),10)||7;
+  const prev=(PLANOCFG&&PLANOCFG.prot_dias)||{};
+  if(!escolhidas.length){
+    box.innerHTML=`<div class="wh">Você não marcou nenhuma proteína preferida no passo anterior,
+      então eu fico livre para variar como achar melhor. Volte um passo se quiser dirigir isso.</div>`;
+    document.getElementById("wDistResumo").textContent="";
+    return;
+  }
+  box.innerHTML=escolhidas.map(k=>{
+    const rot=(PROTS.find(x=>x[0]===k)||[,k])[1];
+    const v=prev[k]!=null?prev[k]:Math.max(1,Math.round(dias/escolhidas.length));
+    return `<div class="row" style="justify-content:space-between;gap:8px;padding:8px 11px;
+        border:1.5px solid var(--border);border-radius:10px;background:var(--row);margin-bottom:6px">
+      <span style="font-size:14px">${rot}</span>
+      <select data-prot="${k}" onchange="resumoDistribuicao()" style="width:auto">
+        ${Array.from({length:dias+1},(_,d)=>
+          `<option value="${d}" ${d===v?"selected":""}>${d===0?"nenhum dia":d+(d===1?" dia":" dias")}</option>`).join("")}
+      </select></div>`;
+  }).join("");
+  resumoDistribuicao();
+}
+function leDistribuicao(){
+  const out={};
+  document.querySelectorAll("#wDist select[data-prot]").forEach(el=>{
+    out[el.dataset.prot]=parseInt(el.value,10)||0;
+  });
+  return out;
+}
+function resumoDistribuicao(){
+  const el=document.getElementById("wDistResumo"); if(!el) return;
+  const d=leDistribuicao(), dias=parseInt(val("wDias"),10)||7;
+  const soma=Object.values(d).reduce((a,b)=>a+b,0);
+  const txt=Object.entries(d).filter(([,v])=>v>0)
+    .map(([k,v])=>v+(v===1?" dia de ":" dias de ")+((PROTS.find(x=>x[0]===k)||[,k])[1].split(" ")[0].toLowerCase())).join(", ");
+  if(soma>dias) el.innerHTML=`Você somou <b>${soma} dias</b> numa semana de ${dias} —
+    dá certo assim mesmo, porque um dia pode ter duas proteínas (frango no almoço e carne no jantar).
+    Se ficar apertado demais, eu encaixo o que couber.`;
+  else if(soma===0) el.innerHTML="Nenhum dia reservado — fico livre para variar.";
+  else el.innerHTML=`Na semana: <b>${txt}</b>. Os outros ${dias-soma} dia(s) eu completo variando entre
+    ovo, leguminosas e o que couber no seu orçamento.`;
 }
 function wizVoltar(){ if(WIZ>1){ WIZ--; wizMostra(); } }
 function wizProximo(){
@@ -1564,6 +1678,7 @@ function wizOrcModo(){
 }
 function coletaCfg(){
   const modo=val("wOrcModo");
+  const od=interpretaOdeio(val("wOdeio"));
   const almoco=val("wAlmoco");
   let refs=REFS.map(([k])=>k).filter(k=>chkVals("wRefs").includes(k));
   if(almoco==="fora") refs=refs.filter(k=>k!=="almoco");   // come fora: sai do plano
@@ -1575,15 +1690,14 @@ function coletaCfg(){
     jantar_igual:val("wJantarIgual")==="1", compras_dias:parseInt(val("wCompras"),10),
     alergias:chkVals("wAlerg"), nao_come:chkVals("wNao"), proteinas:chkVals("wProt"),
     condicoes:cond,
-    peixe_semana:parseInt(val("wPeixe"),10), vermelha_semana:parseInt(val("wVermelha"),10),
+    prot_dias:leDistribuicao(), lanche_preparo:val("wLanchePrep")||"casa",
     livre_semana:parseInt(val("wLivre"),10)||0,
     tempo_semana:parseInt(val("wTempoSem"),10), tempo_fds:parseInt(val("wTempoFds"),10),
     batch: almoco==="marmita"?Math.max(2,parseInt(val("wBatch"),10)):parseInt(val("wBatch"),10),
     objetivo:val("wObj"), prot_g_kg:parseFloat(val("wProtKg")),
     veg_extra:val("wVeg")==="1",
     sodio_max: cond.includes("pressao")?1500:0,
-    odeio:(val("wOdeio")||"").split(",").map(x=>chave(x.trim())).filter(Boolean),
-    odeio_slugs:(PLANOCFG&&PLANOCFG.odeio_slugs)||[],
+    odeio:od.livres, odeio_slugs:od.slugs, odeio_texto:val("wOdeio")||"",
     usar_receitas:val("wReceitas")==="1", site_receita:val("wSite"),
     orcamento_mes: modo==="valor"?(parseFloat(val("wOrcValor"))||null):null,
     faixa_max: modo==="livre"?9:(modo==="faixa"?parseInt(val("wOrcFaixa"),10):9)
@@ -1611,8 +1725,14 @@ function odiado(p,cfg){
 function candidatos(ref,cfg,pool,dia){
   const tipo=TIPO_DE[ref];
   const limite=dia?(ehFds(dia)?cfg.tempo_fds:cfg.tempo_semana):999;
+  // lanche no trabalho: só o que dá para preparar antes e levar
+  const lanche=tipo==="lanche";
+  const semFogao=lanche && cfg.lanche_preparo==="levar" && (!dia || !ehFds(dia));
+  const semGeladeira=lanche && cfg.lanche_preparo==="levar_seco" && (!dia || !ehFds(dia));
   return pool.filter(p=>{
     if(!p.tipos.includes(tipo)) return false;
+    if(semGeladeira && !p.port_seco) return false;
+    if(semFogao && !p.port) return false;
     if((p.alerg||[]).some(a=>(cfg.alergias||[]).includes(a)||(cfg.nao_come||[]).includes(a))) return false;
     if(cfg.faixa_max<9 && (p.faixa||1)>cfg.faixa_max) return false;
     if(limite<999 && (p.tempo||0)>limite) return false;
@@ -1645,15 +1765,22 @@ function gerarPlano(cfg){
   const orcDia=cfg.orcamento_mes?cfg.orcamento_mes*12/365:null;
   const usada={}, usos={}, plano={}, faltou=new Set();
   const porSem=cfg.dias_semana===7?7:5;
-  let semana=-1, cota={peixe:0,boi:0};
+  const metas=cfg.prot_dias||{};
+  let semana=-1, cota={};
 
   dias.forEach((dia,di)=>{
     const sem=Math.floor(di/porSem);
-    if(sem!==semana){ semana=sem; cota={peixe:0,boi:0}; }
+    if(sem!==semana){ semana=sem; cota={}; }
     plano[dia]={};
-    const usadoHoje=new Set();
-    const contaCota=id=>{ const p=pool.find(x=>x.id===id), t=(p&&p.prot_tipos)||[];
-      if(t.includes("peixe")) cota.peixe++; if(t.includes("boi")) cota.boi++; };
+    const usadoHoje=new Set(), protHoje=new Set();
+    // a cota conta DIAS, não refeições: frango no almoço e no jantar é um dia de frango
+    const contaCota=id=>{
+      const p=pool.find(x=>x.id===id);
+      ((p&&p.prot_tipos)||[]).forEach(t=>{
+        if(t==="laticinio"||protHoje.has(t)) return;
+        protHoje.add(t); cota[t]=(cota[t]||0)+1;
+      });
+    };
 
     cfg.refeicoes.forEach(ref=>{
       if(ref==="jantar" && cfg.jantar_igual && plano[dia].almoco){
@@ -1698,14 +1825,20 @@ function gerarPlano(cfg){
         if(cond.includes("colesterol")) penH+=Math.max(0,n.sa-6)*0.06;
         if(cond.includes("anemia"))     penH-=Math.min(n.fe,6)*0.05;
         const bonus=((cfg.proteinas||[]).length&&(p.prot_tipos||[]).some(x=>cfg.proteinas.includes(x)))?-0.30:0;
-        let penQ=0; const tipos=p.prot_tipos||[];
-        if(cfg.peixe_semana>=0 && tipos.includes("peixe"))     penQ+= cota.peixe>=cfg.peixe_semana?3:-0.35;
-        if(cfg.vermelha_semana>=0 && tipos.includes("boi"))    penQ+= cota.boi>=cfg.vermelha_semana?3:-0.35;
+        let penQ=0; const tipos=(p.prot_tipos||[]).filter(t=>t!=="laticinio");
+        tipos.forEach(t=>{
+          const meta=metas[t];
+          if(meta==null||protHoje.has(t)) return;      // já contou hoje: não pesa de novo
+          if(meta===0) penQ+=3;                        // pediu nenhum dia dessa proteína
+          else if((cota[t]||0)>=meta) penQ+=3;         // cota da semana já cheia
+          else penQ-=0.40;                             // ainda falta: prioriza
+        });
         // marmita: salada crua não sobrevive ao reaquecimento
         if(cfg.almoco_tipo==="marmita" && ref==="almoco" &&
            (p.itens||[]).some(i=>["alface","rucula","pepino"].includes(i.slug))) penQ+=0.5;
         const mine=p.minha?-0.15:0;
-        const sc=erroK+penRep+penUso+penC+penP+penS+penH+penQ+bonus+mine+Math.random()*0.22;
+        const penBarato=n.custo*0.022;   // leve preferência por prato acessível, sempre
+        const sc=erroK+penRep+penUso+penC+penP+penS+penH+penQ+penBarato+bonus+mine+Math.random()*0.22;
         if(!isFinite(sc)) return;
         if(!best||sc<best.sc) best={sc,p,esc};
       });
